@@ -44,7 +44,7 @@ public:
     int screen()       { return m_windowManager->screen();  }
     
     Boolean isKeyboardMenuEvent (XEvent *e) {
-	(CONFIG_WANT_KEYBOARD_MENU && (e->type == KeyPress));
+        return (CONFIG_WANT_KEYBOARD_MENU && (e->type == KeyPress));
     }
 
     virtual void showFeedback(int) { }

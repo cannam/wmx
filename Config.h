@@ -171,16 +171,11 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // Allow keyboard control?
 #define CONFIG_USE_KEYBOARD       (dConfig.useKeyboard())
 
-// This is a keyboard modifier mask as defined in <X11/X.h>.  It's the
-// modifier required for wm controls: e.g. Alt/Left and Alt/Right to
-// flip channels, and Alt/Tab to switch windows.  (The default value
-// of Mod1Mask corresponds to Alt on many keyboards.  On my 105-key
-// PC keyboard, Mod3Mask corresponds to the windows-95 key.)
-// N.B.: if you have NumLock switched on, wmx might not get key events.
+// This is the key for wm controls: e.g. Alt/Left and Alt/Right to
+// flip channels, and Alt/Tab to switch windows.  (On my 105-key
+// PC keyboard, Meta_L corresponds to the left Windows key.)
 
-#define CONFIG_ALT_KEY_MASK       Mod4Mask
-//#define CONFIG_ALT_KEY_MASK       Mod3Mask
-#define CONFIG_ALT_KEY_SYM        XK_Meta_L
+#define CONFIG_ALT_KEY            XK_Meta_L
 
 // And these define the rest of the keyboard controls, when the above
 // modifier is pressed; they're keysyms as defined in <X11/keysym.h>

@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <X11/Xproto.h>
+#include <X11/keysym.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -48,7 +49,8 @@ implementPList(ListList, ClientList);
 WindowManager::WindowManager(int argc, char **argv) :
     m_focusChanging(False),
     m_altPressed(False),
-    m_altStateRetained(False)
+    m_altStateRetained(False),
+    m_altModMask(0) // later
 {
     char *home = getenv("HOME");
     char *wmxdir = getenv("WMXDIR");
@@ -213,6 +215,18 @@ WindowManager::WindowManager(int argc, char **argv) :
     m_shell = (char *)getenv("SHELL");
     if (!m_shell) m_shell = NewString("/bin/sh");
 
+    // find out what the Alt keycode and thus modifier mask are
+    KeyCode alt = XKeysymToKeycode(m_display, CONFIG_ALT_KEY);
+    XModifierKeymap *modmap = XGetModifierMapping(m_display);
+    for (i = 0; i < (8 * modmap->max_keypermod); ++i) {
+        if (modmap->modifiermap[i] == alt) {
+            m_altModMask = 1 << (i / modmap->max_keypermod);
+        }
+    }
+    if (!m_altModMask)
+        fatal("no modifier corresponds to the configured Alt keysym");
+    XFreeModifiermap(modmap);
+
     m_initialising = True;
     XSetErrorHandler(errorHandler);
     ignoreBadWindowErrors = False;
@@ -254,17 +268,12 @@ WindowManager::WindowManager(int argc, char **argv) :
     if (!XShapeQueryExtension(m_display, &m_shapeEvent, &dummy))
 	fatal("no shape extension, can't run without it");
 
-    // we only cope with one screen!
     initialiseScreen();
-    if(m_screensTotal > 1)
-    {
-	if(m_screensTotal > 10)
-	{
+    if (m_screensTotal > 1) {
+	if (m_screensTotal > 10) {
 	    fatal("No support for more than 10 screens (:x.0 - :x.9).\n");
-	}
-	else
-	{
-	    fprintf(stderr, "\n     Detected %d screens.",m_screensTotal);
+	} else {
+	    fprintf(stderr, "\n     Detected %d screens.", m_screensTotal);
 	}
     }
     

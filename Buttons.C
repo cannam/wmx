@@ -156,7 +156,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
 	Client *c = windowToClient(ev->window);
 
-        if (key == CONFIG_ALT_KEY_SYM) {
+        if (key == CONFIG_ALT_KEY) {
             m_altPressed = True;
             m_altStateRetained = False;
         }
@@ -216,7 +216,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 #endif // CONFIG_WANT_SUNPOWERKEY
 #endif // CONFIG_WANT_SUNKEYS
 
-       if (ev->state & CONFIG_ALT_KEY_MASK) {
+       if (ev->state & m_altModMask) {
 
            if (!m_altPressed) {
                // oops! bug
@@ -224,7 +224,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
                m_altPressed = True;
                m_altStateRetained = False;
 //        fprintf(stderr, "state is %ld, mask is %ld\n",
-//                (long)ev->state, (long)CONFIG_ALT_KEY_MASK);
+//                (long)ev->state, (long)m_altModMask);
            }
 
            if (key >= XK_F1 && key <= XK_F12 &&
@@ -324,12 +324,12 @@ void WindowManager::eventKeyRelease(XKeyEvent *ev)
 {
     KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
     
-    if (key == CONFIG_ALT_KEY_SYM) {
+    if (key == CONFIG_ALT_KEY) {
         m_altPressed = False;
         m_altStateRetained = False;
 
 //        fprintf(stderr, "state is %ld, mask is %ld\n",
-//                (long)ev->state, (long)CONFIG_ALT_KEY_MASK);
+//                (long)ev->state, (long)m_altModMask);
     }
     return;
 }

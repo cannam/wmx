@@ -42,6 +42,8 @@ public:
     void setScreenFromRoot(Window);
     void setScreenFromPointer();
 
+    int altModMask() { return m_altModMask; }
+
     enum RootCursor {
 	NormalCursor, DeleteCursor, DownCursor, RightCursor, DownrightCursor
     };
@@ -96,8 +98,6 @@ public:
     void gnomeUpdateChannelList();
     void gnomeUpdateCurrentChannel();
 #endif
-
-
 
 private:
     int loop();
@@ -205,14 +205,13 @@ private:
     Boolean m_altStateRetained;
     void eventKeyPress(XKeyEvent *);
 
-
 #if CONFIG_GNOME_COMPLIANCE != False
     void gnomeInitialiseCompliance();
     Window gnome_win;
 
 #endif
 
-
+    int m_altModMask;
 };
 
 #endif

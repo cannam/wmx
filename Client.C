@@ -208,26 +208,30 @@ void Client::manage(Boolean mapped)
 #endif
 	};
 
-        XGrabKey(display(), XKeysymToKeycode(display(), CONFIG_ALT_KEY_SYM),
+        XGrabKey(display(), XKeysymToKeycode(display(), CONFIG_ALT_KEY),
                  0, m_window, True, GrabModeAsync, GrabModeAsync);
 
 	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
 	    keycode = XKeysymToKeycode(display(), keys[i]);
 	    if (keycode) {
+                //!!! This assumes Mod2 is Num_Lock, which I don't
+                // much like.  Maybe we should set the mask to everything
+                // except shift, control and Mod1Mask, plus our Alt (which
+                // may be Mod1)?
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|LockMask|Mod2Mask,
+			 m_windowManager->altModMask()|LockMask|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|LockMask,
+			 m_windowManager->altModMask()|LockMask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|Mod2Mask,
+			 m_windowManager->altModMask()|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK,
+			 m_windowManager->altModMask(),
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 	    }
@@ -246,59 +250,59 @@ void Client::manage(Boolean mapped)
 
 		// both caps-lock and num-lock
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 m_windowManager->altModMask()|CONFIG_GROUP_REMOVE_ALL|
 			 LockMask|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|
+			 m_windowManager->altModMask()|CONFIG_GROUP_ADD|
 			 LockMask|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|LockMask|Mod2Mask,
+			 m_windowManager->altModMask()|LockMask|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 
 		// only caps-lock
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 m_windowManager->altModMask()|CONFIG_GROUP_REMOVE_ALL|
 			 LockMask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|LockMask,
+			 m_windowManager->altModMask()|CONFIG_GROUP_ADD|LockMask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|LockMask,
+			 m_windowManager->altModMask()|LockMask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		// only num-lock
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 m_windowManager->altModMask()|CONFIG_GROUP_REMOVE_ALL|
 			 Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|Mod2Mask,
+			 m_windowManager->altModMask()|CONFIG_GROUP_ADD|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|Mod2Mask,
+			 m_windowManager->altModMask()|Mod2Mask,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		// no locks
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL,
+			 m_windowManager->altModMask()|CONFIG_GROUP_REMOVE_ALL,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD,
+			 m_windowManager->altModMask()|CONFIG_GROUP_ADD,
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK,
+			 m_windowManager->altModMask(),
 			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 
@@ -328,7 +332,7 @@ void Client::manage(Boolean mapped)
 		keycode = XKeysymToKeycode(display(), XK_F1 + i);
 		if (keycode) {
 		    XGrabKey(display(), keycode,
-			     CONFIG_ALT_KEY_MASK, m_window, True,
+			     m_windowManager->altModMask(), m_window, True,
 			     GrabModeAsync, GrabModeAsync);
 		}
 	    }

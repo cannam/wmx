@@ -1,6 +1,21 @@
 /* vim:set ts=4 ai: ,e to add info */
 
-wmx-6cc1:
+wmx-6pre4:
+
+- 2000/05/11
+        change so as to use alt-modifier keysym instead of
+        coding the mask straight in to Config.h.  now Manager.C
+        looks up the mask itself.  this is so we can also use
+        the keysym to keep the Alt state up-to-date for the new
+        circulation stuff (besides, it makes configuration easier)
+        ... plus bugfix in isKeyboardMenuEvent
+
+wmx-6pre3:
+
+- 2000/05/11
+        Added Lasse's channel menu
+
+wmx-6pre2:
 
 - 2000/05/11
         attempted to merge Henri's wmx-6pre1+gnome+group, with
