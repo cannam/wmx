@@ -13,8 +13,8 @@ the source and recompiling the code.
 This release
 ============
 
-This is a development release of wmx, made in November 1997.  It's the
-third release to be made generally available.
+This is the fourth release to be made generally available, dating from
+January 1998.
 
 
 Building wmx
@@ -148,6 +148,12 @@ bindings are:
 
  -- To switch channels: Mod1/cursor-Left and Mod1/cursor-Right
 
+ -- To switch directly to channel number N, provided there is
+    a channel N (i.e. some client has been created there already):
+    Mod1 plus F-key N.  Thus for channel 2 press Mod1/F2 and so on.
+
+If you have NumLock switched on, the key controls might not work.
+
 
 Focus policy
 ============
@@ -228,5 +234,5 @@ If you find a bug, please report it to me (preferably with a fix).
 
 
 
-Chris Cannam, cannam@zands.com
-November 1997
+Chris Cannam, cannam@netcomuk.co.uk
+January 1998

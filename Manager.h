@@ -49,7 +49,6 @@ public:
     // shouldn't really be public
     int attemptGrab(Window, Window, int, int);
     void releaseGrab(XButtonEvent *);
-    void eventExposure(XExposeEvent *);	// for exposures during client grab
     void spawn(char *, char *);
 
     int channel() { return m_currentChannel; }
@@ -60,6 +59,10 @@ public:
 
     void hoistToTop(Client *);
     void removeFromOrderedList(Client *);
+
+    // for exposures during client grab, and window map/unmap/destroy
+    // during menu display:
+    void dispatchEvent(XEvent *);
 
 private:
     int loop();
@@ -92,8 +95,8 @@ private:
 
     int m_channels;
     int m_currentChannel;	// from 1 to ...
-    void flipChannel(Boolean = False, Boolean = False,
-		     Client * = 0, Boolean = False);
+    void flipChannel(Boolean statusOnly, Boolean flipDown,
+		     Boolean quickFlip, Client *push); // bleah!
     void instateChannel();
     void createNewChannel();
     void checkChannel(int);
@@ -136,6 +139,7 @@ private:
     void eventEnter(XCrossingEvent *);
     void eventReparent(XReparentEvent *);
     void eventFocusIn(XFocusInEvent *);
+    void eventExposure(XExposeEvent *);
 
     Boolean m_altPressed;
     void eventKeyPress(XKeyEvent *);

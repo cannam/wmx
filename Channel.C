@@ -17,8 +17,8 @@ static char *numerals[10][7] = {
 };
 
 
-void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
-				Client *push, Boolean flipDown)
+void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
+				Boolean quickFlip, Client *push)
 {
     if (!CONFIG_CHANNEL_SURF) return;
 
@@ -48,7 +48,7 @@ void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
 
     int nextChannel;
 
-    if (statusOnly || firstTime) nextChannel = m_currentChannel;
+    if (statusOnly) nextChannel = m_currentChannel;
     else {
 	if (!flipDown) {
 	    nextChannel = m_currentChannel + 1;
@@ -108,7 +108,8 @@ void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
     }
 
     m_currentChannel = nextChannel;
-    m_channelChangeTime = timestamp(True);
+    m_channelChangeTime = timestamp(True) +
+	(quickFlip ? CONFIG_QUICK_FLIP_DELAY : CONFIG_FLIP_DELAY);
 }
 
 
@@ -139,7 +140,7 @@ void WindowManager::instateChannel()
 
 void WindowManager::checkChannel(int ch)
 {
-    if (m_channels < 2 || ch < m_channels - 1) return;
+    if (m_channels <= 2 || ch < m_channels - 1) return;
 
     for (int i = m_orderedClients.count()-1; i >= 0; --i) {
 	if (m_orderedClients.item(i)->channel() == ch) return;

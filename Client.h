@@ -61,7 +61,7 @@ public:
     const char *iconName() { return m_iconName; }
 
     int channel() { return m_channel;  }
-    void flipChannel(Boolean, int);
+    void flipChannel(Boolean leaving, int newChannel);
     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
     void setChannel(int channel) { m_channel = channel; }
 

@@ -26,12 +26,12 @@ void WindowManager::eventButton(XButtonEvent *e)
 
 	    if (e->button == Button2) {
 
-		if (m_channelChangeTime == 0) flipChannel(False, True);
-		else flipChannel(False, False);
+		if (m_channelChangeTime == 0) flipChannel(True, False, False,0);
+		else flipChannel(False, False, False, 0);
 
 	    } else if (e->button == Button1 && m_channelChangeTime != 0) {
 
-		flipChannel(False, False, NULL, True);
+		flipChannel(False, True, False, 0);
 	    }
 
 	} else if (e->button == Button2 && m_channelChangeTime == 0) {
@@ -41,8 +41,8 @@ void WindowManager::eventButton(XButtonEvent *e)
     } else if (c) {
 
 	if (e->button == Button2 && CONFIG_CHANNEL_SURF) {
-	    if (m_channelChangeTime == 0) flipChannel(False, True);
-	    else flipChannel(False, False, c);
+	    if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
+	    else flipChannel(False, False, False, c);
 	    return;
 	}
 
@@ -94,46 +94,73 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
 	Client *c = windowToClient(ev->window);
 
-	switch (key) {
+	if (key >= XK_F1 && key <= XK_F12 &&
+	    CONFIG_CHANNEL_SURF && CONFIG_USE_CHANNEL_KEYS) {
 
-	case CONFIG_FLIP_DOWN_KEY:
-	    flipChannel(False, False, NULL, True);
-	    break;
+	    int channel = key - XK_F1 + 1;
+	    
+	    if (channel == m_currentChannel) {
 
-	case CONFIG_FLIP_UP_KEY:
-	    flipChannel(False, False);
-	    break;
+		flipChannel(True, False, False, 0);
+
+	    } else if (channel > 0 && channel <= m_channels) {
+
+		while (m_currentChannel != channel) {
+		    if (m_currentChannel < channel) {
+			flipChannel(False, False, True, 0);
+		    } else {
+			flipChannel(False, True, True, 0);
+		    }
+		    XSync(display(), False);
+		}
+	    }
+
+	} else {
+
+	    // These key names also appear in Client::manage(), so
+	    // when adding a key it must be added in both places
+
+	    switch (key) {
+
+	    case CONFIG_FLIP_DOWN_KEY:
+		flipChannel(False, True, False, 0);
+		break;
+
+	    case CONFIG_FLIP_UP_KEY:
+		flipChannel(False, False, False, 0);
+		break;
 	
-	case CONFIG_CIRCULATE_KEY:
-	    circulate(False);
-	    break;
+	    case CONFIG_CIRCULATE_KEY:
+		circulate(False);
+		break;
 
-	case CONFIG_HIDE_KEY:
-	    c->hide();
-	    break;
+	    case CONFIG_HIDE_KEY:
+		if (c) c->hide();
+		break;
 
-	case CONFIG_DESTROY_KEY:
-	    c->kill();
-	    break;
+	    case CONFIG_DESTROY_KEY:
+		if (c) c->kill();
+		break;
 
-	case CONFIG_RAISE_KEY:
-	    c->mapRaised();
-	    break;
+	    case CONFIG_RAISE_KEY:
+		if (c) c->mapRaised();
+		break;
 
-	case CONFIG_LOWER_KEY:
-	    c->lower();
-	    break;
+	    case CONFIG_LOWER_KEY:
+		if (c) c->lower();
+		break;
 
-	case CONFIG_FULLHEIGHT_KEY:
-	    c->fullHeight();
-	    break;
-
-	case CONFIG_NORMALHEIGHT_KEY:
-	    c->normalHeight();
-	    break;
-
-	default:
-	    return;
+	    case CONFIG_FULLHEIGHT_KEY:
+		if (c) c->fullHeight();
+		break;
+		
+	    case CONFIG_NORMALHEIGHT_KEY:
+		if (c) c->normalHeight();
+		break;
+		
+	    default:
+		return;
+	    }
 	}
 
 	XSync(display(), False);
@@ -205,7 +232,7 @@ void WindowManager::releaseGrab(XButtonEvent *e)
 
 void Client::move(XButtonEvent *e)
 {
-    int x = -1, y = -1, xoff, yoff;
+    int x = -1, y = -1;
     Boolean done = False;
     ShowGeometry geometry(m_windowManager, e);
 
@@ -214,8 +241,10 @@ void Client::move(XButtonEvent *e)
 	return;
     }
 
-    xoff = m_border->xIndent() - e->x;
-    yoff = m_border->yIndent() - e->y;
+    int mx = DisplayWidth (display(), windowManager()->screen()) - 1;
+    int my = DisplayHeight(display(), windowManager()->screen()) - 1;
+    int xi = m_border->xIndent();
+    int yi = m_border->yIndent();
 
     XEvent event;
     Boolean found;
@@ -245,7 +274,8 @@ void Client::move(XButtonEvent *e)
 	    break;
 
 	case Expose:
-	    m_windowManager->eventExposure(&event.xexpose);
+//	    m_windowManager->eventExposure(&event.xexpose);
+	    m_windowManager->dispatchEvent(&event);
 	    break;
 
 	case ButtonPress:
@@ -257,7 +287,6 @@ void Client::move(XButtonEvent *e)
 
 	case ButtonRelease:
 
-	    x = event.xbutton.x; y = event.xbutton.y;
 	    if (!nobuttons(&event.xbutton)) doSomething = False;
 
 	    m_windowManager->releaseGrab(&event.xbutton);
@@ -265,10 +294,32 @@ void Client::move(XButtonEvent *e)
 	    break;
 
 	case MotionNotify:
-	    x = event.xbutton.x; y = event.xbutton.y;
-	    if (x + xoff != m_x || y + yoff != m_y) {
-		geometry.update(x + xoff, y + yoff);
-		m_border->moveTo(x + xoff, y + yoff);
+
+	    int nx = event.xbutton.x - e->x;
+	    int ny = event.xbutton.y - e->y;
+
+	    if (nx != x || ny != y) {
+
+		if (doSomething) { // so x,y have sensible values already
+
+		    // bumping!
+
+		    if (nx < x && nx <= 0 && nx > -CONFIG_BUMP_DISTANCE) nx = 0;
+		    if (ny < y && ny <= 0 && ny > -CONFIG_BUMP_DISTANCE) ny = 0;
+
+		    if (nx > x && nx >= mx - m_w - xi &&
+			nx < mx - m_w - xi + CONFIG_BUMP_DISTANCE)
+			nx = mx - m_w - xi;
+		    if (ny > y && ny >= my - m_h - yi &&
+			ny < my - m_h - yi + CONFIG_BUMP_DISTANCE)
+			ny = my - m_h - yi;
+		}
+
+		x = nx;
+		y = ny;
+
+		geometry.update(x, y);
+		m_border->moveTo(x + xi, y + yi);
 		doSomething = True;
 	    }
 	    break;
@@ -277,9 +328,9 @@ void Client::move(XButtonEvent *e)
 
     geometry.remove();
 
-    if (x >= 0 && doSomething) {
-	m_x = x + xoff;
-	m_y = y + yoff;
+    if (doSomething) {
+	m_x = x + xi;
+	m_y = y + yi;
     }
 
     if (CONFIG_CLICK_TO_FOCUS) activate();
@@ -373,7 +424,8 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 	    break;
 
 	case Expose:
-	    m_windowManager->eventExposure(&event.xexpose);
+//	    m_windowManager->eventExposure(&event.xexpose);
+	    m_windowManager->dispatchEvent(&event);
 	    break;
 
 	case ButtonPress:
@@ -549,7 +601,8 @@ void Border::eventButton(XButtonEvent *e)
 	    break;
 
 	case Expose:
-	    windowManager()->eventExposure(&event.xexpose);
+//	    windowManager()->eventExposure(&event.xexpose);
+	    windowManager()->dispatchEvent(&event);
 	    break;
 
 	case ButtonPress:

@@ -28,7 +28,7 @@ WindowManager::WindowManager() :
     m_altPressed(False)
 {
     fprintf(stderr, "\nwmx: Copyright (c) 1996-7 Chris Cannam."
-	    "  Second release, May 1997\n"
+	    "  Fourth release, Jan 1998\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
 	    "     %s\n     Copying and redistribution encouraged.  "
@@ -83,13 +83,25 @@ WindowManager::WindowManager() :
 	fprintf(stderr, "Skeletal feedback off.  ");
     }
 
+    if (CONFIG_CHANNEL_SURF) {
+	fprintf(stderr, "Channels on.");
+    } else {
+	fprintf(stderr, "Channels off.");
+    }	
+
     if (CONFIG_USE_KEYBOARD) {
 	fprintf(stderr, "\n     Keyboard controls available.  ");
     } else {
 	fprintf(stderr, "\n     No keyboard controls.  ");
     }
 
-    fprintf(stderr, "Command menu taken from $HOME/"
+    if (CONFIG_USE_CHANNEL_KEYS) {
+	fprintf(stderr, "Quick keyboard channel-surf available.  ");
+    } else {
+	fprintf(stderr, "No quick keyboard channel-surf.  ");
+    }
+
+    fprintf(stderr, "\n     Command menu taken from $HOME/"
 	    CONFIG_COMMAND_MENU ".");
 
     fprintf(stderr, "\n     (To reconfigure, simply edit and recompile.)\n\n");
@@ -140,7 +152,6 @@ WindowManager::WindowManager() :
     
     clearFocus();
     scanInitialWindows();
-//    flipChannel(True);
     loop();
 }
 

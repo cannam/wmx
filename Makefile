@@ -1,5 +1,7 @@
 
-# if you're not using background pixmaps, remove -lXpm from the next line
+# If you're not using background pixmaps, remove -lXpm from the LIBS.
+# If your X libraries are somewhere other than /usr/X11/lib, give their
+# location here.
 LIBS	=  -L/usr/X11/lib -lXpm -lXext -lX11 -lXmu -lm
 
 CC	= gcc

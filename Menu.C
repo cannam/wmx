@@ -167,7 +167,10 @@ int Menu::getSelection()
 	    speculating = True;
 	}
 
-	while (XCheckMaskEvent(display(), MenuMask, &event)) {
+	//!!! MenuMask | ??? suggests MenuMask is wrong
+	while (XCheckMaskEvent
+	       (display(), MenuMask | StructureNotifyMask |
+		KeyPressMask | KeyReleaseMask, &event)) {
 	    foundEvent = True;
 	    if (event.type != MotionNotify) break;
 	}
@@ -182,10 +185,6 @@ int Menu::getSelection()
 	
 	switch (event.type)
 	{
-	default:
-	    fprintf(stderr, "wmx: unknown event type %d\n", event.type);
-	    break;
-	    
 	case ButtonPress:
 	    break;
 	    
@@ -207,7 +206,7 @@ int Menu::getSelection()
 		else if (i < 0 || i >= m_nItems) i = -1;
 
 	    } else {
-		selecting = -1;
+		i = -1;
 	    }
 	    
 	    if (!nobuttons(&event.xbutton)) i = -1;
@@ -254,7 +253,7 @@ int Menu::getSelection()
 	case Expose:
 
 	    if (CONFIG_MAD_FEEDBACK && event.xexpose.window != m_window) {
-		m_windowManager->eventExposure((XExposeEvent *)&event);
+		m_windowManager->dispatchEvent(&event);
 		break;
 	    }
 
@@ -288,6 +287,14 @@ int Menu::getSelection()
 
 	    drawn = True;
 	    break;
+
+	case KeyPress:
+	case KeyRelease:
+	    break;
+
+	default:
+	    if (event.xmap.window == m_window) break;
+	    m_windowManager->dispatchEvent(&event);
 	}
     }
 
@@ -301,7 +308,8 @@ ClientMenu::ClientMenu(WindowManager *manager, XButtonEvent *e)
     : Menu(manager, e), m_allowExit(False)
 {
     int selecting = getSelection();
-
+//    XSync(display(), True);
+    
     if (selecting == m_nItems-1 && m_allowExit) { // getItems sets m_allowExit
 	m_windowManager->setSignalled();
 	return;

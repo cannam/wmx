@@ -157,17 +157,26 @@ void Client::manage(Boolean mapped)
 
     if (CONFIG_USE_KEYBOARD) {
 
+	int i;
+
 	static KeySym keys[] = {
 	    CONFIG_FLIP_UP_KEY, CONFIG_FLIP_DOWN_KEY, CONFIG_CIRCULATE_KEY,
 	    CONFIG_HIDE_KEY, CONFIG_DESTROY_KEY, CONFIG_RAISE_KEY,
 	    CONFIG_LOWER_KEY, CONFIG_FULLHEIGHT_KEY, CONFIG_NORMALHEIGHT_KEY
 	};
 
-	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
+	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
+ 	    XGrabKey(display(), XKeysymToKeycode(display(), keys[i]),
+ 		     CONFIG_ALT_KEY_MASK, m_window, True,
+ 		     GrabModeAsync, GrabModeAsync);
+	}
 
-	    XGrabKey(display(), XKeysymToKeycode(display(), keys[i]),
-		     CONFIG_ALT_KEY_MASK, m_window, True,
-		     GrabModeAsync, GrabModeAsync);
+	if (CONFIG_USE_CHANNEL_KEYS) {
+	    for (i = 0; i < 12; ++i) {
+ 		XGrabKey(display(), XKeysymToKeycode(display(), XK_F1 + i),
+ 			 CONFIG_ALT_KEY_MASK, m_window, True,
+ 			 GrabModeAsync, GrabModeAsync);
+	    }
 	}
     }
 

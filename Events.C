@@ -11,112 +11,117 @@ int WindowManager::loop()
     while (m_looping) {
 
 	nextEvent(&ev);
-	m_currentTime = CurrentTime;
-
-	switch (ev.type) {
-
-	case ButtonPress:
-	    eventButton(&ev.xbutton);
-	    break;
-
-	case ButtonRelease:
-	    break;
-
-	case KeyPress:
-	    eventKeyPress(&ev.xkey); // in Buttons.C
-	    break;
-
-	case KeyRelease:
-	    eventKeyRelease(&ev.xkey); // in Buttons.C
-	    break;
-
-	case MapRequest:
-	    eventMapRequest(&ev.xmaprequest);
-	    break;
-
-	case ConfigureRequest:
-	    eventConfigureRequest(&ev.xconfigurerequest);
-	    break;
-
-	case UnmapNotify:
-	    eventUnmap(&ev.xunmap);
-	    break;
-
-	case CreateNotify:
-	    eventCreate(&ev.xcreatewindow);
-	    break;
-
-	case DestroyNotify:
-	    eventDestroy(&ev.xdestroywindow);
-	    break;
-
-	case ClientMessage:
-	    eventClient(&ev.xclient);
-	    break;
-
-	case ColormapNotify:
-	    eventColormap(&ev.xcolormap);
-	    break;
-	    
-	case PropertyNotify:
-	    eventProperty(&ev.xproperty);
-	    break;
-	    
-	case SelectionClear:
-	    fprintf(stderr, "wmx: SelectionClear (this should not happen)\n");
-	    break;
-
-	case SelectionNotify:
-	    fprintf(stderr, "wmx: SelectionNotify (this should not happen)\n");
-	    break;
-
-	case SelectionRequest:
-	    fprintf(stderr, "wmx: SelectionRequest (this should not happen)\n");
-	    break;
-
-	case EnterNotify:
-	case LeaveNotify:
-	    eventEnter(&ev.xcrossing);
-	    break;
-
-	case ReparentNotify:
-	    eventReparent(&ev.xreparent);
-	    break;
-
-	case FocusIn:
-	    eventFocusIn(&ev.xfocus);
-	    break;
-
-	case Expose:		// might be wm tab
-	    eventExposure(&ev.xexpose);
-	    break;
-
-	case MotionNotify:
-	    if (CONFIG_AUTO_RAISE && m_focusChanging) {
-		if (!m_focusPointerMoved) m_focusPointerMoved = True;
-		else m_focusPointerNowStill = False;
-	    }
-	    break;
-
-	case FocusOut:
-	case ConfigureNotify:
-	case MapNotify:
-	case MappingNotify:
-	    break;
-
-	default:
-//	    if (ev.type == m_shapeEvent) eventShapeNotify((XShapeEvent *)&ev);
-	    if (ev.type == m_shapeEvent) {
-		fprintf(stderr, "wmx: shaped windows are not supported\n");
-	    } else {
-		fprintf(stderr, "wmx: unsupported event type %d\n", ev.type);
-	    }
-	    break;
-	}
+	dispatchEvent(&ev);
     }
-    
+
     release();
     return m_returnCode;
+}
+
+void WindowManager::dispatchEvent(XEvent *ev)
+{
+    m_currentTime = CurrentTime;
+
+    switch (ev->type) {
+
+    case ButtonPress:
+	eventButton(&ev->xbutton);
+	break;
+
+    case ButtonRelease:
+	break;
+	
+    case KeyPress:
+	eventKeyPress(&ev->xkey); // in Buttons.C
+	break;
+	
+    case KeyRelease:
+	eventKeyRelease(&ev->xkey); // in Buttons.C
+	break;
+	
+    case MapRequest:
+	eventMapRequest(&ev->xmaprequest);
+	break;
+	
+    case ConfigureRequest:
+	eventConfigureRequest(&ev->xconfigurerequest);
+	break;
+	
+    case UnmapNotify:
+	eventUnmap(&ev->xunmap);
+	break;
+	
+    case CreateNotify:
+	eventCreate(&ev->xcreatewindow);
+	break;
+	
+    case DestroyNotify:
+	eventDestroy(&ev->xdestroywindow);
+	break;
+	
+    case ClientMessage:
+	eventClient(&ev->xclient);
+	break;
+	
+    case ColormapNotify:
+	eventColormap(&ev->xcolormap);
+	break;
+	
+    case PropertyNotify:
+	eventProperty(&ev->xproperty);
+	break;
+	
+    case SelectionClear:
+	fprintf(stderr, "wmx: SelectionClear (this should not happen)\n");
+	break;
+	
+    case SelectionNotify:
+	fprintf(stderr, "wmx: SelectionNotify (this should not happen)\n");
+	break;
+	
+    case SelectionRequest:
+	fprintf(stderr, "wmx: SelectionRequest (this should not happen)\n");
+	break;
+	
+    case EnterNotify:
+    case LeaveNotify:
+	eventEnter(&ev->xcrossing);
+	break;
+	
+    case ReparentNotify:
+	eventReparent(&ev->xreparent);
+	break;
+	
+    case FocusIn:
+	eventFocusIn(&ev->xfocus);
+	break;
+	
+    case Expose:		// might be wm tab
+	eventExposure(&ev->xexpose);
+	break;
+	
+    case MotionNotify:
+	if (CONFIG_AUTO_RAISE && m_focusChanging) {
+	    if (!m_focusPointerMoved) m_focusPointerMoved = True;
+	    else m_focusPointerNowStill = False;
+	}
+	break;
+	
+    case FocusOut:
+    case ConfigureNotify:
+    case MapNotify:
+    case MappingNotify:
+	break;
+	
+    default:
+//	    if (ev->type == m_shapeEvent) eventShapeNotify((XShapeEvent *)ev);
+	if (ev->type == m_shapeEvent) {
+	    fprintf(stderr, "wmx: shaped windows are not supported\n");
+	} else {
+	    fprintf(stderr, "wmx: unsupported event type %d\n", ev->type);
+	}
+	break;
+    }
 }
 
 
@@ -133,7 +138,8 @@ void WindowManager::nextEvent(XEvent *e)
 
 	if (m_channelChangeTime > 0) {
 	    Time t = timestamp(True);
-	    if (t < m_channelChangeTime || t - m_channelChangeTime > 1000) {
+//!!!	    if (t < m_channelChangeTime || t - m_channelChangeTime > 1000) {
+	    if (t >= m_channelChangeTime) {
 		instateChannel();
 	    }
 	}
