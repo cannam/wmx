@@ -55,14 +55,15 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *home = getenv("HOME");
     char *wmxdir = getenv("WMXDIR");
     
-    fprintf(stderr, "\nwmx: Copyright (c) 1996-2001 Chris Cannam."
-	    "  Sixth release, April 2001\n"
+    fprintf(stderr, "\nwmx: Copyright (c) 1996-2003 Chris Cannam."
+	    "  Not a release\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
  	    "     Japanize code Copyright (c) 1998 Kazushi (Jam) Marukawa\n"
  	    "     Original keyboard-menu code Copyright (c) 1998 Nakayama Shintaro\n"
 	    "     Dynamic configuration code Copyright (c) 1998 Stefan `Sec' Zehl\n"
 	    "     Multihead display code Copyright (c) 2000 Sven Oliver `SvOlli' Moll\n"
+	    "     See source distribution for other patch contributors\n"
 	    "     %s\n     Copying and redistribution encouraged.  "
 	    "No warranty.\n\n", XV_COPYRIGHT);
 
