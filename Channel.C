@@ -117,7 +117,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 
 	for (i = 0; i < considering.count(); ++i) {
 	    if (considering.item(i) == push || considering.item(i)->isSticky()
-#ifdef CONFIG_USE_WINDOW_GROUPS
+#if CONFIG_USE_WINDOW_GROUPS
 		|| (push &&
 		    push->hasWindow(considering.item(i)->groupParent()))
 #endif

@@ -53,7 +53,7 @@ public:
     Boolean isTransient()  { return ((m_transient != None)||(m_shaped)); }
     Boolean isSticky()    { return m_sticky; }
     Window  transientFor() { return m_transient; }
-#ifdef CONFIG_USE_WINDOW_GROUPS
+#if CONFIG_USE_WINDOW_GROUPS
     Window  groupParent() { return m_groupParent; }
     Boolean isGroupParent() { return m_window == m_groupParent; }
 #endif

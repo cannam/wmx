@@ -263,8 +263,10 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*,-*-*-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed,-*-*-*-*-*-*-14-*-75-75-*-*-*-*"
 #else
-#define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
-#define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
+//#define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
+//#define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
+#define CONFIG_NICE_FONT	  "-*-verdana-medium-r-*-*-12-*-*-*-*-*-*-*"
+#define CONFIG_NICE_MENU_FONT	  "-*-verdana-medium-r-*-*-12-*-*-*-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed"
 #endif
 

@@ -410,7 +410,7 @@ void Client::eventConfigureRequest(XConfigureRequestEvent *e)
     XConfigureWindow(display(), e->window, e->value_mask, &wc);
 
     // if parent==root, it's not managed yet -- & it'll be raised when it is
-    if (raise && parent() != root()) {
+    if (raise && (parent() != root())) {
 
 	if (CONFIG_AUTO_RAISE) {
 

@@ -173,7 +173,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
             m_altStateRetained = False;
         }
 
-#ifdef CONFIG_WANT_SUNKEYS
+#if CONFIG_WANT_SUNKEYS
 #ifdef CONFIG_QUICKRAISE_KEY
 	if (key == CONFIG_QUICKRAISE_KEY && c) {
 
@@ -184,19 +184,19 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 	    }
 	    
 	} else
-#endif CONFIG_QUICKRAISE_KEY
+#endif // CONFIG_QUICKRAISE_KEY
 #ifdef CONFIG_QUICKHIDE_KEY
 	if (key == CONFIG_QUICKHIDE_KEY && c) {
 	    c->hide();
 	      
 	} else 
-#endif CONFIG_QUICKHIDE_KEY
+#endif // CONFIG_QUICKHIDE_KEY
 #ifdef CONFIG_QUICKCLOSE_KEY
 	if (key == CONFIG_QUICKCLOSE_KEY && c) {
 	    c->kill();
 
 	} else
-#endif CONFIG_QUICKCLOSE_KEY
+#endif // CONFIG_QUICKCLOSE_KEY
 #ifdef CONFIG_QUICKHEIGHT_KEY
 	if (key == CONFIG_QUICKHEIGHT_KEY && c) {
 
@@ -207,7 +207,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 	    }
 
 	} else
-#endif //CONFIG_QUICKHEIGHT_KEY
+#endif // CONFIG_QUICKHEIGHT_KEY
 #if CONFIG_WANT_SUNPOWERKEY
 	  if (key == SunXK_PowerSwitch) {
            pid_t pid = fork();

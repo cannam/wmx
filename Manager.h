@@ -48,7 +48,7 @@ public:
 	NormalCursor, DeleteCursor, DownCursor, RightCursor, DownrightCursor
     };
 
-#ifdef CONFIG_USE_WINDOW_GROUPS
+#if CONFIG_USE_WINDOW_GROUPS
     void withdrawGroup(Window groupParent, Client *omit,
 		       Boolean changeState = True);
     void hideGroup(Window groupParent, Client *omit);

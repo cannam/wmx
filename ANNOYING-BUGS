@@ -1,0 +1,20 @@
+
+1. If a client deletes itself while you're sitting there holding down
+the mouse button dithering over the client menu, and then you select
+that client from the menu, wmx crashes.  A real-world example of a
+client that might do that: the Mozilla download progress window.
+
+2. If you leave the mouse pointer over the title bar of a window and
+then the window changes its title to something shorter, it may lose
+focus because the pointer is no longer over the shorter title bar.
+Fix is probably to warp the pointer so that it's still within the
+title bar area -- bad, but better.
+
+3. Some transient windows appear to have their position set at 0,0 but
+I've never seen a case where this is actually what is wanted.  For
+example, Mozilla file dialogs always appear glued to the top-left
+corner of the screen.  Identify such dialogs and place them centrally
+over their parent instead.
+
+4. Mad-feedback frames are sometimes left behind when applications
+exit, for example if they exit when changing desktop.
