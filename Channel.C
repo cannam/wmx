@@ -44,7 +44,8 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	wa.override_redirect = True;
 	
 	    m_channelWindow[sc] = XCreateWindow
-	      (display(), mroot(sc), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
+		(display(), mroot(sc),
+		 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
     }
     }

@@ -232,7 +232,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
            if (!m_altPressed) {
                // oops! bug
-               fprintf(stderr, "wmx: Alt key record in inconsistent state\n");
+//               fprintf(stderr, "wmx: Alt key record in inconsistent state\n");
                m_altPressed = True;
                m_altStateRetained = False;
 //        fprintf(stderr, "state is %ld, mask is %ld\n",
@@ -254,11 +254,11 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 		switch (key) {
 
 		case CONFIG_FLIP_DOWN_KEY:
-		    flipChannel(False, True, False, 0);
+		    flipChannel(False, True, True, 0);
 		    break;
 
 		case CONFIG_FLIP_UP_KEY:
-		    flipChannel(False, False, False, 0);
+		    flipChannel(False, False, True, 0);
 		    break;
 	
 		case CONFIG_CIRCULATE_KEY:
@@ -467,13 +467,17 @@ void Client::eventButton(XButtonEvent *e)
 
     if (e->button == CONFIG_CLIENTMENU_BUTTON) {
 	if (m_border->hasWindow(e->window)) {
-
 	    m_border->eventButton(e);
+	} else {
+	    e->x += m_border->xIndent();
+	    e->y += m_border->yIndent();
+	    move(e);
 	}
     }
 
-    if (CONFIG_RAISELOWER_ON_CLICK && wasTop && !doSomething)
+    if (CONFIG_RAISELOWER_ON_CLICK && wasTop && !m_doSomething) {
 	lower();
+    }
 
     if (!isNormal() || isActive() || e->send_event) return;
     activate();
@@ -562,7 +566,7 @@ void Client::move(XButtonEvent *e)
     Boolean found;
     struct timeval sleepval;
 
-    doSomething = False;
+    m_doSomething = False;
     while (!done) {
 
 	found = False;
@@ -574,7 +578,7 @@ void Client::move(XButtonEvent *e)
 
 	if (!found) {
 	    sleepval.tv_sec = 0;
-	    sleepval.tv_usec = 50000;
+	    sleepval.tv_usec = 1000;
 	    select(0, 0, 0, 0, &sleepval);
 	    continue;
 	}
@@ -593,13 +597,13 @@ void Client::move(XButtonEvent *e)
 	case ButtonPress:
 	    // don't like this
 	    XUngrabPointer(display(), event.xbutton.time);
-	    doSomething = False;
+	    m_doSomething = False;
 	    done = True;
 	    break;
 
 	case ButtonRelease:
 
-	    if (!nobuttons(&event.xbutton)) doSomething = False;
+	    if (!nobuttons(&event.xbutton)) m_doSomething = False;
 
 	    m_windowManager->releaseGrab(&event.xbutton);
 	    done = True;
@@ -612,7 +616,7 @@ void Client::move(XButtonEvent *e)
 
 	    if (nx != x || ny != y) {
 
-		if (doSomething) { // so x,y have sensible values already
+		if (m_doSomething) { // so x,y have sensible values already
 
 		    // bumping!
 
@@ -632,7 +636,7 @@ void Client::move(XButtonEvent *e)
 
 		geometry.update(x, y);
 		m_border->moveTo(x + xi, y + yi);
-		doSomething = True;
+		m_doSomething = True;
 	    }
 	    break;
 	}
@@ -640,7 +644,7 @@ void Client::move(XButtonEvent *e)
 
     geometry.remove();
 
-    if (doSomething) {
+    if (m_doSomething) {
 	m_x = x + xi;
 	m_y = y + yi;
     }
@@ -712,7 +716,7 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
     Boolean done = False;
     struct timeval sleepval;
 
-    doSomething = False;
+    m_doSomething = False;
     while (!done) {
 
 	found = False;
@@ -724,7 +728,7 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 
 	if (!found) {
 	    sleepval.tv_sec = 0;
-	    sleepval.tv_usec = 50000;
+	    sleepval.tv_usec = 10000;
 	    select(0, 0, 0, 0, &sleepval);
 	    continue;
 	}
@@ -768,7 +772,7 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		if (CONFIG_RESIZE_UPDATE)
 		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
-		doSomething = True;
+		m_doSomething = True;
 
 	    } else if (vertical) {
 		prevH = h; h = y - m_y;
@@ -778,7 +782,7 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		if (CONFIG_RESIZE_UPDATE)
 		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
-		doSomething = True;
+		m_doSomething = True;
 
 	    } else {
 		prevW = w; w = x - m_x;
@@ -788,14 +792,14 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		if (CONFIG_RESIZE_UPDATE)
 		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
-		doSomething = True;
+		m_doSomething = True;
 	    }
 
 	    break;
 	}
     }
 
-    if (doSomething) {
+    if (m_doSomething) {
 
 	geometry.remove();
 

@@ -138,7 +138,7 @@ private:
     int m_bw;
     Window m_wroot;
     int m_screen;
-    Boolean doSomething;	// Become true if move() or resize() made
+    Boolean m_doSomething;	// Become true if move() or resize() made
 				// effect to this client.
 
     int m_channel;

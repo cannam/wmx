@@ -213,6 +213,11 @@ void Client::manage(Boolean mapped)
         XGrabKey(display(), XKeysymToKeycode(display(), CONFIG_ALT_KEY),
                  0, m_window, True, GrabModeAsync, GrabModeAsync);
 
+	// for dragging windows from anywhere with Alt pressed
+	XGrabButton(display(), Button1,
+		    m_windowManager->altModMask(), m_window, False, 0,
+		    GrabModeAsync, GrabModeSync, None, None);
+
 	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
 	    keycode = XKeysymToKeycode(display(), keys[i]);
 	    if (keycode) {

@@ -78,8 +78,8 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 // What to run to get a new window (from the "New" menu option)
 #define CONFIG_NEW_WINDOW_LABEL "New"
-//#define CONFIG_NEW_WINDOW_COMMAND "xterm"
-#define CONFIG_NEW_WINDOW_COMMAND "/home/chris/.wmx/terminal"
+#define CONFIG_NEW_WINDOW_COMMAND "xterm"
+//#define CONFIG_NEW_WINDOW_COMMAND "/home/ccannam/.wmx/terminal"
 #define CONFIG_NEW_WINDOW_COMMAND_OPTIONS 0
 // or, for example,
 //#define CONFIG_NEW_WINDOW_COMMAND_OPTIONS "-ls","-sb","-sl","1024",0
@@ -119,7 +119,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 #define CONFIG_AUTO_RAISE_DELAY       (dConfig.raiseDelay())
 #define CONFIG_POINTER_STOPPED_DELAY  80
-#define CONFIG_DESTROY_WINDOW_DELAY   1000
+#define CONFIG_DESTROY_WINDOW_DELAY   600
 
 // Number of pixels off the screen you have to push a window
 // before the manager notices the window is off-screen (the higher
@@ -182,7 +182,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // flip channels, and Alt/Tab to switch windows.  (On my 105-key
 // PC keyboard, Meta_L corresponds to the left Windows key.)
 
-#define CONFIG_ALT_KEY            XK_Meta_L
+#define CONFIG_ALT_KEY            XK_Super_L
 
 // And these define the rest of the keyboard controls, when the above
 // modifier is pressed; they're keysyms as defined in <X11/keysym.h>
@@ -277,10 +277,8 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*,-*-*-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed,-*-*-*-*-*-*-14-*-75-75-*-*-*-*"
 #else
-//#define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
-//#define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
-#define CONFIG_NICE_FONT	  "-*-verdana-medium-r-*-*-12-*-*-*-*-*-*-*"
-#define CONFIG_NICE_MENU_FONT	  "-*-verdana-medium-r-*-*-12-*-*-*-*-*-*-*"
+#define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
+#define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed"
 #endif
 

@@ -620,8 +620,7 @@ void ClientMenu::raiseFeedbackLevel(int item)
 }
 
 
-CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
-			 char* otherdir = NULL)
+CommandMenu::CommandMenu(WindowManager *manager, XEvent *e, char* otherdir)
     : Menu(manager, e)
 {
     const char *home = getenv("HOME");

@@ -1,5 +1,10 @@
 /* vim:set ts=4 ai: ,e to add info */
 
+- 2000/05/12
+	added Zvezdan Petkovic's patch for horizontal and full-
+	screen maximise as well as vertical, and to make maximise
+	and unmaximise optionally use the same key (toggle).
+
 wmx-6pre4:
 
 - 2000/05/11
