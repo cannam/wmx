@@ -752,11 +752,10 @@ void Border::setFrameVisibility(Boolean visible, int w, int h)
     }
 
     int final = rl.count();
-    rl.append(rl.item(final-1));
-    rl.item(final).x -= 1;
-    rl.item(final).y += rl.item(final).height;
-    rl.item(final).width += 1;
-    rl.item(final).height = h - rl.item(final).height + 2;
+    rl.append(rl.item(final-1).x - 1,
+              rl.item(final-1).y + rl.item(final-1).height,
+              rl.item(final-1).width + 1,
+              h - rl.item(final-1).height + 2);
 
     XShapeCombineRectangles(display(), m_parent, ShapeBounding,
 			    0, 0, rl.xrectangles(), rl.count(),
