@@ -51,6 +51,9 @@ public:
     char rightCirculate();
     char rightLower();
     char rightToggleHeight();
+    char *tabForeground();
+    char *tabBackground();
+    char *frameBackground();
 
     static DynamicConfig dynamicConfig;
 
@@ -293,15 +296,15 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // one-pixel border around the edge of each piece of decoration, not
 // for the whole decoration
 
-#define CONFIG_TAB_FOREGROUND	  "black"
-#define CONFIG_TAB_BACKGROUND     "gray80"
-#define CONFIG_FRAME_BACKGROUND   "gray95"
-#define CONFIG_BUTTON_BACKGROUND  "gray95"
+#define CONFIG_TAB_FOREGROUND     (dConfig.tabForeground())
+#define CONFIG_TAB_BACKGROUND     (dConfig.tabBackground())
+#define CONFIG_FRAME_BACKGROUND   (dConfig.frameBackground())
+#define CONFIG_BUTTON_BACKGROUND  (dConfig.frameBackground())
 #define CONFIG_BORDERS            "black"
 #define CONFIG_CHANNEL_NUMBER	  "green"
 
-#define CONFIG_MENU_FOREGROUND    "black"
-#define CONFIG_MENU_BACKGROUND    "gray80"
+#define CONFIG_MENU_FOREGROUND    (dConfig.tabForeground())
+#define CONFIG_MENU_BACKGROUND    (dConfig.tabBackground())
 #define CONFIG_MENU_BORDERS       "black"
 
 // Pixel width for the bit of frame to the left of the window and the

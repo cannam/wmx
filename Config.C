@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+// 32 is enough to fit even "light goldenrod yellow" comfortably
+#define COLOR_LEN 32
+
 DynamicConfig DynamicConfig::dynamicConfig;
 
 struct DynamicConfigImpl
@@ -21,6 +24,9 @@ struct DynamicConfigImpl
     int  feeddelay;
     char disable;	// 0 = New Window option, 1 = no New
     char rightBt;	// 0 = disable, 1 = circulate, 2 = lower, 4 = height
+    char tabfg[COLOR_LEN];     // black
+    char tabbg[COLOR_LEN];     // gray80
+    char framebg[COLOR_LEN];   // gray95
 };  
 
 DynamicConfig::DynamicConfig() : m_impl(new DynamicConfigImpl)
@@ -57,6 +63,9 @@ DynamicConfig::DynamicConfig() : m_impl(new DynamicConfigImpl)
     m_impl->feeddelay = 300;
     m_impl->disable = 0;        // 0 = allow New window, 1 = don't
     m_impl->rightBt = 1;	// 0 = disable, 1 = circulate, 2 = lower
+    strcpy(m_impl->tabfg, "black");
+    strcpy(m_impl->tabbg, "gray80");
+    strcpy(m_impl->framebg, "gray95");
 
     scan(1);
 }
@@ -78,6 +87,9 @@ char DynamicConfig::disableNew() { return m_impl->disable & 1; }
 char DynamicConfig::rightCirculate() { return m_impl->rightBt & 1; }
 char DynamicConfig::rightLower() { return m_impl->rightBt & 2; }
 char DynamicConfig::rightToggleHeight() { return m_impl->rightBt & 4; }
+char *DynamicConfig::tabForeground() { return m_impl->tabfg; }
+char *DynamicConfig::tabBackground() { return m_impl->tabbg; }
+char *DynamicConfig::frameBackground() { return m_impl->framebg; }
 
 void DynamicConfig::scan(char startup)
 {
@@ -139,6 +151,10 @@ void DynamicConfig::update(char *string)
 	    else if (OPTION("lower")) m_impl->rightBt = 2;
 	    else if (OPTION("toggleheight")) m_impl->rightBt = 4;
 	
+	if (OPTION("tabfg:")) strncpy(m_impl->tabfg, s, COLOR_LEN);
+	if (OPTION("tabbg:")) strncpy(m_impl->tabbg, s, COLOR_LEN);
+	if (OPTION("framebg:")) strncpy(m_impl->framebg, s, COLOR_LEN);
+
 	if (*s != '\0') {
 	    fprintf(stderr, "\nwmx: Dynamic configuration error: "
 		    "`%s' @ position %d", s, string - s);

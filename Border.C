@@ -86,8 +86,6 @@ Border::~Border()
 	    XDestroyWindow(display(), m_tab);
 	    XDestroyWindow(display(), m_button);
 	    XDestroyWindow(display(), m_parent);
-
-	    // bad window if its parent has already gone:
 	    XDestroyWindow(display(), m_resize);
 
 	    if (m_feedback) {
