@@ -18,7 +18,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     Client *c = windowToClient(e->window);
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE == False
-    if (e->button == Button3 && m_channelChangeTime == 0) {
+    if (e->button == CONFIG_CIRCULATE_BUTTON && m_channelChangeTime == 0) {
 	if (dConfig.rightCirculate())
 	    circulate(e->window == e->root);
 	else if (dConfig.rightLower())
@@ -39,11 +39,11 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     }
 #endif
  
-    if (e->button == Button4 && CONFIG_CHANNEL_SURF) {
+    if (e->button == CONFIG_NEXTCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
         // wheel "up" - increase channel
         flipChannel(False, False, True, c);
         return ;
-    } else if (e->button == Button5 && CONFIG_CHANNEL_SURF) {
+    } else if (e->button == CONFIG_PREVCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
         // wheel "down" - decrease channel
         flipChannel(False, True, True, c);
         return ;
@@ -52,7 +52,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     if (e->window == e->root) {
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE != False
-        if ((e->button == Button1 || e->button == Button3)
+        if ((e->button == CONFIG_CLIENTMENU_BUTTON || e->button == CONFIG_CIRCULATE_BUTTON)
             && m_channelChangeTime == 0) {
 
 	    XUngrabPointer(m_display, CurrentTime);
@@ -60,40 +60,40 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 	    return;
 	} 
         
-	if (e->button == Button2 && m_channelChangeTime == 0) {
+	if (e->button == CONFIG_COMMANDMENU_BUTTON && m_channelChangeTime == 0) {
 	    ClientMenu menu(this, (XEvent *)e);
 	    return;
 	}
 #endif
 
-	if (e->button == Button1 && m_channelChangeTime == 0) {
+	if (e->button == CONFIG_CLIENTMENU_BUTTON && m_channelChangeTime == 0) {
 	    ClientMenu menu(this, (XEvent *)e);
 
 	} else if (e->x > DisplayWidth(display(), screen()) -
 		   CONFIG_CHANNEL_CLICK_SIZE &&
 		   e->y < CONFIG_CHANNEL_CLICK_SIZE) {
 
-	    if (e->button == Button2) {
+	    if (e->button == CONFIG_COMMANDMENU_BUTTON) {
 #if CONFIG_USE_CHANNEL_MENU	
                 ChannelMenu(this, (XEvent *)e);
 #else
                 if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
                 else flipChannel(False, False, False, 0);
                 
-            } else if (e->button == Button1 && m_channelChangeTime != 0) {
+            } else if (e->button == CONFIG_CLIENTMENU_BUTTON && m_channelChangeTime != 0) {
                 
                 flipChannel(False, True, False, 0);
 #endif
 	    }
 
-	} else if (e->button == Button2 && m_channelChangeTime == 0) {
+	} else if (e->button == CONFIG_COMMANDMENU_BUTTON && m_channelChangeTime == 0) {
 	    dConfig.scan();
 	    CommandMenu menu(this, (XEvent *)e);
 	}
         
     } else if (c) {
 
-	if (e->button == Button2 && CONFIG_CHANNEL_SURF) {
+	if (e->button == CONFIG_COMMANDMENU_BUTTON && CONFIG_CHANNEL_SURF) {
 #if CONFIG_USE_CHANNEL_MENU	
 	    ChannelMenu menu(this, (XEvent *)e);
 #else
@@ -101,7 +101,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
             else flipChannel(False, False, False, c);
 #endif
 	    return;
-	} else if (e->button == Button1 && m_channelChangeTime != 0) {
+	} else if (e->button == CONFIG_CLIENTMENU_BUTTON && m_channelChangeTime != 0) {
 	    // allow left-button to push down a channel --cc 19991001
 	    flipChannel(False, True, False, c);
 	    return;
@@ -465,7 +465,7 @@ void Client::eventButton(XButtonEvent *e)
 
     mapRaised();
 
-    if (e->button == Button1) {
+    if (e->button == CONFIG_CLIENTMENU_BUTTON) {
 	if (m_border->hasWindow(e->window)) {
 
 	    m_border->eventButton(e);

@@ -234,6 +234,17 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_SUNPOWER_OPTIONS	"-x","-h",0
 #define CONFIG_SUNPOWER_SHIFTOPTIONS	"-x","-n",0
 
+// Mouse Configuration
+// Use this section to remap your mouse button actions.
+//   Button1 = LMB, Button2 = MMB, Button3 = RMB 
+//   Button4 = WheelUp, Button5 = WheelDown 
+
+#define CONFIG_CLIENTMENU_BUTTON Button1
+#define CONFIG_COMMANDMENU_BUTTON Button2
+#define CONFIG_CIRCULATE_BUTTON Button3
+#define CONFIG_PREVCHANNEL_BUTTON Button5
+#define CONFIG_NEXTCHANNEL_BUTTON Button4
+
 
 // ==============================
 // Section III. Colours and fonts
