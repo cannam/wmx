@@ -3,7 +3,7 @@
 #define _MANAGER_H_
 
 #include "General.h"
-#include "listmacro2.h"
+#include "listmacro.h"
 
 class Client;
 declarePList(ClientList, Client);
@@ -11,7 +11,7 @@ declarePList(ClientList, Client);
 
 class WindowManager {
 public:
-    WindowManager();
+    WindowManager(int argc, char **argv);
     ~WindowManager();
 
     void fatal(const char *);
@@ -38,6 +38,14 @@ public:
 	NormalCursor, DeleteCursor, DownCursor, RightCursor, DownrightCursor
     };
 
+#ifdef CONFIG_USE_WINDOW_GROUPS
+    void withdrawGroup(Window groupParent, Client *omit,
+		       Boolean changeState = True);
+    void hideGroup(Window groupParent, Client *omit);
+    void unhideGroup(Window groupParent, Client *omit, Boolean map);
+    void killGroup(Window groupParent, Client *omit);
+#endif
+
     void installCursor(RootCursor);
     void installCursorOnWindow(RootCursor, Window);
     void installColormap(Colormap);
@@ -48,7 +56,10 @@ public:
 
     // shouldn't really be public
     int attemptGrab(Window, Window, int, int);
+    int attemptGrabKey(Window, int);
     void releaseGrab(XButtonEvent *);
+    void releaseGrabKeyMode(XButtonEvent *);
+    void releaseGrabKeyMode(XKeyEvent *);
     void spawn(char *, char *);
 
     int channel() { return m_currentChannel; }
@@ -58,7 +69,9 @@ public:
     ClientList &hiddenClients() { return m_hiddenClients; }
 
     void hoistToTop(Client *);
+    void hoistToBottom(Client *);
     void removeFromOrderedList(Client *);
+    Boolean isTop(Client *);
 
     // for exposures during client grab, and window map/unmap/destroy
     // during menu display:
@@ -123,6 +136,25 @@ private:
     Boolean m_focusPointerMoved;
     Boolean m_focusPointerNowStill;
     void checkDelaysForFocus();
+
+#ifdef CONFIG_USE_SESSION_MANAGER
+    int m_smFD;
+    IceConn m_smIceConnection;
+    SmcConn m_smConnection;
+    char *m_oldSessionId;
+    char *m_newSessionId;
+    char *m_sessionProgram;
+
+    static void smWatchFD(IceConn c, IcePointer, Bool, IcePointer *);
+    static void smSaveYourself(SmcConn, SmPointer, int, Bool, int, Bool);
+    static void smSaveYourself2(SmcConn, SmPointer);
+    static void smShutdownCancelled(SmcConn, SmPointer);
+    static void smSaveComplete(SmcConn, SmPointer);
+    static void smDie(SmcConn, SmPointer);
+
+    void initialiseSession(char *sessionProgram, char *oldSessionId);
+    void setSessionProperties();
+#endif
 
     void nextEvent(XEvent *);	// return
 

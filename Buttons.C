@@ -18,7 +18,7 @@ void WindowManager::eventButton(XButtonEvent *e)
     if (e->window == e->root) {
 
 	if (e->button == Button1 && m_channelChangeTime == 0) {
-	    ClientMenu menu(this, e);
+	    ClientMenu menu(this, (XEvent *)e);
 
 	} else if (e->x > DisplayWidth(display(), screen()) -
 		   CONFIG_CHANNEL_CLICK_SIZE &&
@@ -35,7 +35,8 @@ void WindowManager::eventButton(XButtonEvent *e)
 	    }
 
 	} else if (e->button == Button2 && m_channelChangeTime == 0) {
-	    CommandMenu menu(this, e);
+	    dConfig.scan();
+	    CommandMenu menu(this, (XEvent *)e);
 	}
 
     } else if (c) {
@@ -55,6 +56,7 @@ void WindowManager::eventButton(XButtonEvent *e)
 void WindowManager::circulate(Boolean activeFirst)
 {
     Client *c = 0;
+    if (m_clients.count() == 0) return;
     if (activeFirst) c = m_activeClient;
 
     if (!c) {
@@ -90,76 +92,108 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 {
     KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
 
-    if (CONFIG_USE_KEYBOARD && (ev->state & CONFIG_ALT_KEY_MASK)) {
+    if (CONFIG_USE_KEYBOARD) {
 
 	Client *c = windowToClient(ev->window);
 
-	if (key >= XK_F1 && key <= XK_F12 &&
-	    CONFIG_CHANNEL_SURF && CONFIG_USE_CHANNEL_KEYS) {
+	if (key == CONFIG_QUICKRAISE_KEY && c) {
 
-	    int channel = key - XK_F1 + 1;
-	    
-	    if (channel == m_currentChannel) {
-
-		flipChannel(True, False, False, 0);
-
-	    } else if (channel > 0 && channel <= m_channels) {
-
-		while (m_currentChannel != channel) {
-		    if (m_currentChannel < channel) {
-			flipChannel(False, False, True, 0);
-		    } else {
-			flipChannel(False, True, True, 0);
-		    }
-		    XSync(display(), False);
-		}
+	    if (isTop(c) && (CONFIG_QUICKRAISE_ALSO_LOWERS == True)) {
+		c->lower();
+	    } else {
+		c->mapRaised();
 	    }
 
-	} else {
+	} else if (key == CONFIG_QUICKHIDE_KEY && c) {
+	    c->hide();
 
-	    // These key names also appear in Client::manage(), so
-	    // when adding a key it must be added in both places
+	} else if (key == CONFIG_QUICKHEIGHT_KEY && c) {
 
-	    switch (key) {
+	    if (c->isFullHeight()) {
+		c->normalHeight();
+	    } else {
+		c->fullHeight();
+	    }
 
-	    case CONFIG_FLIP_DOWN_KEY:
-		flipChannel(False, True, False, 0);
-		break;
+	} else if (ev->state & CONFIG_ALT_KEY_MASK) {
 
-	    case CONFIG_FLIP_UP_KEY:
-		flipChannel(False, False, False, 0);
-		break;
+	    if (key >= XK_F1 && key <= XK_F12 &&
+		CONFIG_CHANNEL_SURF && CONFIG_USE_CHANNEL_KEYS) {
+
+		int channel = key - XK_F1 + 1;
+	    
+		if (channel == m_currentChannel) {
+
+		    flipChannel(True, False, False, 0);
+
+		} else if (channel > 0 && channel <= m_channels) {
+
+		    while (m_currentChannel != channel) {
+			if (m_currentChannel < channel) {
+			    flipChannel(False, False, True, 0);
+			} else {
+			    flipChannel(False, True, True, 0);
+			}
+			XSync(display(), False);
+		    }
+		}
+
+	    } else {
+
+		// These key names also appear in Client::manage(), so
+		// when adding a key it must be added in both places
+
+		switch (key) {
+
+		case CONFIG_FLIP_DOWN_KEY:
+		    flipChannel(False, True, False, 0);
+		    break;
+
+		case CONFIG_FLIP_UP_KEY:
+		    flipChannel(False, False, False, 0);
+		    break;
 	
-	    case CONFIG_CIRCULATE_KEY:
-		circulate(False);
-		break;
+		case CONFIG_CIRCULATE_KEY:
+		    circulate(False);
+		    break;
 
-	    case CONFIG_HIDE_KEY:
-		if (c) c->hide();
-		break;
+		case CONFIG_HIDE_KEY:
+		    if (c) c->hide();
+		    break;
 
-	    case CONFIG_DESTROY_KEY:
-		if (c) c->kill();
-		break;
+		case CONFIG_DESTROY_KEY:
+		    if (c) c->kill();
+		    break;
 
-	    case CONFIG_RAISE_KEY:
-		if (c) c->mapRaised();
-		break;
+		case CONFIG_RAISE_KEY:
+		    if (c) c->mapRaised();
+		    break;
 
-	    case CONFIG_LOWER_KEY:
-		if (c) c->lower();
-		break;
+		case CONFIG_LOWER_KEY:
+		    if (c) c->lower();
+		    break;
 
-	    case CONFIG_FULLHEIGHT_KEY:
-		if (c) c->fullHeight();
-		break;
+		case CONFIG_FULLHEIGHT_KEY:
+		    if (c) c->fullHeight();
+		    break;
 		
-	    case CONFIG_NORMALHEIGHT_KEY:
-		if (c) c->normalHeight();
-		break;
+		case CONFIG_NORMALHEIGHT_KEY:
+		    if (c) c->normalHeight();
+		    break;
+
+		case CONFIG_STICKY_KEY:
+		    if (c) c->setSticky(!(c->isSticky()));
+		    break;
+
+		case CONFIG_MENU_KEY:
+		    if (CONFIG_WANT_KEYBOARD_MENU) {
+			ClientMenu menu(this, (XEvent *)ev);
+			break;
+		    }
 		
-	    default:
-		return;
+		default:
+		    return;
+		}
 	    }
 	}
 
@@ -179,8 +213,7 @@ void Client::activateAndWarp()
 {
     mapRaised();
     ensureVisible();
-    XWarpPointer(display(), None, parent(), 0, 0, 0, 0,
-		 m_border->xIndent() / 2, m_border->xIndent() + 8);
+    warpPointer();
     activate();
 }
 
@@ -188,6 +221,8 @@ void Client::activateAndWarp()
 void Client::eventButton(XButtonEvent *e)
 {
     if (e->type != ButtonPress) return;
+
+    Boolean wasTop = windowManager()->isTop(this);
 
     mapRaised();
 
@@ -197,6 +232,9 @@ void Client::eventButton(XButtonEvent *e)
 	    m_border->eventButton(e);
 	}
     }
+
+    if (CONFIG_RAISELOWER_ON_CLICK && wasTop && !doSomething)
+	lower();
 
     if (!isNormal() || isActive() || e->send_event) return;
     activate();
@@ -210,6 +248,13 @@ int WindowManager::attemptGrab(Window w, Window constrain, int mask, int t)
     status = XGrabPointer(display(), w, False, mask, GrabModeAsync,
 			  GrabModeAsync, constrain, None, t);
     return status;
+}
+
+
+int WindowManager::attemptGrabKey(Window w, int t)
+{
+    if (t == 0) t = timestamp(False);
+    return XGrabKeyboard(display(), w, False, GrabModeAsync, GrabModeAsync, t);
 }
 
 
@@ -230,11 +275,39 @@ void WindowManager::releaseGrab(XButtonEvent *e)
 }
 
 
+void WindowManager::releaseGrabKeyMode(XButtonEvent *e) 
+{
+    XEvent ev;
+    if (!nobuttons(e)) {
+	for (;;) {
+	    XMaskEvent(display(), ButtonMask | ButtonMotionMask, &ev);
+	    if (ev.type == MotionNotify) continue;
+	    e = &ev.xbutton;
+	    if (nobuttons(e)) break;
+	}
+    }
+
+    XUngrabPointer(display(), e->time);
+    m_currentTime = e->time;
+
+    XUngrabKeyboard(display(), e->time);
+    m_currentTime = e->time;
+}
+
+
+void WindowManager::releaseGrabKeyMode(XKeyEvent* e)
+{
+    XUngrabPointer(display(), e->time);
+    XUngrabKeyboard(display(), e->time);
+    m_currentTime = e->time;
+}
+
+
 void Client::move(XButtonEvent *e)
 {
     int x = -1, y = -1;
     Boolean done = False;
-    ShowGeometry geometry(m_windowManager, e);
+    ShowGeometry geometry(m_windowManager, (XEvent *)e);
 
     if (m_windowManager->attemptGrab
 	(root(), None, DragMask, e->time) != GrabSuccess) {
@@ -248,9 +321,9 @@ void Client::move(XButtonEvent *e)
 
     XEvent event;
     Boolean found;
-    Boolean doSomething = False;
     struct timeval sleepval;
 
+    doSomething = False;
     while (!done) {
 
 	found = False;
@@ -369,7 +442,7 @@ void Client::fixResizeDimensions(int &w, int &h, int &dw, int &dh)
 void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 {
     if (isFixedSize()) return;
-    ShowGeometry geometry(m_windowManager, e);
+    ShowGeometry geometry(m_windowManager, (XEvent *)e);
 
     if (m_windowManager->attemptGrab
 	(root(), None, DragMask, e->time) != GrabSuccess) {
@@ -397,10 +470,10 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 
     XEvent event;
     Boolean found;
-    Boolean doSomething = False;
     Boolean done = False;
     struct timeval sleepval;
 
+    doSomething = False;
     while (!done) {
 
 	found = False;

@@ -5,6 +5,10 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
+#if I18N
+#include <X11/Xmu/Atoms.h>
+#endif
+
 const char *const Client::m_defaultLabel = "incognito";
 
 
@@ -13,6 +17,7 @@ Client::Client(WindowManager *const wm, Window w) :
     m_window(w),
     m_transient(None),
     m_revert(0),
+    m_sticky(False),
     m_fixedSize(False),
     m_state(WithdrawnState),
     m_managed(False),
@@ -43,9 +48,9 @@ Client::Client(WindowManager *const wm, Window w) :
     m_channel = wm->channel();
     m_unmappedForChannel = False;
 
-#if CONFIG_MAD_FEEDBACK != 0
+//#if CONFIG_MAD_FEEDBACK != 0
     m_speculating = m_levelRaised = False;
-#endif
+//#endif
 
     if (attr.map_state == IsViewable) manage(True);
 }
@@ -158,24 +163,54 @@ void Client::manage(Boolean mapped)
     if (CONFIG_USE_KEYBOARD) {
 
 	int i;
+	int keycode;
 
 	static KeySym keys[] = {
 	    CONFIG_FLIP_UP_KEY, CONFIG_FLIP_DOWN_KEY, CONFIG_CIRCULATE_KEY,
 	    CONFIG_HIDE_KEY, CONFIG_DESTROY_KEY, CONFIG_RAISE_KEY,
-	    CONFIG_LOWER_KEY, CONFIG_FULLHEIGHT_KEY, CONFIG_NORMALHEIGHT_KEY
+	    CONFIG_LOWER_KEY, CONFIG_FULLHEIGHT_KEY, CONFIG_NORMALHEIGHT_KEY,
+	    CONFIG_STICKY_KEY
+
+#if CONFIG_WANT_KEYBOARD_MENU
+	    , CONFIG_MENU_KEY
+#endif
 	};
 
 	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
- 	    XGrabKey(display(), XKeysymToKeycode(display(), keys[i]),
- 		     CONFIG_ALT_KEY_MASK, m_window, True,
- 		     GrabModeAsync, GrabModeAsync);
+	    keycode = XKeysymToKeycode(display(), keys[i]);
+	    if (keycode) {
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK, m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+	    }
+	}
+
+	keycode = XKeysymToKeycode(display(), CONFIG_QUICKRAISE_KEY);
+	if (keycode) {
+	    XGrabKey(display(), keycode, 0, m_window, True,
+		     GrabModeAsync, GrabModeAsync);
+	}
+
+	keycode = XKeysymToKeycode(display(), CONFIG_QUICKHIDE_KEY);
+	if (keycode) {
+	    XGrabKey(display(), keycode, 0, m_window, True,
+		     GrabModeAsync, GrabModeAsync);
+	}
+
+	keycode = XKeysymToKeycode(display(), CONFIG_QUICKHEIGHT_KEY);
+	if (keycode) {
+	    XGrabKey(display(), keycode, 0, m_window, True,
+		     GrabModeAsync, GrabModeAsync);
 	}
 
 	if (CONFIG_USE_CHANNEL_KEYS) {
 	    for (i = 0; i < 12; ++i) {
- 		XGrabKey(display(), XKeysymToKeycode(display(), XK_F1 + i),
- 			 CONFIG_ALT_KEY_MASK, m_window, True,
- 			 GrabModeAsync, GrabModeAsync);
+		keycode = XKeysymToKeycode(display(), XK_F1 + i);
+		if (keycode) {
+		    XGrabKey(display(), keycode,
+			     CONFIG_ALT_KEY_MASK, m_window, True,
+			     GrabModeAsync, GrabModeAsync);
+		}
 	    }
 	}
     }
@@ -189,6 +224,13 @@ void Client::manage(Boolean mapped)
     getTransient();
 
     hints = XGetWMHints(d, m_window);
+
+#if CONFIG_USE_WINDOW_GROUPS != False
+    m_groupParent = hints ? hints->window_group : None;
+    if (m_groupParent == None) m_groupParent = m_window;
+//    fprintf(stderr, "Client %p (%s) has window %ld and groupParent %ld\n",
+//	    this, m_name, m_window, m_groupParent);
+#endif
 
     if (!getState(&state)) {
 	state = hints ? hints->initial_state : NormalState;
@@ -306,6 +348,7 @@ void Client::manage(Boolean mapped)
     }
 
     m_windowManager->hoistToTop(this);
+    sendConfigureNotify(); // due to Martin Andrews
 }
 
 
@@ -423,12 +466,59 @@ static int getProperty_aux(Display *d, Window w, Atom a, Atom type, long len,
     int format;
     unsigned long n, extra;
     int status;
+    Boolean retried = False;
 
+tryagain:
     status = XGetWindowProperty(d, w, a, 0L, len, False, type, &realType,
 				&format, &n, &extra, p);
 
     if (status != Success || *p == 0) return -1;
     if (n == 0) XFree((void *) *p);
+    if (type == XA_STRING || retried) {
+	if (realType != XA_STRING || format != 8) {
+#if I18N
+	    // XA_STRING is needed by a caller.  But XGetWindowProperty()
+	    // returns other typed data.  So try to convert them.
+	    XTextProperty textprop;
+	    textprop.value = *p;
+	    textprop.encoding = realType;
+	    textprop.format = format;
+	    textprop.nitems = n;
+
+	    char **list;
+	    int num, cnt;
+	    cnt = XmbTextPropertyToTextList(d, &textprop, &list, &num);
+	    unsigned char *string;
+	    if (cnt == Success && num > 0 && *list) {
+		string = (unsigned char*)NewString(*list);
+		XFreeStringList(list);
+		n = num;
+	    } else if (cnt > Success) {
+		fprintf(stderr, "Something wrong, cannot conver "
+			"text property\n"
+			"  original type %ld, string %s\n"
+			"  converted string %s\n"
+			"  decide to use original value as STRING\n",
+			textprop.encoding, textprop.value, *list);
+		string = (unsigned char*)NewString(*(char**)p);
+		XFreeStringList(list);
+		n = n;
+	    } else if (!retried) {
+		retried = True;
+		type = AnyPropertyType;
+		goto tryagain;
+	    } else {
+		string = NULL;
+		n = 0;
+	    }
+	    XFree((void *) *p);
+	    *p = string;
+#else
+	    XFree((void *) *p);
+	    *p = NULL;
+#endif
+	}
+    }
 
     return n;
 }
@@ -437,7 +527,13 @@ static int getProperty_aux(Display *d, Window w, Atom a, Atom type, long len,
 char *Client::getProperty(Atom a)
 {
     unsigned char *p;
-    if (getProperty_aux(display(), m_window, a, XA_STRING, 100L, &p) <= 0) {
+
+    // no -- allow any type, not just string -- SGI has "compound
+    // text", and part-garbage is possibly better than "incognito" --
+    // thanks to Bill Spitzak
+
+//    if (getProperty_aux(display(), m_window, a, XA_STRING, 100L, &p) <= 0) {
+    if (getProperty_aux(display(), m_window, a, AnyPropertyType, 100L, &p) <= 0) {
 	return NULL;
     }
     return (char *)p;
@@ -687,15 +783,21 @@ void Client::hide()
 
     setState(IconicState);
     windowManager()->addToHiddenList(this);
+
+#if CONFIG_USE_WINDOW_GROUPS != False
+    if (isGroupParent()) {
+	windowManager()->hideGroup(groupParent(), this);
+    }
+#endif
 }
 
 
 void Client::unhide(Boolean map)
 {
-#if CONFIG_MAD_FEEDBACK != 0
-    m_speculating = False;
-    if (!isHidden()) return;
-#endif
+    if (CONFIG_MAD_FEEDBACK) {
+	m_speculating = False;
+	if (!isHidden()) return;
+    }
 
     if (!isHidden()) {
 	fprintf(stderr, "wmx: Client not hidden in Client::unhide\n");
@@ -715,6 +817,12 @@ void Client::unhide(Boolean map)
 	if (CONFIG_AUTO_RAISE) focusIfAppropriate(False);
 	else if (CONFIG_CLICK_TO_FOCUS) activate();
     }
+
+#if CONFIG_USE_WINDOW_GROUPS != False
+    if (isGroupParent()) {
+	windowManager()->unhideGroup(groupParent(), this, map);
+    }
+#endif
 }
 
 
@@ -752,6 +860,12 @@ void Client::withdraw(Boolean changeState)
 	setState(WithdrawnState);
     }
 
+#if CONFIG_USE_WINDOW_GROUPS != False
+    if (isGroupParent()) {
+	windowManager()->withdrawGroup(groupParent(), this, changeState);
+    }
+#endif
+
     ignoreBadWindowErrors = True;
     XSync(display(), False);
     ignoreBadWindowErrors = False;
@@ -779,6 +893,12 @@ void Client::kill()
     } else {
 	XKillClient(display(), m_window);
     }
+
+#if CONFIG_USE_WINDOW_GROUPS != False
+    if (isGroupParent()) {
+	windowManager()->killGroup(groupParent(), this);
+    }
+#endif
 }
 
 
@@ -804,6 +924,17 @@ void Client::ensureVisible()
 void Client::lower()
 {
     m_border->lower();
+    windowManager()->hoistToBottom(this);
+}
+
+
+void Client::raiseOrLower()
+{
+    if (windowManager()->isTop(this)) {
+	lower();
+    } else {
+	mapRaised();
+    }
 }
 
 
@@ -846,26 +977,34 @@ void Client::normalHeight()
 }
 
 
+void Client::warpPointer()
+{
+    XWarpPointer(display(), None, parent(), 0, 0, 0, 0,
+		 m_border->xIndent() / 2, m_border->xIndent() + 8);
+}
+
+
 void Client::flipChannel(Boolean leaving, int newChannel)
 {
 //    fprintf(stderr, "I could be supposed to pop up now...\n");
 
     if (m_channel != windowManager()->channel()) {
 
-#if CONFIG_MAD_FEEDBACK != 0
-	if (leaving && m_channel == newChannel && m_unmappedForChannel) {
-	    showFeedback();
+	if (CONFIG_MAD_FEEDBACK) {
+	    if (leaving && m_channel == newChannel &&
+		m_unmappedForChannel) {
+		showFeedback();
+	    }
 	}
-#endif
 
 	return;
     }
 
     if (leaving) {
 
-#if CONFIG_MAD_FEEDBACK != 0
-	removeFeedback(isNormal()); // mostly it won't be there anyway, but...
-#endif
+	if (CONFIG_MAD_FEEDBACK) {
+	    removeFeedback(isNormal()); // mostly it won't be there anyway, but...
+	}
 
 	if (!isNormal()) return;
 	m_unmappedForChannel = True;
@@ -875,9 +1014,9 @@ void Client::flipChannel(Boolean leaving, int newChannel)
 
     } else {
 
-#if CONFIG_MAD_FEEDBACK != 0
-	removeFeedback(isNormal()); // likewise
-#endif
+	if (CONFIG_MAD_FEEDBACK) {
+	    removeFeedback(isNormal()); // likewise
+	}
 
 	if (!m_unmappedForChannel) {
 	    if (isNormal()) mapRaised();
@@ -898,42 +1037,48 @@ void Client::flipChannel(Boolean leaving, int newChannel)
 }
 
 
-#if CONFIG_MAD_FEEDBACK != 0
-
 void Client::showFeedback()
 {
-    if (m_speculating || m_levelRaised) removeFeedback(False);
-    m_border->showFeedback(m_x, m_y, m_w, m_h);
+    if (CONFIG_MAD_FEEDBACK) {
+	if (m_speculating || m_levelRaised) removeFeedback(False);
+	m_border->showFeedback(m_x, m_y, m_w, m_h);
 //    XSync(display(), False);
+    }
 }
 
 void Client::raiseFeedbackLevel()
 {
-    m_levelRaised = True;
+    if (CONFIG_MAD_FEEDBACK) {
 
-    if (isNormal()) {
-	mapRaised();
-    } else if (isHidden()) {
-	unhide(True);
-	m_speculating = True;
+	m_border->removeFeedback();
+	m_levelRaised = True;
+
+	if (isNormal()) {
+	    mapRaised();
+	} else if (isHidden()) {
+	    unhide(True);
+	    m_speculating = True;
 //	XSync(display(), False);
+	}
     }
 }
 
 void Client::removeFeedback(Boolean mapped)
 {
-    m_border->removeFeedback();
+    if (CONFIG_MAD_FEEDBACK) {
 
-    if (m_levelRaised) {
-	if (m_speculating) {
-	    if (!mapped) hide();
-	    XSync(display(), False);
-	} else {
-	    // not much we can do
+	m_border->removeFeedback();
+	
+	if (m_levelRaised) {
+	    if (m_speculating) {
+		if (!mapped) hide();
+		XSync(display(), False);
+	    } else {
+		// not much we can do
+	    }
 	}
-    }
 
-    m_speculating = m_levelRaised = False;
+	m_speculating = m_levelRaised = False;
+    }
 }
 
-#endif

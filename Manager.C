@@ -2,11 +2,18 @@
 #include "Manager.h"
 #include "Menu.h"
 #include "Client.h"
+
+#if I18N
+#include <X11/Xlocale.h>
+#endif
+
 #include <string.h>
 #include <X11/Xproto.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
 #include "Cursors.h"
+#include <X11/cursorfont.h>
 
 Atom    Atoms::wm_state;
 Atom    Atoms::wm_changeState;
@@ -23,17 +30,63 @@ Boolean ignoreBadWindowErrors;
 implementPList(ClientList, Client);
 
 
-WindowManager::WindowManager() :
+WindowManager::WindowManager(int argc, char **argv) :
     m_focusChanging(False),
     m_altPressed(False)
 {
-    fprintf(stderr, "\nwmx: Copyright (c) 1996-7 Chris Cannam."
-	    "  Fourth release, Jan 1998\n"
+    char *home = getenv("HOME");
+    char *wmxdir = getenv("WMXDIR");
+    
+    fprintf(stderr, "\nwmx: Copyright (c) 1996-9 Chris Cannam."
+	    "  Fifth release, Jan 1999\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
+ 	    "     Japanize code Copyright (c) 1998 Kazushi (Jam) Marukawa\n"
+ 	    "     Original keyboard-menu code Copyright (c) 1998 Nakayama Shintaro\n"
+	    "     Dynamic configuration code Copyright (c) 1998 Stefan `Sec' Zehl\n"
 	    "     %s\n     Copying and redistribution encouraged.  "
 	    "No warranty.\n\n", XV_COPYRIGHT);
 
+    int i;
+#if CONFIG_USE_SESSION_MANAGER != False
+    char *oldSessionId = 0;
+#endif
+    
+    if (argc > 1) {
+
+#if CONFIG_USE_SESSION_MANAGER != False
+	// Damn!  This means we have to support a command-line argument
+	if (argc == 3 && !strcmp(argv[1], "-clientId")) {
+	    oldSessionId = argv[2];
+	} else {
+#endif
+
+	for (i = strlen(argv[0])-1; i > 0 && argv[0][i] != '/'; --i);
+	fprintf(stderr, "\nwmx: Usage: %s [-clientId id]\n",
+		argv[0] + (i > 0) + i);
+	exit(2);
+
+#if CONFIG_USE_SESSION_MANAGER != False
+	}
+#endif
+    }
+
+#if I18N
+    if (!setlocale(LC_ALL, ""))
+ 	fprintf(stderr,
+		"Warning: locale not supported by C library, locale unchanged\n");
+    if (!XSupportsLocale()) { 
+ 	fprintf(stderr,
+		"Warning: locale not supported by Xlib, locale set to C\n");  
+ 	setlocale(LC_ALL, "C");
+    }
+    if (!XSetLocaleModifiers(""))
+ 	fprintf(stderr,
+		"Warning: X locale modifiers not supported, using default\n");
+    char* ret_setlocale = setlocale(LC_ALL, NULL);
+ 					// re-query in case overwritten
+#endif
+    
     if (CONFIG_AUTO_RAISE) {
 	if (CONFIG_CLICK_TO_FOCUS) {
 	    fatal("can't have auto-raise-with-delay with click-to-focus");
@@ -60,15 +113,21 @@ WindowManager::WindowManager() :
     }
 
     if (CONFIG_EVERYTHING_ON_ROOT_MENU) {
-	fprintf(stderr, "All clients on menu.\n");
+	fprintf(stderr, "All clients on menu.  ");
     } else {
-	fprintf(stderr, "Hidden clients only on menu.\n");
+	fprintf(stderr, "Hidden clients only on menu.  ");
+    }
+
+    if (CONFIG_USE_SESSION_MANAGER) {
+	fprintf(stderr, "Using session manager.");
+    } else {
+	fprintf(stderr, "No session manager.");
     }
 
     if (CONFIG_PROD_SHAPE) {
-	fprintf(stderr, "     Shape prodding on.  ");
+	fprintf(stderr, "\n     Shape prodding on.  ");
     } else {
-	fprintf(stderr, "     Shape prodding off.  ");
+	fprintf(stderr, "\n     Shape prodding off.  ");
     }
 
     if (CONFIG_USE_PIXMAPS) {
@@ -101,8 +160,27 @@ WindowManager::WindowManager() :
 	fprintf(stderr, "No quick keyboard channel-surf.  ");
     }
 
-    fprintf(stderr, "\n     Command menu taken from $HOME/"
-	    CONFIG_COMMAND_MENU ".");
+    fprintf(stderr, "\n     Command menu taken from ");
+    if (wmxdir == NULL) {
+	fprintf(stderr, "%s/%s.", home, CONFIG_COMMAND_MENU);
+    } else {
+	if (*wmxdir == '/') {
+	    fprintf(stderr, "%s.", wmxdir);
+	} else {
+	    fprintf(stderr, "%s/%s.", home, wmxdir);
+	}
+    }
+
+    if (CONFIG_WANT_KEYBOARD_MENU) {
+	fprintf(stderr, "  Keyboard menu available.");
+    } else {
+	fprintf(stderr, "  No keyboard menu available.");
+    }
+
+#if I18N
+    fprintf(stderr, "\n     Operating system locale is \"%s\".",
+	    ret_setlocale ? ret_setlocale : "(NULL)");
+#endif
 
     fprintf(stderr, "\n     (To reconfigure, simply edit and recompile.)\n\n");
 
@@ -149,7 +227,11 @@ WindowManager::WindowManager() :
     XSync(m_display, False);
     m_initialising = False;
     m_returnCode = 0;
-    
+
+#if CONFIG_USE_SESSION_MANAGER != False
+    initialiseSession(argv[0], oldSessionId);
+#endif
+
     clearFocus();
     scanInitialWindows();
     loop();
@@ -249,17 +331,27 @@ int WindowManager::errorHandler(Display *d, XErrorEvent *e)
 static Cursor makeCursor(Display *d, Window w,
 			 unsigned char *bits, unsigned char *mask_bits,
 			 int width, int height, int xhot, int yhot,
-			 XColor *fg, XColor *bg)
+			 XColor *fg, XColor *bg, int fontIndex)
 {
-    Pixmap pixmap =
- 	XCreateBitmapFromData(d, w, (const char *)bits, width, height);
+    Cursor cursor;
 
-    Pixmap mask =
- 	XCreateBitmapFromData(d, w, (const char *)mask_bits, width, height);
+    if (CONFIG_USE_PLAIN_X_CURSORS) {
 
-    Cursor cursor = XCreatePixmapCursor(d, pixmap, mask, fg, bg, xhot, yhot);
-    XFreePixmap(d, pixmap);
-    XFreePixmap(d, mask);
+	cursor = XCreateFontCursor(d, fontIndex);
+
+    } else {
+
+	Pixmap pixmap =
+	    XCreateBitmapFromData(d, w, (const char *)bits, width, height);
+	
+	Pixmap mask =
+	    XCreateBitmapFromData(d, w, (const char *)mask_bits, width,height);
+
+	cursor = XCreatePixmapCursor(d, pixmap, mask, fg, bg, xhot, yhot);
+
+	XFreePixmap(d, pixmap);
+	XFreePixmap(d, mask);
+    }
 
     return cursor;
 }
@@ -284,27 +376,28 @@ void WindowManager::initialiseScreen()
     m_cursor = makeCursor
 	(m_display, m_root, cursor_bits, cursor_mask_bits,
 	 cursor_width, cursor_height, cursor_x_hot,
-	 cursor_y_hot, &black, &white);
+	 cursor_y_hot, &black, &white, XC_top_left_arrow);
 
     m_xCursor = makeCursor
 	(m_display, m_root, ninja_cross_bits, ninja_cross_mask_bits,
 	 ninja_cross_width, ninja_cross_height, ninja_cross_x_hot,
-	 ninja_cross_y_hot, &black, &white);
+	 ninja_cross_y_hot, &black, &white, XC_X_cursor);
 
     m_hCursor = makeCursor
 	(m_display, m_root, cursor_right_bits, cursor_right_mask_bits,
 	 cursor_right_width, cursor_right_height, cursor_right_x_hot,
-	 cursor_right_y_hot, &black, &white);
+	 cursor_right_y_hot, &black, &white, XC_right_side);
 
     m_vCursor = makeCursor
 	(m_display, m_root, cursor_down_bits, cursor_down_mask_bits,
 	 cursor_down_width, cursor_down_height, cursor_down_x_hot,
-	 cursor_down_y_hot, &black, &white);
+	 cursor_down_y_hot, &black, &white, XC_bottom_side);
 
     m_vhCursor = makeCursor
 	(m_display, m_root, cursor_down_right_bits, cursor_down_right_mask_bits,
 	 cursor_down_right_width, cursor_down_right_height,
-	 cursor_down_right_x_hot, cursor_down_right_y_hot, &black, &white);
+	 cursor_down_right_x_hot, cursor_down_right_y_hot, &black, &white,
+	 XC_bottom_right_corner);
 
     XSetWindowAttributes attr;
     attr.cursor = m_cursor;
@@ -520,6 +613,24 @@ void WindowManager::hoistToTop(Client *c)
 }
 
 
+void WindowManager::hoistToBottom(Client *c)
+{
+    int i;
+
+    for (i = 0; i < m_orderedClients.count(); ++i) {
+	if (m_orderedClients.item(i) == c) {
+	    m_orderedClients.move_to_end(i);
+	    break;
+	}
+    }
+
+    if (i >= m_orderedClients.count()) {
+	m_orderedClients.append(c);
+//	m_orderedClients.move_to_end(m_orderedClients.count()-1);
+    }
+}
+
+
 void WindowManager::removeFromOrderedList(Client *c)
 {
     for (int i = 0; i < m_orderedClients.count(); ++i) {
@@ -530,6 +641,55 @@ void WindowManager::removeFromOrderedList(Client *c)
     }
 }
     
+
+Boolean WindowManager::isTop(Client *c)
+{
+    return (m_orderedClients.item(0) == c) ? True : False;
+}
+
+void WindowManager::withdrawGroup(Window groupParent, Client *omit, Boolean changeState)
+{
+    for (int i = 0; i < m_orderedClients.count(); ++i) {
+	Client *ic = m_orderedClients.item(i);
+	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+	    ic != omit) {
+	    ic->withdraw(changeState);
+	}
+    }
+}
+
+void WindowManager::hideGroup(Window groupParent, Client *omit)
+{
+    for (int i = 0; i < m_orderedClients.count(); ++i) {
+	Client *ic = m_orderedClients.item(i);
+	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+	    ic != omit) {
+	    ic->hide();
+	}
+    }
+}
+
+void WindowManager::unhideGroup(Window groupParent, Client *omit, Boolean map)
+{
+    for (int i = 0; i < m_orderedClients.count(); ++i) {
+	Client *ic = m_orderedClients.item(i);
+	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+	    ic != omit) {
+	    ic->unhide(map);
+	}
+    }
+}
+
+void WindowManager::killGroup(Window groupParent, Client *omit)
+{
+    for (int i = 0; i < m_orderedClients.count(); ++i) {
+	Client *ic = m_orderedClients.item(i);
+	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+	    ic != omit) {
+	    ic->kill();
+	}
+    }
+}
 
 
 Boolean WindowManager::raiseTransients(Client *c)
@@ -593,18 +753,22 @@ void WindowManager::spawn(char *name, char *file)
 		perror(" failed");
 	    }
 
-	    if (file) execl(file, name, 0);
-	    else execlp(name, name, 0);
+	    if (file) {
+		execl(file, name, 0);
+	    }
+	    else {
+		if (strcmp(CONFIG_NEW_WINDOW_COMMAND, name)) {
+		    execlp(name, name, 0);
+		}
+		else {
+		    execlp(name, name, CONFIG_NEW_WINDOW_COMMAND_OPTIONS);
+		}
+	    }
+
 	    XBell(display(), 70);
 	    fprintf(stderr, "wmx: exec %s:%s failed (errno %d)\n",
 		    name, file, errno);
 
-//	    execlp(CONFIG_NEW_WINDOW_COMMAND, CONFIG_NEW_WINDOW_COMMAND, 0);
-//	    fprintf(stderr, "wmx: exec %s", CONFIG_NEW_WINDOW_COMMAND);
-//	    perror(" failed");
-
-//	    execlp("xterm", "xterm", "-ut", 0);
-//	    perror("wmx: exec xterm failed");
 	    exit(1);
 	}
 	exit(0);

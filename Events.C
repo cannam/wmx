@@ -52,7 +52,7 @@ void WindowManager::dispatchEvent(XEvent *ev)
 	break;
 	
     case CreateNotify:
-	eventCreate(&ev->xcreatewindow);
+//	eventCreate(&ev->xcreatewindow);
 	break;
 	
     case DestroyNotify:
@@ -89,7 +89,7 @@ void WindowManager::dispatchEvent(XEvent *ev)
 	break;
 	
     case ReparentNotify:
-	eventReparent(&ev->xreparent);
+//	eventReparent(&ev->xreparent);
 	break;
 	
     case FocusIn:
@@ -111,6 +111,7 @@ void WindowManager::dispatchEvent(XEvent *ev)
     case ConfigureNotify:
     case MapNotify:
     case MappingNotify:
+    case NoExpose:
 	break;
 	
     default:
@@ -154,24 +155,72 @@ void WindowManager::nextEvent(XEvent *e)
 	FD_SET(fd, &rfds);
 	t.tv_sec = t.tv_usec = 0;
 
+#if CONFIG_USE_SESSION_MANAGER != False
+	if (m_smFD >= 0) FD_SET(m_smFD, &rfds);
+#endif
+
 #ifdef hpux
 #define select(a,b,c,d,e) select((a),(int *)(b),(c),(d),(e))
 #endif
 
-	if (select(fd + 1, &rfds, NULL, NULL, &t) == 1) {
-	    XNextEvent(m_display, e);
-	    return;
+	if (select(fd + 1, &rfds, NULL, NULL, &t) > 0) {
+
+	    //!!! This two-select structure is getting disgusting;
+	    // a marginal improvement would be to put this body in
+	    // another function, but it'd be better to go back and
+	    // think hard about why the code is like this at all
+
+#if CONFIG_USE_SESSION_MANAGER != False
+	    if (m_smFD >= 0 && FD_ISSET(m_smFD, &rfds)) {
+		Bool rep;
+                if (IceProcessMessages(m_smIceConnection, NULL, &rep)
+                    == IceProcessMessagesIOError) {
+                    SmcCloseConnection(m_smConnection, 0, NULL);
+		    m_smIceConnection = NULL;
+		    m_smConnection = NULL;
+                }
+		goto waiting;
+	    }
+#endif
+	    if (FD_ISSET(fd, &rfds)) {
+		XNextEvent(m_display, e);
+		return;
+	    }
+
+//	    XNextEvent(m_display, e);
+//	    return;
 	}
 
 	XFlush(m_display);
 	FD_SET(fd, &rfds);
 	t.tv_sec = 0; t.tv_usec = 20000;
 
+#if CONFIG_USE_SESSION_MANAGER != False
+	if (m_smFD >= 0) FD_SET(m_smFD, &rfds);
+#endif
+
 	if ((r = select(fd + 1, &rfds, NULL, NULL,
 			(m_channelChangeTime > 0 || m_focusChanging) ? &t :
-			(struct timeval *)NULL)) == 1) {
-	    XNextEvent(m_display, e);
-	    return;
+			(struct timeval *)NULL)) > 0) {
+
+#if CONFIG_USE_SESSION_MANAGER != False
+	    if (m_smFD >= 0 && FD_ISSET(m_smFD, &rfds)) {
+		Bool rep;
+                if (IceProcessMessages(m_smIceConnection, NULL, &rep)
+                    == IceProcessMessagesIOError) {
+                    SmcCloseConnection(m_smConnection, 0, NULL);
+		    m_smIceConnection = NULL;
+		    m_smConnection = NULL;
+                }
+		goto waiting;
+	    }
+#endif
+	    if (FD_ISSET(fd, &rfds)) {
+		XNextEvent(m_display, e);
+		return;
+	    }
+
+//	    return;
 	}
 
 	if (CONFIG_AUTO_RAISE && m_focusChanging) { // timeout on select
@@ -386,12 +435,22 @@ void WindowManager::eventMapRequest(XMapRequestEvent *e)
 {
     Client *c = windowToClient(e->window);
 
+    // JG
+    if (!c) {
+	// fprintf(stderr, "wm2: start managing window %lx\n", e->window);
+	c = windowToClient(e->window, True);
+	c->eventMapRequest(e);
+	c->sendConfigureNotify();
+    } else {
+	c->eventMapRequest(e);
+    }
+
     // some stuff for multi-screen fuckups here, omitted
 
-    if (c) c->eventMapRequest(e);
-    else {
-	fprintf(stderr, "wmx: bad map request for window %lx\n", e->window);
-    }
+//    if (c) c->eventMapRequest(e);
+//    else {
+//	fprintf(stderr, "wmx: bad map request for window %lx\n", e->window);
+//    }
 }
 
 
@@ -464,6 +523,20 @@ void Client::eventUnmap(XUnmapEvent *e)
 	break;
     }
 
+    // When unmapped transient window.  Should change a focus to not
+    // transient window.
+    if (transientFor()) {
+	Client* c = windowManager()->windowToClient(transientFor());
+	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS) {
+	    c->activate();
+	    if (CONFIG_AUTO_RAISE) {
+		c->windowManager()->considerFocusChange(this, c->m_window, windowManager()->timestamp(False));
+	    } else if (CONFIG_RAISE_ON_FOCUS) {
+		c->mapRaised();
+	    }
+	}
+    }
+
     m_reparenting = False;
     m_stubborn = False;
 }
@@ -471,8 +544,9 @@ void Client::eventUnmap(XUnmapEvent *e)
 
 void WindowManager::eventCreate(XCreateWindowEvent *e)
 {
-    if (e->override_redirect) return;
-    Client *c = windowToClient(e->window, True);
+    // not currently used! windows created on first MapRequest instead
+//    if (e->override_redirect) return;
+//    Client *c = windowToClient(e->window, True);
 }
 
 
@@ -596,8 +670,9 @@ void Client::eventProperty(XPropertyEvent *e)
 
 void WindowManager::eventReparent(XReparentEvent *e)
 {
-    if (e->override_redirect) return;
-    (void)windowToClient(e->window, True); // create if absent
+    // not currently used! map events used instead, only
+//    if (e->override_redirect) return;
+//    (void)windowToClient(e->window, True); // create if absent
 
     // odd screen complications, omitted
 }

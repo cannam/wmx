@@ -19,27 +19,26 @@ public:
     void gravitate(Boolean invert);
     void installColormap();
     void unreparent();
-    void withdraw(Boolean = True);
+    void withdraw(Boolean changeState = True);
     void hide();
     void unhide(Boolean map);
     void rename();
     void kill();
     void mapRaised();		// without activating
     void lower();
+    void raiseOrLower();	// without activating, raise if it isn't top.
+				// otherwise lower.
 
     void move(XButtonEvent *);		// event for grab timestamp & coords
     void resize(XButtonEvent *, Boolean, Boolean);
     void moveOrResize(XButtonEvent *);
     void ensureVisible();	// make sure x, y are on-screen
 
-#if CONFIG_MAD_FEEDBACK != 0
     // These are the only accepted calls for feedback: the Manager
     // should *not* call directly into the Border
-
     void showFeedback();
     void raiseFeedbackLevel();
     void removeFeedback(Boolean mapped);
-#endif
 
     void manage(Boolean mapped);
     Boolean hasWindow(Window w) {
@@ -53,7 +52,12 @@ public:
     Boolean isWithdrawn()  { return (m_state == WithdrawnState); }
     Boolean isNormal()     { return (m_state == NormalState);    }
     Boolean isTransient()  { return (m_transient != None);       }
+    Boolean isSticky()    { return m_sticky; }
     Window  transientFor() { return m_transient; }
+#ifdef CONFIG_USE_WINDOW_GROUPS
+    Window  groupParent() { return m_groupParent; }
+    Boolean isGroupParent() { return m_window == m_groupParent; }
+#endif
     Boolean isFixedSize()  { return m_fixedSize; }
 
     const char *label()    { return m_label;    }
@@ -64,10 +68,12 @@ public:
     void flipChannel(Boolean leaving, int newChannel);
     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
     void setChannel(int channel) { m_channel = channel; }
+    void setSticky(Boolean sticky) { m_sticky = sticky; }
 
     void sendMessage(Atom, long);
     void sendConfigureNotify();
 
+    void warpPointer();
     void activateAndWarp();
     void focusIfAppropriate(Boolean);
     void selectOnMotion(Window, Boolean);
@@ -107,6 +113,7 @@ private:
 
     Window m_window;
     Window m_transient;
+    Window m_groupParent;
     Border *m_border;
 
     Client *m_revert;
@@ -116,14 +123,17 @@ private:
     int m_w;
     int m_h;
     int m_bw;
+    Boolean doSomething;	// Become true if move() or resize() made
+				// effect to this client.
 
     int m_channel;
     Boolean m_unmappedForChannel;
+    Boolean m_sticky;
 
-#if CONFIG_MAD_FEEDBACK != 0
+//#if CONFIG_MAD_FEEDBACK != 0
     Boolean m_levelRaised;
     Boolean m_speculating;
-#endif
+//#endif
 
     XSizeHints m_sizeHints;
     Boolean m_fixedSize;

@@ -97,7 +97,12 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	}
 
 	for (i = 0; i < considering.count(); ++i) {
-	    if (considering.item(i) == push) {
+	    if (considering.item(i) == push || considering.item(i)->isSticky()
+#ifdef CONFIG_USE_WINDOW_GROUPS
+		|| (push &&
+		    push->hasWindow(considering.item(i)->groupParent()))
+#endif
+		) {
 		considering.item(i)->setChannel(nextChannel);
 	    } else {
 		considering.item(i)->flipChannel(True, nextChannel);
@@ -127,7 +132,8 @@ void WindowManager::instateChannel()
 
     for (i = 0; i < considering.count(); ++i) {
 	considering.item(i)->flipChannel(False, m_currentChannel);
-	if (considering.item(i)->channel() == m_channels) createNewChannel();
+	if (considering.item(i)->channel() == m_channels &&
+	    !considering.item(i)->isSticky()) createNewChannel();
     }
 
     if (m_activeClient && m_activeClient->channel() != channel()) {

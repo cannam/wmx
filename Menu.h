@@ -8,7 +8,7 @@
 class Menu 
 {
 public:
-    Menu(WindowManager *manager, XButtonEvent *e);
+    Menu(WindowManager *manager, XEvent *e);
     virtual ~Menu();
 
     virtual int getSelection();
@@ -19,6 +19,9 @@ protected:
     
     static Boolean m_initialised;
     static GC m_menuGC;
+#if I18N
+    static XFontSet m_fontset;
+#endif
     static XFontStruct *m_font;
     static unsigned long m_foreground;
     static unsigned long m_background;
@@ -29,7 +32,7 @@ protected:
     int m_nHidden;
 
     WindowManager *m_windowManager;
-    XButtonEvent *m_event;
+    XEvent *m_event;
 
     virtual char **getItems(int *nitems, int *nhidden) = 0;
 
@@ -45,7 +48,7 @@ protected:
 class ClientMenu : public Menu
 {
 public:
-    ClientMenu(WindowManager *, XButtonEvent *e);
+    ClientMenu(WindowManager *, XEvent *e);
     virtual ~ClientMenu();
 
 private:
@@ -53,17 +56,16 @@ private:
     ClientList m_clients;
     Boolean m_allowExit;
 
-#if CONFIG_MAD_FEEDBACK != 0
+    Client *checkFeedback(int);
     virtual void showFeedback(int);
     virtual void removeFeedback(int, Boolean);
     virtual void raiseFeedbackLevel(int);
-#endif
 };
 
 class CommandMenu : public Menu
 {
 public:
-    CommandMenu(WindowManager *, XButtonEvent *e);
+    CommandMenu(WindowManager *, XEvent *e);
     virtual ~CommandMenu();
 
 private:
@@ -74,7 +76,7 @@ private:
 class ShowGeometry : public Menu
 {
 public:
-    ShowGeometry(WindowManager *, XButtonEvent *);
+    ShowGeometry(WindowManager *, XEvent *);
     virtual ~ShowGeometry();
     
     void update(int x, int y);

@@ -6,15 +6,14 @@ wmx is another window manager for X.  It is based on wm2 and provides
 a similarly unusual style of window decoration; but in place of wm2's
 minimal functionality, it offers many of the features of more
 conventional managers in the most simplistic implementations
-imaginable.  wmx is, however, still not configurable except by editing
-the source and recompiling the code.
+imaginable.  wmx is, however, still barely configurable except by
+editing the source and recompiling the code.
 
 
 This release
 ============
 
-This is the fourth release to be made generally available, dating from
-January 1998.
+This is the fifth release, dating from January 1999.
 
 
 Building wmx
@@ -39,9 +38,11 @@ that CONFIG_NASTY_FONT is set to something which is unlikely not to be
 found.
 
 Edit the Makefile to suit the requirements of your system, and run
-"make depend" followed by "make".  This should build wmx.  On certain
-systems you may need to edit the source to overcome problems with the
-location of non-POSIX functions such as putenv() and select().
+"make".  This should build wmx.  On certain systems you may need to
+edit the source to overcome problems with the location of non-POSIX
+functions such as putenv(), select() and signal() -- check Manager.C
+for the putenv() prototype, Events.C for a select #define, and
+General.h for the SIGNAL_CALLBACK_TYPE macro.
 
 
 Using wmx
@@ -75,7 +76,7 @@ Available window manipulations are:
     window for the root menu, and choose the window you want.
 
  -- To start a new xterm: use the first item on the left-button root
-    menu ("New").
+    menu ("New"), unless you've disabled it in Config.h.
 
  -- To delete a window: make sure it's in focus, click on the
     button on the tab, hold the mouse button for at least a
@@ -112,7 +113,8 @@ Available window manipulations are:
     your $HOME/.wmx directory -- or other directory named in
     CONFIG_COMMAND_MENU -- they will be listed on a menu and you can
     choose one to be started up.  (You can add and remove programs
-    while wmx is running.)
+    while wmx is running.)  REMEMBER, $HOME/.wmx IS A DIRECTORY, not
+    a file, so please don't write to me asking what the file format is.
 
  -- To exit from wmx: move the mouse pointer to the very edge of the
     screen at the extreme lower-right corner, and click left button on
@@ -126,31 +128,41 @@ Keyboard controls
 =================
 
 By popular request, there are now some keyboard controls available.
-The key combinations are configurable in Config.h, but the default
-bindings are:
+The key combinations are configurable in Config.h, and the particular
+modifier used depends on your X server (the default of Mod1
+corresponds to Alt on most).  The default bindings are:
 
- -- To raise the focused window in the stacking order: Mod1
-    (corresponding to Alt with many X servers) and cursor-Up
+ -- To raise the focused window in the stacking order: Alt/cursor-Up
 
- -- To lower the focused window: Mod1/cursor-Down
+ -- To lower the focused window: Alt/cursor-Down
 
- -- To flip through the windows on screen: Mod1/Tab (equivalent to
+ -- To flip through the windows on screen: Alt/Tab (equivalent to
     clicking the right mouse-button on the focused window's frame)
 
- -- To hide the focused window: Mod1/Return
+ -- To hide the focused window: Alt/Return
 
- -- To delete the focused window: Mod1/Delete
+ -- To delete the focused window: Alt/Delete
 
  -- To expand the focused window to the full height of the screen:
-    Mod1/PageUp
+    Alt/PageUp
 
- -- To contract the focused window after expanding it: Mod1/PageDown
+ -- To contract the focused window after expanding it: Alt/PageDown
 
- -- To switch channels: Mod1/cursor-Left and Mod1/cursor-Right
+ -- To switch channels: Alt/cursor-Left and Alt/cursor-Right
 
  -- To switch directly to channel number N, provided there is
     a channel N (i.e. some client has been created there already):
-    Mod1 plus F-key N.  Thus for channel 2 press Mod1/F2 and so on.
+    Alt plus F-key N.  Thus for channel 2 press Alt/F2 and so on.
+
+And new in the fifth release:
+
+ -- To make the currently focused window "sticky", so it appears on
+    all channels: Alt/Pause.  Repeat to unstick the window.
+
+ -- To pop up a keyboard-powered client menu: Alt/Menu.  (On my PC,
+    Menu is bound to the rightmost Windows-95-specific key.)  You
+    can then use cursor-Up and cursor-Down, Return, and Escape to
+    choose, select or cancel from the menu.
 
 If you have NumLock switched on, the key controls might not work.
 
@@ -166,7 +178,7 @@ separate focus policy on its own and will only work if the first two
 are both False.  CONFIG_AUTO_RAISE differs from
 (!CONFIG_CLICK_TO_FOCUS && CONFIG_RAISE_ON_FOCUS) only in that it
 provides a short delay before raising each window.  The delay is also
-definable in Config.h.
+definable.
 
 
 Skeletal feedback
@@ -183,6 +195,33 @@ speculatively see what a hidden window is showing, without having to
 restore it and hide it again.
 
 
+Dynamic configuration
+=====================
+
+This release allows a certain degree of configuration at runtime.
+
+(I know, I'm sorry.)
+
+The configuration is held as the target of a symbolic link residing at
+~/.wmx/options (or in whichever directory the CONFIG_COMMAND_MENU is
+found).  This target should be a string of the form a:b/c:d/e:f etc,
+to set option a to value b, option c to value d, e to f and so on.
+The available options are currently "menu" (full or part), "new" (on
+or off), "keyboard" (on or off), "feedback" (on or off), and "focus"
+(click, raise, delay-raise or follow).  "focus:delay-raise" may be
+optionally followed by a comma and then a delay time in ms.
+
+For example,
+
+  amyl > ~ > ls -l ~/.wmx/options
+  lrwxrwxrwx   1 cannam   cannam         39 Jan 12 10:16 /home/cannam/.wmx/options -> menu:full/new:off/focus:delay-raise,100
+  amyl > ~ > 
+
+The real problem with this scheme is that it makes Config.h harder to
+read, because the defaults for the dynamically configurable options
+are now held in Config.C instead.
+
+
 Pixmaps
 =======
 
@@ -196,6 +235,20 @@ background too.
 An especially unpleasant example file, cribbed and modified from
 http://home.netscape.com/assist/net_sites/bg/marble/greenred_marble.gif,
 is included, although you're advised to find your own.
+
+
+Decoration-free windows
+=======================
+
+wmx does not support borderless or undecorated windows, but there
+is a friendly utility by Vadim Kolontsov, called "xnodecor", that you
+can use to circumvent this limitation if you want.  See
+
+  http://sb.123.org/xnodecor.html
+
+xnodecor gives you absolutely stationary, sticky, fixed borderless
+windows for applications such as clocks that you feel you will never
+want to move or remove.
 
 
 xterm
@@ -217,22 +270,34 @@ from "9wm" by David Hogan.
 
 The sideways tabs on the window frames were Andy Green's idea.
 
-Alan Richardson's "xvertext" font-rotation routines are used for the
-window tabs.
+Alan Richardson's "xvertext" font-rotation routines are used for
+the window tabs.
+
+Kazushi (Jam) Marukawa provided all the internationalisation
+code, which I think is currently only tested for Japanese; see
+README.contrib for his notes and copyright notice.
 
 Jeremy Fitzhardinge provided the original application-menu code.
+
+The dynamic configuration code is mostly due to Stefan `Sec' Zehl.
+
+This release contains code and bug fixes provided by Eric Marsden,
+Lasse Rasinen, Bill Spitzak, Jacques Garrigue, Stefan `Sec' Zehl,
+Sven Oliver Moll, Martin Andrews and, well, probably several others.
 
 If you want to hack the code into something else for your own
 amusement, please go ahead.  Feel free to modify and redistribute, as
 long as you retain the original copyrights as appropriate.
 
 
-Bugs
-====
+Mailing list
+============
 
-If you find a bug, please report it to me (preferably with a fix).
+There is a mailing list for discussion of wm2 and wmx, hosted by
+majordomo at 42.org.  To subscribe, send email to majordomo@42.org
+with "subscribe wmx" in the body of the mail.  The list is archived on
+the web at http://ml.42.org/wmx/.
 
 
-
-Chris Cannam, cannam@netcomuk.co.uk
-January 1998
+Chris Cannam, cannam@all-day-breakfast.com
+January 1999

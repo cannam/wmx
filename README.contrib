@@ -1,0 +1,69 @@
+
+This file contains descriptions and copyright information for a few
+patches I received which have been used in this release of wmx.
+(Patches incorporated into earlier releases are not listed.)
+
+This file may describe some features not documented in the README.
+
+=====================================================================
+    Miscellaneous configuration features patch: Sven Oliver Moll     
+=====================================================================
+
+The patch includes the following features:
+- using the "Props" Key on a Sun Type 4 or 5 Keyboard does a full / normal
+  height toggle
+- it is possible to disable the new command
+- a slightly cleanup on the mad feedback code (no new functionality)
+- the area where [Exit wmx] appears is now selectable via Config.h
+- if $WMXDIR is set use it instead of $HOME/.wmx
+- if $HOME/.wmx does not exist, wmx trys also a global directory
+- new command can now be fed with options
+- and last, but not least, it's possible to implement wmx in the dtlogin
+  procedure of CDE, thanks to AmiWM, from where I ported the scripts.
+  [[This is not in the main release but is available separately from
+  the wmx website --cc]]
+
+I'm jobbing here in the University of Hildesheim as a co-admin of the Unix
+computer pool. Some of the features I implemented (especially the global
+directory code) came to life because I want to install wmx here in a way
+that more users than me can use it here.
+
+=====================================================================
+       Japanese language support patch: Kazushi (Jam) Marukawa
+=====================================================================
+
+I changed following things for my self.  Please use them freely.
+
+ - A clicking on the title or border of a window raise the window.  It is
+   an original behavior.  A clicking on there of a topped window lower it.
+ - Add I18N ability for window title and menu strings.
+ - Change to move a focus when unmapping a transient window.
+ - Change Makefile and Config.h to what I want.
+
+And my copyright notices are following.
+
+/*
+ * Copyright (c) 1998  Kazushi (Jam) Marukawa
+ * All rights of japanized routines reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice in the documentation and/or other materials provided with 
+ *    the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN 
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */

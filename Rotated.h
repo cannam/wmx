@@ -48,6 +48,7 @@ struct XRotFontStruct {
     int			 min_char;
     char 		*name;
 
+    XFontSet		 xfontset;
     XFontStruct		*xfontstruct;
 
     XRotCharStruct	 per_char[95];

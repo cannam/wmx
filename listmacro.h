@@ -33,6 +33,7 @@ public: \
     void remove(long index); \
     void remove_all(); \
     void move_to_start(long index); \
+    void move_to_end(long index); \
 \
 private: \
     T *m_items; \
@@ -41,9 +42,11 @@ private: \
 
 #define implementList(List, T) \
 \
-List::List() : m_count(0), m_items(0) { } \
+List::List() : m_items(0), m_count(0) { } \
 \
 List::~List() { remove_all(); } \
+\
+void *operator new(size_t, void *m, List *) { return m; } \
 \
 void List::append(const T &item) { \
     if (m_items) { \
@@ -52,13 +55,18 @@ void List::append(const T &item) { \
 	m_items = (T *)malloc(sizeof(T)); \
     } \
     assert(m_items); \
-    m_items[m_count++] = (T)item; \
+    new (&m_items[m_count++], this) T(item); \
 } \
 \
 void List::remove(long index) { \
     assert(index >= 0 && index < m_count); \
+    m_items[index].T::~T(); \
     memcpy(m_items+index, m_items+index+1, (m_count-index-1) * sizeof(T)); \
-    m_items = (T *)realloc(m_items, (m_count - 1) * sizeof(T)); \
+    if (m_count == 1) { \
+	free((void *)m_items); m_items = 0; \
+    } else { \
+        m_items = (T *)realloc(m_items, (m_count - 1) * sizeof(T)); \
+    } \
     --m_count; \
 } \
 \
@@ -68,9 +76,19 @@ void List::remove_all() { \
 \
 void List::move_to_start(long index) { \
     assert(index >= 0 && index < m_count); \
-    T temp = item(index); \
+    T temp(m_items[index]); \
+    m_items[index].T::~T(); \
     if (index > 0) memmove(m_items+1, m_items, index * sizeof(T)); \
-    m_items[0] = temp; \
+    new (&m_items[0], this) T(temp); \
+} \
+\
+void List::move_to_end(long index) { \
+    assert(index >= 0 && index < m_count); \
+    T temp(m_items[index]); \
+    m_items[index].T::~T(); \
+    if (index < m_count-1) memmove(m_items+index, m_items+index+1, \
+				   (m_count-index-1) * sizeof(T)); \
+    new (&m_items[m_count-1], this) T(temp); \
 }
 
 #endif

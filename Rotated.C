@@ -14,14 +14,23 @@
 
 /* ********************************************************************** */
 
+// Minor modifications by Chris Cannam for wm2/wmx
+// Major modifications by Kazushi (Jam) Marukawa for wm2/wmx i18n patch
+
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "Config.h"
 #include "Rotated.h"
 
+
+#if I18N
+#undef NOPIXMAP
+#define NOPIXMAP 1	// anyway, NOPIXMAP
+#endif
 
 /* ---------------------------------------------------------------------- */
 
@@ -157,7 +166,26 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
   XSetBackground(dpy, font_gc, off);
 
   /* load the font ... */
+#if I18N
+  char **ml;
+  int mc;
+  char *ds;
+
+  XFontSet fontset;
+  fontset = XCreateFontSet(dpy, fontname, &ml, &mc, &ds);
+  if (fontset) {
+    XFontStruct **fs_list;
+    XFontsOfFontSet(fontset, &fs_list, &ml);
+    fontstruct = fs_list[0];
+  } else {
+    fontstruct = NULL;
+  }
+#define XTextWidth(x,y,z)     XmbTextEscapement(rotfont->xfontset,y,z)
+#define XDrawString(t,u,v,w,x,y,z) XmbDrawString(t,u,rotfont->xfontset,v,w,x,y,z)
+#define XDrawImageString(t,u,v,w,x,y,z) XmbDrawString(t,u,rotfont->xfontset,v,w,x,y,z)
+#else
   fontstruct = XLoadQueryFont(dpy, fontname);
+#endif
   if (fontstruct == NULL) {
     xv_errno = XV_NOFONT;
     return NULL;
@@ -190,6 +218,15 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
   rotfont->height = rotfont->max_ascent+rotfont->max_descent;
 
   /* remember xfontstruct for `normal' text ... */
+#if NOPIXMAP
+#if I18N
+  rotfont->xfontset = fontset;
+#endif
+  rotfont->xfontstruct = fontstruct;
+#else
+#if I18N
+  PIXMAP implementation cannot treat I18N
+#endif
   if (dir == 0) rotfont->xfontstruct = fontstruct;
 
   else {
@@ -328,6 +365,7 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
 
     XFreeFont(dpy, fontstruct);
   }
+#endif
 
   /* free pixmap and GC ... */
   XFreePixmap(dpy, canvas);
@@ -346,12 +384,23 @@ void XRotUnloadFont(Display *dpy, XRotFontStruct *rotfont)
 {
   int ichar;
 
+#if NOPIXMAP
+#if I18N
+  XFreeFontSet(dpy, rotfont->xfontset);
+#else
+  XFreeFont(dpy, rotfont->xfontstruct);
+#endif
+#else
+#if I18N
+  PIXMAP implementation cannot treat I18N
+#endif
   if (rotfont->dir == 0) XFreeFont(dpy, rotfont->xfontstruct);
 
   else
     /* loop through each character, freeing its pixmap ... */
     for (ichar = rotfont->min_char-32; ichar <= rotfont->max_char-32; ichar++)
       XFreePixmap(dpy, rotfont->per_char[ichar].glyph.bm);
+#endif
 
   /* rotfont should never be referenced again ... */
   free((char *)rotfont->name);
@@ -370,6 +419,9 @@ int XRotTextWidth(XRotFontStruct *rotfont, char *str, int len)
 
   if (str == NULL) return 0;
 
+#if NOPIXMAP
+  width = XTextWidth(rotfont->xfontstruct, str, strlen(str));
+#else
   if (rotfont->dir == 0)
     width = XTextWidth(rotfont->xfontstruct, str, strlen(str));
 
@@ -381,6 +433,7 @@ int XRotTextWidth(XRotFontStruct *rotfont, char *str, int len)
       if (ichar >= 0 && ichar<95) 
 	width += rotfont->per_char[ichar].width;
     }
+#endif
 
   return width;
 }
@@ -404,11 +457,177 @@ void XRotDrawString(Display *dpy, XRotFontStruct *rotfont, Drawable drawable,
 
   XCopyGC(dpy, gc, GCForeground|GCBackground, my_gc);
 
+#if NOPIXMAP
   /* a horizontal string is easy ... */
   if (dir == 0) {
     XSetFillStyle(dpy, my_gc, FillSolid);
     XSetFont(dpy, my_gc, rotfont->xfontstruct->fid);
     XDrawString(dpy, drawable, my_gc, x, y, str, len);
+
+    return;
+  }
+
+  /* vertical or upside down ... */
+
+  XImage *I1, *I2;
+  unsigned char *vertdata, *bitdata;
+  int vert_w, vert_h, vert_len, bit_w, bit_h, bit_len;
+  char val;
+
+  /* useful macros ... */
+  int screen = DefaultScreen(dpy);
+  Window root = DefaultRootWindow(dpy);
+
+  int ascent = rotfont->max_ascent;
+  int descent = rotfont->max_descent;
+  int width = XRotTextWidth(rotfont, str, len);
+  int height = rotfont->height;
+  if (width < 1) width = 1;
+  if (height < 1) height = 1;
+
+  /* glyph width and height when vertical ... */
+  vert_w = width;
+  vert_h = height;
+
+  /* width in bytes ... */
+  vert_len = (vert_w-1)/8+1;   
+ 
+  /* create the depth 1 canvas bitmap ... */
+  Pixmap canvas = XCreatePixmap(dpy, root, width, height, 1);
+
+  /* create a GC ... */
+  GC font_gc = XCreateGC(dpy, canvas, 0, 0);
+  XSetBackground(dpy, font_gc, 0);
+
+  /* clear canvas */
+  XSetForeground(dpy, font_gc, 0);
+  XFillRectangle(dpy, canvas, font_gc, 0, 0, width, height);
+
+  /* draw the character centre top right on canvas ... */
+  XSetForeground(dpy, font_gc, 1);
+  XSetFont(dpy, font_gc, rotfont->xfontstruct->fid);
+  XDrawImageString(dpy, canvas, font_gc, 0, height-descent, str, len);
+
+  /* reserve memory for first XImage ... */
+  vertdata = (unsigned char *) malloc((unsigned)(vert_len*vert_h));
+  if (vertdata == NULL) {
+    xv_errno = XV_NOMEM;
+    return;
+  }
+
+  /* create the XImage ... */
+  I1 = XCreateImage(dpy, DefaultVisual(dpy, screen), 1, XYBitmap,
+		    0, (char *)vertdata, vert_w, vert_h, 8, 0);
+
+  if (I1 == NULL) {
+    xv_errno = XV_NOXIMAGE;
+    return;
+  }
+
+  I1->byte_order = I1->bitmap_bit_order = MSBFirst;
+
+  /* extract character from canvas ... */
+  XGetSubImage(dpy, canvas, 0, 0,
+	       vert_w, vert_h, 1, XYPixmap, I1, 0, 0);
+  I1->format = XYBitmap; 
+
+  /* width, height of rotated character ... */
+  if (dir == 2) { 
+    bit_w = vert_w;
+    bit_h = vert_h; 
+  } else {
+    bit_w = vert_h;
+    bit_h = vert_w; 
+  }
+
+  /* width in bytes ... */
+  bit_len = (bit_w-1)/8 + 1;
+
+  /* reserve memory for the rotated image ... */
+  bitdata = (unsigned char *)calloc((unsigned)(bit_h*bit_len), 1);
+  if (bitdata == NULL) {
+    xv_errno = XV_NOMEM;
+    return;
+  }
+
+  /* create the image ... */
+  I2 = XCreateImage(dpy, DefaultVisual(dpy, screen), 1, XYBitmap, 0,
+		    (char *)bitdata, bit_w, bit_h, 8, 0); 
+
+  if (I2 == NULL) {
+    xv_errno = XV_NOXIMAGE;
+    return;
+  }
+
+  I2->byte_order = I2->bitmap_bit_order = MSBFirst;
+
+  /* map vertical data to rotated character ... */
+  int j;
+  for (j = 0; j < bit_h; j++) {
+    for (i = 0; i < bit_w; i++) {
+      /* map bits ... */
+      if (dir == 1)
+	val = vertdata[i*vert_len + (vert_w-j-1)/8] &
+	  (128>>((vert_w-j-1)%8));
+
+      else if (dir == 2)
+	val = vertdata[(vert_h-j-1)*vert_len + (vert_w-i-1)/8] &
+	  (128>>((vert_w-i-1)%8));
+		
+      else 
+	val = vertdata[(vert_h-i-1)*vert_len + j/8] & 
+	  (128>>(j%8));
+    
+      if (val) 
+	bitdata[j*bit_len + i/8] = bitdata[j*bit_len + i/8] |
+	  (128>>(i%8));
+    }
+  }
+
+  /* create this character's bitmap ... */
+  Pixmap image = XCreatePixmap(dpy, root, bit_w, bit_h, 1);
+     
+  /* put the image into the bitmap ... */
+  XPutImage(dpy, image, font_gc, I2, 0, 0, 0, 0, bit_w, bit_h);
+  
+  /* free the image and data ... */
+  XDestroyImage(I1);
+  XDestroyImage(I2);
+  /*      free((char *)bitdata);  -- XDestroyImage does this
+	  free((char *)vertdata);*/
+
+  /* free pixmap and GC ... */
+  XFreePixmap(dpy, canvas);
+  XFreeGC(dpy, font_gc);
+
+  /* suitable offset ... */
+  if (dir == 1) {
+    xp = x-rotfont->max_ascent;
+    yp = y-width; //rotfont->rbearing; 
+  }
+  else if (dir == 2) {
+    xp = x-width; //rotfont->rbearing;
+    yp = y-rotfont->max_descent+1;
+  }
+  else {
+    xp = x-rotfont->max_descent+1;
+    yp = y+0; //rotfont->lbearing; 
+  }
+
+  XSetFillStyle(dpy, my_gc, FillStippled);
+  XSetStipple(dpy, my_gc, image);
+  XSetTSOrigin(dpy, my_gc, xp, yp);
+  XFillRectangle(dpy, drawable, my_gc, xp, yp,
+		 bit_w, bit_h);
+
+  XFreePixmap(dpy, image);
+#else
+  /* a horizontal string is easy ... */
+  if (dir == 0) {
+    XSetFillStyle(dpy, my_gc, FillSolid);
+    XSetFont(dpy, my_gc, rotfont->xfontstruct->fid);
+    XDrawString(dpy, drawable, my_gc, x, y, str, len);
+
     return;
   }
 
@@ -454,6 +673,7 @@ void XRotDrawString(Display *dpy, XRotFontStruct *rotfont, Drawable drawable,
 	y += rotfont->per_char[ichar].width;
     }
   }
+#endif
 }
 
   

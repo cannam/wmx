@@ -10,7 +10,9 @@
 #undef _POSIX_SOURCE
 #endif
 
+#ifndef __FreeBSD__
 #define _POSIX_SOURCE 1
+#endif
 
 #include <stdio.h>
 #include <signal.h>
@@ -32,7 +34,8 @@ typedef char Boolean;
 #define NewString(x) (strcpy((char *)malloc(strlen(x)+1),(x)))
 
 #ifndef SIGNAL_CALLBACK_TYPE
-#define SIGNAL_CALLBACK_TYPE (void (*)(...))
+//#define SIGNAL_CALLBACK_TYPE (void (*)(...))
+#define SIGNAL_CALLBACK_TYPE (void (*)(int))
 #endif
 
 #define signal(x,y)     \
@@ -45,6 +48,10 @@ typedef char Boolean;
   } while (0)
 
 #include "Config.h"
+
+#ifdef CONFIG_USE_SESSION_MANAGER
+#include <X11/SM/SMlib.h>
+#endif
 
 class Atoms {
 public:
