@@ -1,0 +1,25 @@
+Done:
+added screen() funtion to border, client, etc. where display() exists
+Datastructure
+Initialize
+root() ??? Is it really working ???
+Border appears on :0.1
+Menus
+Clients only on correct ClientMenu
+Farben on :0.1 \ 
+Fonts on :0.1   > Problem mit GC?
+Iconity To right display
+Austuefteln, wann setScreenFromPointer() am sinnvollsten aufrufen...
+Creation of Windows on right Display.
+
+Todo:
+Channels per screen, not per display.
+I18N!!
+
+
+Errors:
+#X_PolyFillRectangle
+#X_CloseFont
+#X_CopyGC
+#X_ChangeGC
+Set Active Window with Client Menu (NO MULTIHEAD ERROR)

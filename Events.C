@@ -25,7 +25,7 @@ void WindowManager::dispatchEvent(XEvent *ev)
     switch (ev->type) {
 
     case ButtonPress:
-	eventButton(&ev->xbutton);
+	eventButton(&ev->xbutton, ev);
 	break;
 
     case ButtonRelease:
@@ -254,7 +254,8 @@ void WindowManager::checkDelaysForFocus()
 	    t - m_focusTimestamp > CONFIG_POINTER_STOPPED_DELAY) {
 
 	    if (m_focusPointerNowStill) {
-		m_focusCandidate->focusIfAppropriate(True);
+//		m_focusCandidate->focusIfAppropriate(True);
+		m_focusPointerMoved = False;
 //		if (m_focusCandidate->isNormal()) m_focusCandidate->mapRaised();
 //		stopConsideringFocus();
 
@@ -328,6 +329,16 @@ void Client::focusIfAppropriate(Boolean ifActive)
     }
 }
 
+
+void WindowManager::setScreenFromPointer()
+{
+    Window rw, cw;
+    int rx, ry, cx, cy;
+    unsigned int k;
+
+    XQueryPointer(display(), root(), &rw, &cw, &rx, &ry, &cx, &cy, &k);
+    setScreenFromRoot(rw);
+}
 
 void WindowManager::eventConfigureRequest(XConfigureRequestEvent *e)
 {
@@ -439,8 +450,10 @@ void WindowManager::eventMapRequest(XMapRequestEvent *e)
     if (!c) {
 	// fprintf(stderr, "wm2: start managing window %lx\n", e->window);
 	c = windowToClient(e->window, True);
-	c->eventMapRequest(e);
-	c->sendConfigureNotify();
+	if (c) {
+	    c->eventMapRequest(e);
+	    c->sendConfigureNotify();
+	}
     } else {
 	c->eventMapRequest(e);
     }
@@ -526,6 +539,12 @@ void Client::eventUnmap(XUnmapEvent *e)
     // When unmapped transient window.  Should change a focus to not
     // transient window.
     if (transientFor()) {
+
+#if CONFIG_GNOME_COMPLIANCE != False
+	// gotta take it off the m_ordered list 
+	m_windowManager->removeFromOrderedList(this);
+#endif
+
 	Client* c = windowManager()->windowToClient(transientFor());
 	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS) {
 	    c->activate();
@@ -567,6 +586,28 @@ void WindowManager::eventDestroy(XDestroyWindowEvent *e)
 	    }
 	}
 
+        int there = -1;
+	
+	for (int y = 0; y < 10; y++) {
+	    there = -1;
+//	    fprintf(stderr, "y = %d : ", y);
+
+	    for (int i = 0; i < grouping.item(y)->count(); i++) {
+//  		fprintf(stderr, "'%d %d %d'", i, 
+//  			grouping.item(y)->item(i),
+//  			c );
+ 		if (grouping.item(y)->item(i) == c) {
+//		    fprintf(stderr, "removing client from %d at %d\n", y, i);
+		    there = i;
+		}
+	    }
+	    if (there != -1) {
+		grouping.item(y)->remove(there);
+	    }
+//	    fprintf(stderr,"\n");
+	}
+
+
 	checkChannel(c->channel());
 	c->release();
 
@@ -586,6 +627,52 @@ void WindowManager::eventClient(XClientMessageEvent *e)
 	    if (c->isNormal()) c->hide();
 	    return;
 	}
+    }
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    // now we have to figure out what messages gnome is sending us 
+    char *atomName = XGetAtomName(display(), e->message_type);
+    
+    if (strncmp(atomName, "_WIN_WORKSPACE", 13) == 0) {
+
+	int channel = (int)e->data.l[0] + 1;
+
+	// gnome is not up-to-date and asked us to flip to a 
+	// non-existing channel
+	if (channel > m_channels) {
+	    
+	    gnomeUpdateChannelList();
+	    return;
+	}
+
+	// it seems like there should be a better way of doing this...
+	while (m_currentChannel != channel) {
+	    if (m_currentChannel < channel) {
+		flipChannel(False, False, True, 0);
+	    } else {
+		flipChannel(False, True, True, 0);
+	    }
+	    XSync(display(), False);
+	}
+
+	XFree(atomName);
+
+	gnomeUpdateChannelList();
+
+	return;
+    }
+
+    if (strncmp(atomName, "_WIN_AREA", 9) == 0) {
+	// we don't support _WIN_AREA 
+	XFree(atomName);
+	return;
+    }
+    XFree(atomName);
+#endif
+
+    if (e->message_type == 0xed) {
+	XUnmapWindow(display(), e->window);
+	return;
     }
 
     fprintf(stderr, "wmx: unexpected XClientMessageEvent, type 0x%lx, "
@@ -739,8 +826,8 @@ Boolean Client::coordsInHole(int x, int y)	// relative to parent
 
 Boolean Border::coordsInHole(int x, int y)	// this is all a bit of a hack
 {
-    return (x > 1 && x < m_tabWidth-1 &&
-	    y > 1 && y < m_tabWidth-1);
+    return (x > 1 && x < m_tabWidth[screen()]-1 &&
+	    y > 1 && y < m_tabWidth[screen()]-1);
 }
 
 

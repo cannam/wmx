@@ -14,15 +14,15 @@ public:
     virtual int getSelection();
     static void cleanup(WindowManager *const);
 
-protected:
-    static Window m_window;
+ protected:
+    static Window *m_window;
     
     static Boolean m_initialised;
-    static GC m_menuGC;
+    static GC *m_menuGC;
 #if I18N
     static XFontSet m_fontset;
 #endif
-    static XFontStruct *m_font;
+    static XFontStruct **m_font;
     static unsigned long m_foreground;
     static unsigned long m_background;
     static unsigned long m_border;
@@ -30,6 +30,9 @@ protected:
     char **m_items;
     int m_nItems;
     int m_nHidden;
+
+    Boolean m_hasSubmenus;
+    virtual void createSubmenu (XEvent *e, int i) {};
 
     WindowManager *m_windowManager;
     XEvent *m_event;
@@ -39,10 +42,15 @@ protected:
     Display *display() { return m_windowManager->display(); }
     Window root()      { return m_windowManager->root();    }
     int screen()       { return m_windowManager->screen();  }
+    
+    Boolean isKeyboardMenuEvent (XEvent *e) {
+	(CONFIG_WANT_KEYBOARD_MENU && (e->type == KeyPress));
+    }
 
     virtual void showFeedback(int) { }
     virtual void removeFeedback(int, Boolean) { }
     virtual void raiseFeedbackLevel(int) { }
+
 };
 
 class ClientMenu : public Menu
@@ -65,10 +73,11 @@ private:
 class CommandMenu : public Menu
 {
 public:
-    CommandMenu(WindowManager *, XEvent *e);
+    CommandMenu(WindowManager *, XEvent *e, char *otherdir = NULL);
     virtual ~CommandMenu();
 
 private:
+    void createSubmenu(XEvent *, int i);
     virtual char **getItems(int *, int *);
     char *m_commandDir;
 };

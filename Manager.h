@@ -8,6 +8,9 @@
 class Client;
 declarePList(ClientList, Client);
 
+#if CONFIG_GROUPS != False
+declarePList(ListList, ClientList);
+#endif
 
 class WindowManager {
 public:
@@ -31,8 +34,13 @@ public:
     void skipInRevert(Client *, Client *);
 
     Display *display() { return m_display; }
-    Window root() { return m_root; }
+    Window root() { return m_root[screen()]; }
+    Window mroot(int i) { return m_root[i]; }
     int screen() { return m_screenNumber; }
+    int screensTotal() { return m_screensTotal; }
+    void setScreen(int i) { m_screenNumber = i; }
+    void setScreenFromRoot(Window);
+    void setScreenFromPointer();
 
     enum RootCursor {
 	NormalCursor, DeleteCursor, DownCursor, RightCursor, DownrightCursor
@@ -49,7 +57,7 @@ public:
     void installCursor(RootCursor);
     void installCursorOnWindow(RootCursor, Window);
     void installColormap(Colormap);
-    unsigned long allocateColour(char *, char *);
+    unsigned long allocateColour(int, char *, char *);
 
     void considerFocusChange(Client *, Window, Time timestamp);
     void stopConsideringFocus();
@@ -77,23 +85,36 @@ public:
     // during menu display:
     void dispatchEvent(XEvent *);
 
+#if CONFIG_GROUPS != False
+    void windowGrouping(XKeyEvent *ev, KeySym key, Client *c);
+#endif
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    void gnomeUpdateWindowList();
+    void gnomeUpdateChannelList();
+    void gnomeUpdateCurrentChannel();
+#endif
+
+
+
 private:
     int loop();
     void release();
 
     Display *m_display;
     int m_screenNumber;
+    int m_screensTotal;
+  
+    Window *m_root;
 
-    Window m_root;
+    Colormap *m_defaultColormap;
+//    int *m_minimumColormaps;
 
-    Colormap m_defaultColormap;
-    int m_minimumColormaps;
-
-    Cursor m_cursor;
-    Cursor m_xCursor;
-    Cursor m_vCursor;
-    Cursor m_hCursor;
-    Cursor m_vhCursor;
+    Cursor *m_cursor;
+    Cursor *m_xCursor;
+    Cursor *m_vCursor;
+    Cursor *m_hCursor;
+    Cursor *m_vhCursor;
     
     char *m_terminal;
     char *m_shell;
@@ -102,6 +123,10 @@ private:
     ClientList m_hiddenClients;
     ClientList m_orderedClients;
     Client *m_activeClient;
+
+#if CONFIG_GROUPS != False
+    ListList grouping;
+#endif
 
     int m_shapeEvent;
     int m_currentTime;
@@ -121,8 +146,9 @@ private:
 
     static Boolean m_initialising;
     static int errorHandler(Display *, XErrorEvent *);
-    static void sigHandler();
+    static void sigHandler(int);
     static int m_signalled;
+    static int m_restart;
 
     void initialiseScreen();
     void scanInitialWindows();
@@ -137,7 +163,7 @@ private:
     Boolean m_focusPointerNowStill;
     void checkDelaysForFocus();
 
-#ifdef CONFIG_USE_SESSION_MANAGER
+#if CONFIG_USE_SESSION_MANAGER != False
     int m_smFD;
     IceConn m_smIceConnection;
     SmcConn m_smConnection;
@@ -158,7 +184,7 @@ private:
 
     void nextEvent(XEvent *);	// return
 
-    void eventButton(XButtonEvent *);
+    void eventButton(XButtonEvent *, XEvent *);
     void eventKeyRelease(XKeyEvent *);
     void eventMapRequest(XMapRequestEvent *);
     void eventConfigureRequest(XConfigureRequestEvent *);
@@ -174,7 +200,17 @@ private:
     void eventExposure(XExposeEvent *);
 
     Boolean m_altPressed;
+    Boolean m_altStateRetained;
     void eventKeyPress(XKeyEvent *);
+
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    void gnomeInitialiseCompliance();
+    Window gnome_win;
+
+#endif
+
+
 };
 
 #endif

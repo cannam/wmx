@@ -20,17 +20,23 @@ static char *numerals[10][7] = {
 void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 				Boolean quickFlip, Client *push)
 {
+    static int lastscreen = -1;
     if (!CONFIG_CHANNEL_SURF) return;
+
+    if (m_channelWindow && (screen() != lastscreen))
+    {
+	XDestroyWindow(display(),m_channelWindow);
+	m_channelWindow = 0;
+    }
 
     if (!m_channelWindow) {
 
-	int screen = m_screenNumber;
 	XColor nearest, ideal;
 
-	if (!XAllocNamedColor(display(), DefaultColormap(display(), screen),
-			      "green", &nearest, &ideal)) {
+	if (!XAllocNamedColor(display(), DefaultColormap(display(), screen()),
+			      CONFIG_CHANNEL_NUMBER, &nearest, &ideal)) {
 	    
-	    if (!XAllocNamedColor(display(), DefaultColormap(display(), screen),
+	    if (!XAllocNamedColor(display(), DefaultColormap(display(), screen()),
 				  "black", &nearest, &ideal)) {
 		
 		fatal("Couldn't allocate green or black");
@@ -42,7 +48,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	wa.override_redirect = True;
 	
 	m_channelWindow = XCreateWindow
-	    (m_display, m_root, 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
+	    (display(), root(), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
     }
 
@@ -84,7 +90,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
     }
 
     XMoveResizeWindow(display(), m_channelWindow,
-		      DisplayWidth(display(), m_screenNumber) - 30 -
+		      DisplayWidth(display(), screen()) - 30 -
 		      110 * strlen(number), 30, 500, 160);
     XMapRaised(display(), m_channelWindow);
 
@@ -115,6 +121,11 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
     m_currentChannel = nextChannel;
     m_channelChangeTime = timestamp(True) +
 	(quickFlip ? CONFIG_QUICK_FLIP_DELAY : CONFIG_FLIP_DELAY);
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    gnomeUpdateChannelList();
+#endif
+
 }
 
 
@@ -153,6 +164,11 @@ void WindowManager::checkChannel(int ch)
     }
 
     --m_channels;
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    gnomeUpdateChannelList();
+#endif
+
     if (m_currentChannel > m_channels) m_currentChannel = m_channels;
 
     checkChannel(ch - 1);
@@ -162,6 +178,10 @@ void WindowManager::checkChannel(int ch)
 void WindowManager::createNewChannel()
 {
     ++m_channels;
+#if CONFIG_GNOME_COMPLIANCE != False
+    gnomeUpdateChannelList();
+#endif
+
 }
 
 

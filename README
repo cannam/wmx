@@ -281,6 +281,8 @@ Jeremy Fitzhardinge provided the original application-menu code.
 
 The dynamic configuration code is mostly due to Stefan `Sec' Zehl.
 
+Gnome and shaped client support is mostly due to Henri Naccache.
+
 This release contains code and bug fixes provided by Eric Marsden,
 Lasse Rasinen, Bill Spitzak, Jacques Garrigue, Stefan `Sec' Zehl,
 Sven Oliver Moll, Martin Andrews and, well, probably several others.

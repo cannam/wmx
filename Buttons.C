@@ -5,17 +5,55 @@
 #include <X11/keysym.h>
 #include <sys/time.h>
 
+#if CONFIG_WANT_SUNKEYS
+#if CONFIG_WANT_SUNPOWERKEY
+#include <X11/Sunkeysym.h>
+#endif
+#endif
 
-void WindowManager::eventButton(XButtonEvent *e)
+void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 {
+    setScreenFromPointer();
     Client *c = windowToClient(e->window);
 
+#if CONFIG_GNOME_BUTTON_COMPLIANCE == False
     if (e->button == Button3 && m_channelChangeTime == 0) {
-	circulate(e->window == e->root);
+	if (dConfig.rightCirculate())
+	    circulate(e->window == e->root);
+	else if (dConfig.rightLower())
+ 	{
+	    if (e->window != e->root && c) c->lower();
+ 	}
+ 	else if (dConfig.rightToggleHeight())
+ 	{
+  	    if (e->window != e->root && c) {
+ 		if (c->isFullHeight()) {
+ 		    c->normalHeight();
+ 		} else {
+ 		    c->fullHeight();
+ 		}
+ 	    }
+ 	}
 	return;
     }
-
+#endif
+ 
     if (e->window == e->root) {
+
+#if CONFIG_GNOME_BUTTON_COMPLIANCE != False
+        if ((e->button == Button1 || e->button == Button3)
+            && m_channelChangeTime == 0) {
+
+	    XUngrabPointer(m_display, CurrentTime);
+	    XSendEvent(m_display, gnome_win, False, SubstructureNotifyMask, ev);
+	    return;
+	} 
+        
+	if (e->button == Button2 && m_channelChangeTime == 0) {
+	    ClientMenu menu(this, (XEvent *)e);
+	    return;
+	}
+#endif
 
 	if (e->button == Button1 && m_channelChangeTime == 0) {
 	    ClientMenu menu(this, (XEvent *)e);
@@ -38,14 +76,18 @@ void WindowManager::eventButton(XButtonEvent *e)
 	    dConfig.scan();
 	    CommandMenu menu(this, (XEvent *)e);
 	}
-
+        
     } else if (c) {
 
 	if (e->button == Button2 && CONFIG_CHANNEL_SURF) {
 	    if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
 	    else flipChannel(False, False, False, c);
 	    return;
-	}
+	} else if (e->button == Button1 && m_channelChangeTime != 0) {
+	    // allow left-button to push down a channel --cc 19991001
+	    flipChannel(False, True, False, c);
+	    return;
+ 	}
 
 	c->eventButton(e);
 	return;
@@ -59,26 +101,37 @@ void WindowManager::circulate(Boolean activeFirst)
     if (m_clients.count() == 0) return;
     if (activeFirst) c = m_activeClient;
 
+    // cc 2000/05/11: change direction each time we release Alt
+
+    static int direction = 1;
+    if (!m_altStateRetained) direction = -direction;
+    m_altStateRetained = True;
+
     if (!c) {
 
 	int i, j;
 
-	if (!m_activeClient) i = -1;
-	else {
+	if (!m_activeClient) {
+            i = (direction > 0 ? -1 : m_clients.count());
+        } else {
 	    for (i = 0; i < m_clients.count(); ++i) {
 		if (m_clients.item(i)->channel() != channel()) continue;
 		if (m_clients.item(i) == m_activeClient) break;
 	    }
 
-	    if (i >= m_clients.count()-1) i = -1;
+	    if (i >= m_clients.count() - 1 && direction > 0) i = -1;
+            else if (i == 0 && direction < 0) i = m_clients.count();
 	}
 
-	for (j = i + 1;
-	     (!m_clients.item(j)->isNormal() ||
-	       m_clients.item(j)->isTransient() ||
-	       m_clients.item(j)->channel() != channel()); ++j) {
+	for (j = i + direction;
+             (!m_clients.item(j)->isNormal() ||
+               m_clients.item(j)->isTransient() ||
+               m_clients.item(j)->channel() != channel());
+             j += direction) {
 
-	    if (j >= m_clients.count() - 1) j = -1;
+	    if (direction > 0 && j >= m_clients.count() - 1) j = -1;
+            if (direction < 0 && j <= 0) j = m_clients.count();
+
 	    if (j == i) return; // no suitable clients
 	}
 
@@ -91,11 +144,18 @@ void WindowManager::circulate(Boolean activeFirst)
 void WindowManager::eventKeyPress(XKeyEvent *ev)
 {
     KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
-
+    
     if (CONFIG_USE_KEYBOARD) {
 
 	Client *c = windowToClient(ev->window);
 
+        if (key == CONFIG_ALT_KEY_SYM) {
+            m_altPressed = True;
+            m_altStateRetained = False;
+        }
+
+#ifdef CONFIG_WANT_SUNKEYS
+#ifdef CONFIG_QUICKRAISE_KEY
 	if (key == CONFIG_QUICKRAISE_KEY && c) {
 
 	    if (isTop(c) && (CONFIG_QUICKRAISE_ALSO_LOWERS == True)) {
@@ -103,11 +163,23 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 	    } else {
 		c->mapRaised();
 	    }
-
-	} else if (key == CONFIG_QUICKHIDE_KEY && c) {
+	    
+	} else
+#endif CONFIG_QUICKRAISE_KEY
+#ifdef CONFIG_QUICKHIDE_KEY
+	if (key == CONFIG_QUICKHIDE_KEY && c) {
 	    c->hide();
+	      
+	} else 
+#endif CONFIG_QUICKHIDE_KEY
+#ifdef CONFIG_QUICKCLOSE_KEY
+	if (key == CONFIG_QUICKCLOSE_KEY && c) {
+	    c->kill();
 
-	} else if (key == CONFIG_QUICKHEIGHT_KEY && c) {
+	} else
+#endif CONFIG_QUICKCLOSE_KEY
+#ifdef CONFIG_QUICKHEIGHT_KEY
+	if (key == CONFIG_QUICKHEIGHT_KEY && c) {
 
 	    if (c->isFullHeight()) {
 		c->normalHeight();
@@ -115,9 +187,38 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 		c->fullHeight();
 	    }
 
-	} else if (ev->state & CONFIG_ALT_KEY_MASK) {
+	} else
+#endif //CONFIG_QUICKHEIGHT_KEY
+#if CONFIG_WANT_SUNPOWERKEY
+	  if (key == SunXK_PowerSwitch) {
+           pid_t pid = fork();
+           if(pid == 0)
+           {
+               execl(CONFIG_SUNPOWER_EXEC,CONFIG_SUNPOWER_EXEC,
+                     CONFIG_SUNPOWER_OPTIONS);
+           }
 
-	    if (key >= XK_F1 && key <= XK_F12 &&
+       } else if (key == SunXK_PowerSwitchShift) {
+           pid_t pid = fork();
+           if(pid == 0)
+           {
+               execl(CONFIG_SUNPOWER_EXEC,CONFIG_SUNPOWER_EXEC,
+                     CONFIG_SUNPOWER_SHIFTOPTIONS);
+           }
+       } else
+#endif // CONFIG_WANT_SUNPOWERKEY
+#endif // CONFIG_WANT_SUNKEYS
+
+       if (ev->state & CONFIG_ALT_KEY_MASK) {
+
+           if (!m_altPressed) {
+               // oops! bug
+               fprintf(stderr, "wmx: Alt key record in inconsistent state\n");
+               m_altPressed = True;
+               m_altStateRetained = False;
+           }
+
+           if (key >= XK_F1 && key <= XK_F12 &&
 		CONFIG_CHANNEL_SURF && CONFIG_USE_CHANNEL_KEYS) {
 
 		int channel = key - XK_F1 + 1;
@@ -185,12 +286,32 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 		    if (c) c->setSticky(!(c->isSticky()));
 		    break;
 
-		case CONFIG_MENU_KEY:
+		case CONFIG_CLIENT_MENU_KEY:
 		    if (CONFIG_WANT_KEYBOARD_MENU) {
 			ClientMenu menu(this, (XEvent *)ev);
 			break;
 		    }
-		
+		case CONFIG_COMMAND_MENU_KEY:
+		    if (CONFIG_WANT_KEYBOARD_MENU) {
+			CommandMenu menu(this, (XEvent *)ev);
+			break;
+		    }
+
+#if CONFIG_GROUPS != False
+		case XK_0:
+		case XK_1:
+		case XK_2:
+		case XK_3:
+		case XK_4:
+		case XK_5:
+		case XK_6:
+		case XK_7:
+		case XK_8:
+		case XK_9: {
+		    windowGrouping(ev, key, c);
+		    break;
+		}
+#endif		
 		default:
 		    return;
 		}
@@ -206,8 +327,97 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
 void WindowManager::eventKeyRelease(XKeyEvent *ev)
 {
+    KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
+    
+    if (key == CONFIG_ALT_KEY_SYM) {
+        m_altPressed = False;
+        m_altStateRetained = False;
+    }
     return;
 }
+
+#if CONFIG_GROUPS != False
+void WindowManager::windowGrouping(XKeyEvent *ev, KeySym key, Client *c) {
+
+    int group = key - XK_0;
+    Client *x;
+
+    if (ev->state & ShiftMask) {
+	grouping.item(group)->remove_all();
+	return;
+    }
+
+    if (ev->state & ControlMask) {
+	if (c) {
+	    // remove if it's there
+	    int there = -1;
+
+	    for (int i = 0; i < grouping.item(group)->count(); i++) {
+		if (grouping.item(group)->item(i) == c) {
+		    //		    fprintf(stderr, "removing client from %d at %d\n", group, i);
+		    there = i;
+		}
+	    }
+	    
+	    if (there != -1) {
+		grouping.item(group)->remove(there);
+	    } else {
+		// add if it's not there
+		//fprintf(stderr, "adding client to %d at %d \n", 
+		//	group, grouping.item(group)->count());
+
+		grouping.item(group)->append(c);
+	    }
+	}
+    } else {
+	
+	int count = grouping.item(group)->count();
+     	int raise = 1;
+
+	if (count > 0) {
+	    x = grouping.item(group)->item(count-1);
+	    // it seems like there should be a better way of doing this...
+	    while (m_currentChannel != x->channel()) {
+		
+		raise = 2;
+
+		if (m_currentChannel < x->channel()) {
+		    flipChannel(False, False, True, 0);
+		} else {
+		    flipChannel(False, True, True, 0);
+		}
+		XSync(display(), False);
+	    }
+
+	    int temp = 0;
+
+	    for (int i = 0; i < count; i++) {
+		if (m_orderedClients.item(i) == 
+		    grouping.item(group)->item(count - 1 - i)) {
+		    temp++;
+		}
+	    }
+	    
+	    if ((raise != 2) && (temp == count)) {
+		raise = 0;
+	    }
+	    //	    fprintf(stderr, "raise = %d temp =  %d \n", 
+	    //	    raise, temp);   
+	}
+
+	for (int i = 0; i < count; i++) {
+	    x = grouping.item(group)->item(i);
+	    if (x) {
+		if (raise) {
+		    x->mapRaised();
+		} else {
+		    x->lower();
+		}
+	    }
+	}
+    }
+}
+#endif
 
 void Client::activateAndWarp()
 {
@@ -641,9 +851,10 @@ void Border::eventButton(XButtonEvent *e)
     int x = e->x;
     int y = e->y;
     int action = 1;
-    int buttonSize = m_tabWidth - TAB_TOP_HEIGHT*2 - 4;
+    int buttonSize = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
 
-    XFillRectangle(display(), m_button, m_drawGC, 0, 0, buttonSize, buttonSize);
+    XFillRectangle(display(), m_button, m_drawGC[screen()],
+		   0, 0, buttonSize, buttonSize);
 
     while (!done) {
 

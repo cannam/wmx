@@ -1,6 +1,7 @@
 
 #ifndef _GENERAL_H_
 #define _GENERAL_H_
+#define CHECKPOINT fprintf(stderr,"%s:%d\n",__FILE__,__LINE__);
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -49,7 +50,7 @@ typedef char Boolean;
 
 #include "Config.h"
 
-#ifdef CONFIG_USE_SESSION_MANAGER
+#if CONFIG_USE_SESSION_MANAGER != False
 #include <X11/SM/SMlib.h>
 #endif
 
@@ -62,6 +63,18 @@ public:
     static Atom wm_takeFocus;
     static Atom wm_colormaps;
     static Atom wmx_running;
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    static Atom gnome_supportingWmCheck;
+    static Atom gnome_protocols;
+    static Atom gnome_clienList;
+    static Atom gnome_workspace;
+    static Atom gnome_workspaceCount;
+    static Atom gnome_workspaceNames;
+    static Atom gnome_winLayer;
+    static Atom gnome_winDesktopButtonProxy;
+#endif
+
 };
 
 extern Boolean ignoreBadWindowErrors; // tidiness hack

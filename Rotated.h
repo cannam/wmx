@@ -51,7 +51,7 @@ struct XRotFontStruct {
     XFontSet		 xfontset;
     XFontStruct		*xfontstruct;
 
-    XRotCharStruct	 per_char[95];
+  XRotCharStruct	 per_char[223]; // all chars from 32 to 255
 };
 
 
@@ -59,13 +59,13 @@ struct XRotFontStruct {
 
 
 extern float XRotVersion(char *, int);
-extern XRotFontStruct *XRotLoadFont(Display *, char *, float);
-extern void XRotUnloadFont(Display *, XRotFontStruct *);
+extern XRotFontStruct *XRotLoadFont(Display *, int, char *, float);
+extern void XRotUnloadFont(Display *, int, XRotFontStruct *);
 extern int XRotTextWidth(XRotFontStruct *, char *, int);
-extern void XRotDrawString(Display *, XRotFontStruct *, Drawable, GC,
+extern void XRotDrawString(Display *, int, XRotFontStruct *, Drawable, GC,
 			   int, int, char *, int);
-extern void XRotDrawAlignedString(Display *, XRotFontStruct *, Drawable, GC,
-				  int, int, char *, int);
+extern void XRotDrawAlignedString(Display *, int, XRotFontStruct *, Drawable,
+				  GC, int, int, char *, int);
 
 
 /* ---------------------------------------------------------------------- */

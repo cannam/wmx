@@ -16,7 +16,7 @@
 
 // Minor modifications by Chris Cannam for wm2/wmx
 // Major modifications by Kazushi (Jam) Marukawa for wm2/wmx i18n patch
-
+// Minor modifications by Sven Oliver (SvOlli) Moll for wmx multihead support
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -130,13 +130,13 @@ float XRotVersion(char *str, int n)
 
 /* *** Load the rotated version of a given font *** */
  
-XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
+XRotFontStruct *XRotLoadFont(Display *dpy, int screen, 
+			     char *fontname, float angle)
 {
   char val;
   XImage *I1, *I2;
   Pixmap canvas;
   Window root;
-  int screen;
   GC font_gc;
   char text[3];/*, errstr[300];*/
   XFontStruct *fontstruct;
@@ -155,9 +155,8 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
   dir = (int)((angle+45.)/90.)%4;
 
   /* useful macros ... */
-  screen = DefaultScreen(dpy);
-  root = DefaultRootWindow(dpy);
-
+  root = RootWindow(dpy,screen);
+    
   /* create the depth 1 canvas bitmap ... */
   canvas = XCreatePixmap(dpy, root, boxlen, boxlen, 1);
  
@@ -206,7 +205,7 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
  
   /* we only want printing characters ... */
   if (min_char<32)  min_char = 32;
-  if (max_char>126) max_char = 126;
+  //  if (max_char>126) max_char = 126; // bad for non-ascii iso
      
   /* some overall font data ... */
   rotfont->name = my_strdup(fontname);
@@ -380,7 +379,7 @@ XRotFontStruct *XRotLoadFont(Display *dpy, char *fontname, float angle)
 
 /* *** Free the resources associated with a rotated font *** */
 
-void XRotUnloadFont(Display *dpy, XRotFontStruct *rotfont)
+void XRotUnloadFont(Display *dpy, int screen, XRotFontStruct *rotfont)
 {
   int ichar;
 
@@ -444,16 +443,26 @@ int XRotTextWidth(XRotFontStruct *rotfont, char *str, int len)
 
 /* *** A front end to XRotPaintString : mimics XDrawString *** */
 
-void XRotDrawString(Display *dpy, XRotFontStruct *rotfont, Drawable drawable,
+void XRotDrawString(Display *dpy, int screen, XRotFontStruct *rotfont, 
+		    Drawable drawable,
 		    GC gc, int x, int y, char *str, int len)
 {            
   static GC my_gc = 0;
+  static int lastscreen = -1;
+    
   int i, xp, yp, dir, ichar;
 
   if (str == NULL || len<1) return;
 
   dir = rotfont->dir;
-  if (my_gc == 0) my_gc = XCreateGC(dpy, drawable, 0, 0);
+
+  if((lastscreen != screen) && (my_gc != 0))
+  {
+    XFreeGC(dpy,my_gc);
+    my_gc = 0;
+  }
+    
+  if(my_gc == 0) my_gc = XCreateGC(dpy, drawable, 0, 0);
 
   XCopyGC(dpy, gc, GCForeground|GCBackground, my_gc);
 
@@ -475,8 +484,7 @@ void XRotDrawString(Display *dpy, XRotFontStruct *rotfont, Drawable drawable,
   char val;
 
   /* useful macros ... */
-  int screen = DefaultScreen(dpy);
-  Window root = DefaultRootWindow(dpy);
+  Window root = RootWindow(dpy,screen);
 
   int ascent = rotfont->max_ascent;
   int descent = rotfont->max_descent;
@@ -683,7 +691,7 @@ void XRotDrawString(Display *dpy, XRotFontStruct *rotfont, Drawable drawable,
 
 /* *** A front end to XRotPaintAlignedString : uses XRotDrawString *** */
 
-void XRotDrawAlignedString(Display *dpy, XRotFontStruct *rotfont,
+void XRotDrawAlignedString(Display *dpy, int screen, XRotFontStruct *rotfont,
 			   Drawable drawable, GC gc, int x, int y,
 			   char *text, int align)
 {  
@@ -819,7 +827,7 @@ void XRotDrawAlignedString(Display *dpy, XRotFontStruct *rotfont,
     }
 
     /* draw the section ... */
-    XRotDrawString(dpy, rotfont, drawable, gc, xp, yp,
+    XRotDrawString(dpy, screen, rotfont, drawable, gc, xp, yp,
 		   str3, strlen(str3));
 
     str3 = my_strtok((char *)NULL, str2);

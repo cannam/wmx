@@ -9,108 +9,134 @@
 #include <X11/keysym.h>
 
 Boolean       Menu::m_initialised = False;
-GC            Menu::m_menuGC;
+GC           *Menu::m_menuGC;
 #if I18N
 XFontSet      Menu::m_fontset;
 #endif
-XFontStruct  *Menu::m_font;
+XFontStruct **Menu::m_font;
 unsigned long Menu::m_foreground;
 unsigned long Menu::m_background;
 unsigned long Menu::m_border;
-Window        Menu::m_window;
+Window       *Menu::m_window;
 
+#if MENU_ENTRY_MAXLENGTH > 0
+#define STRLEN_MITEMS(i) (strlen(m_items[(i)]) > MENU_ENTRY_MAXLENGTH) ? \
+				MENU_ENTRY_MAXLENGTH : strlen(m_items[(i)])
+#else
+#define STRLEN_MITEMS(i) strlen(m_items[(i)])
+#endif
 
 Menu::Menu(WindowManager *manager, XEvent *e)
     : m_items(0), m_nItems(0), m_nHidden(0),
-      m_windowManager(manager), m_event(e)
+      m_windowManager(manager), m_event(e),
+      m_hasSubmenus(False)
 {
     if (!m_initialised)
     {
-	m_foreground = m_windowManager->allocateColour
-	    (CONFIG_MENU_FOREGROUND, "menu foreground");
-	m_background = m_windowManager->allocateColour
-	    (CONFIG_MENU_BACKGROUND, "menu background");
-	m_border = m_windowManager->allocateColour
-	    (CONFIG_MENU_BORDERS, "menu border");
+	XGCValues *values;
+	XSetWindowAttributes *attr;
+
+        m_menuGC = (GC *) malloc(m_windowManager->screensTotal() * sizeof(GC));
+        m_window = (Window *) malloc(m_windowManager->screensTotal() *
+				     sizeof(Window));
+	m_font = (XFontStruct **) malloc(m_windowManager->screensTotal() *
+					 sizeof(XFontStruct *));
+	values = (XGCValues *) malloc(m_windowManager->screensTotal() *
+				      sizeof(XGCValues));
+	attr = (XSetWindowAttributes *) malloc(m_windowManager->screensTotal() *
+				      sizeof(XSetWindowAttributes));
+	
+
+        for(int i=0;i<m_windowManager->screensTotal();i++)
+	{
+	    m_foreground = m_windowManager->allocateColour
+	      (i, CONFIG_MENU_FOREGROUND, "menu foreground");
+	    m_background = m_windowManager->allocateColour
+	      (i, CONFIG_MENU_BACKGROUND, "menu background");
+	    m_border = m_windowManager->allocateColour
+	      (i, CONFIG_MENU_BORDERS, "menu border");
 
 #if I18N
-	char **ml;
-	int mc;
-	char *ds;
-
-	m_fontset = XCreateFontSet(display(), CONFIG_NICE_MENU_FONT,
-				   &ml, &mc, &ds);
-	if (!m_fontset)
-	    m_fontset = XCreateFontSet(display(), CONFIG_NASTY_FONT,
+	    char **ml;
+	    int mc;
+	    char *ds;
+	    
+	    m_fontset = XCreateFontSet(display(), CONFIG_NICE_MENU_FONT,
 				       &ml, &mc, &ds);
-	if (m_fontset) {
-	    XFontStruct **fs_list;
-	    XFontsOfFontSet(m_fontset, &fs_list, &ml);
-	    m_font = fs_list[0];
-	} else {
-	    m_font = NULL;
-	}
+	    if (!m_fontset)
+	      m_fontset = XCreateFontSet(display(), CONFIG_NASTY_FONT,
+					 &ml, &mc, &ds);
+	    if (m_fontset) {
+		XFontStruct **fs_list;
+		XFontsOfFontSet(m_fontset, &fs_list, &ml);
+		m_font[i] = fs_list[0];
+	    } else {
+		m_font[i] = NULL;
+	    }
 #define XTextWidth(x,y,z)     XmbTextEscapement(m_fontset,y,z)
 #define XDrawString(t,u,v,w,x,y,z) XmbDrawString(t,u,m_fontset,v,w,x,y,z)
 #else
-	m_font = XLoadQueryFont(display(), CONFIG_NICE_MENU_FONT);
-	if (!m_font) m_font = XLoadQueryFont(display(), CONFIG_NASTY_FONT);
+	    m_font[i] = XLoadQueryFont(display(), CONFIG_NICE_MENU_FONT);
+	    if (!m_font[i])
+	    {
+		m_font[i] = XLoadQueryFont(display(), CONFIG_NASTY_FONT);
+	    }
 #endif
-	if (!m_font) m_windowManager->fatal("couldn't load menu font\n");
+	    if (!m_font[i]) m_windowManager->fatal("couldn't load menu font\n");
+	    
+	    values[i].background = m_background;
+	    values[i].foreground = m_foreground ^ m_background;
+	    values[i].function = GXxor;
+	    values[i].line_width = 0;
+	    values[i].subwindow_mode = IncludeInferiors;
+	    values[i].font = m_font[i]->fid;
+	    
+	    m_menuGC[i] = XCreateGC
+	      (display(), m_windowManager->mroot(i),
+	       GCForeground | GCBackground | GCFunction |
+	       GCLineWidth | GCSubwindowMode, &values[i]);
 
-	XGCValues values;
-	values.background = m_background;
-	values.foreground = m_foreground ^ m_background;
-	values.function = GXxor;
-	values.line_width = 0;
-	values.subwindow_mode = IncludeInferiors;
-	values.font = m_font->fid;
-	
-	m_menuGC = XCreateGC
-	    (display(), root(),
-	     GCForeground | GCBackground | GCFunction |
-	     GCLineWidth | GCSubwindowMode, &values);
+	    XChangeGC(display(), Border::drawGC(m_windowManager, i),
+		      GCFont, &values[i]);
 
-	XChangeGC(display(), Border::drawGC(m_windowManager), GCFont, &values);
-
-	m_window = XCreateSimpleWindow
-	    (display(), root(), 0, 0, 1, 1, 1,
-	     m_border, m_background);
-
-	XSetWindowAttributes attr;
-
+	    m_window[i] = XCreateSimpleWindow
+	      (display(), m_windowManager->mroot(i), 0, 0, 1, 1, 1,
+	       m_border, m_background);
+	    
 #if ( CONFIG_USE_PIXMAPS != False ) && ( CONFIG_USE_PIXMAP_MENUS != False )
-	attr.background_pixmap = Border::backgroundPixmap(manager);
+	    attr[i].background_pixmap = Border::backgroundPixmap(manager);
 #endif
-	attr.save_under =
-	    (DoesSaveUnders(ScreenOfDisplay(display(), screen())) ?
+	    attr[i].save_under =
+	      (DoesSaveUnders(ScreenOfDisplay(display(), i)) ?
 	     True : False);
 
-#if ( CONFIG_USE_PIXMAPS != False ) && ( CONFIG_USE_PIXMAP_MENUS != False ) 
-	XChangeWindowAttributes
-	    (display(), m_window, CWBackPixmap, &attr);
+#if ( CONFIG_USE_PIXMAPS != False ) && ( CONFIG_USE_PIXMAP_MENUS != False )
+	    XChangeWindowAttributes
+	      (display(), m_window[i], CWBackPixmap, &attr[i]);
 #endif
-	XChangeWindowAttributes
-	    (display(), m_window, CWSaveUnder, &attr);
-
+	    XChangeWindowAttributes
+	      (display(), m_window[i], CWSaveUnder, &attr[i]);
+	}
 	m_initialised = True;
     }
 }
 
 Menu::~Menu()
 {
-    XUnmapWindow(display(), m_window);
+    XUnmapWindow(display(), m_window[screen()]);
 }
 
 void Menu::cleanup(WindowManager *const wm)
 {
     if (m_initialised) { // fix due to Eric Marsden
+        for(int i=0;i<wm->screensTotal();i++) {
 #if I18N
 	XFreeFontSet(wm->display(), m_fontset);
 #else
-	XFreeFont(wm->display(), m_font);
+	XFreeFont(wm->display(), m_font[i]);
 #endif
-	XFreeGC(wm->display(), m_menuGC);
+	XFreeGC(wm->display(), m_menuGC[i]);
+	}
     }
 }
 
@@ -125,26 +151,26 @@ int Menu::getSelection()
 {
     m_items = getItems(&m_nItems, &m_nHidden);
     XButtonEvent *xbev = (XButtonEvent *)m_event; // KeyEvent is similar enough
-	
-    if (xbev->window == m_window || m_nItems == 0) return -1;
-    
+
+    if (xbev->window == m_window[screen()] || m_nItems == 0) return -1;
+
     int width, maxWidth = 10;
     for(int i = 0; i < m_nItems; i++) {
-	width = XTextWidth(m_font, m_items[i], strlen(m_items[i]));
+	width = XTextWidth(m_font[screen()], m_items[i],
+			   STRLEN_MITEMS(i));
 	if (width > maxWidth) maxWidth = width;
     }
     maxWidth += 32;
 
-    int selecting = -1, prev = -1;
-    int entryHeight = m_font->ascent + m_font->descent + 4;
+    Boolean isKeyboardMenu = isKeyboardMenuEvent(m_event);
+    int selecting = isKeyboardMenu ? 0 : -1, prev = -1;
+    int entryHeight = m_font[screen()]->ascent + m_font[screen()]->descent + 4;
     int totalHeight = entryHeight * m_nItems + 13;
 
     int mx = DisplayWidth (display(), screen()) - 1;
     int my = DisplayHeight(display(), screen()) - 1;
 
     int x, y;
-    Boolean isKeyboardMenu =
-	(CONFIG_WANT_KEYBOARD_MENU && (xbev->type == KeyPress));
 
     if (isKeyboardMenu) {
 	x = mx / 2 - maxWidth / 2;
@@ -176,25 +202,25 @@ int Menu::getSelection()
 	    warp = True;
 	}
 
-	if (warp) XWarpPointer(display(), None, root(),
-			       None, None, None, None, xbev->x, xbev->y);
+	if (warp) XWarpPointer(display(), None, root(), None, None,
+			       None, None, xbev->x, xbev->y);
     }
 
-    XMoveResizeWindow(display(), m_window, x, y, maxWidth, totalHeight);
-    XSelectInput(display(), m_window, MenuMask);
-    XMapRaised(display(), m_window);
+    XMoveResizeWindow(display(), m_window[screen()], x, y, maxWidth, totalHeight);
+    XSelectInput(display(), m_window[screen()], MenuMask);
+    XMapRaised(display(), m_window[screen()]);
 
-    if (m_windowManager->attemptGrab(m_window, None,
+    if (m_windowManager->attemptGrab(m_window[screen()], None,
 				     MenuGrabMask, xbev->time)
 	!= GrabSuccess) {
-	XUnmapWindow(display(), m_window);
+	XUnmapWindow(display(), m_window[screen()]);
 	return -1;
     }
     
     if (isKeyboardMenu) {
-	if (m_windowManager->attemptGrabKey(m_window, xbev->time)
+	if (m_windowManager->attemptGrabKey(m_window[screen()], xbev->time)
 	    != GrabSuccess) {
-	    XUnmapWindow(display(), m_window);
+	    XUnmapWindow(display(), m_window[screen()]);
 	    return -1;
 	}
     }	    
@@ -219,7 +245,7 @@ int Menu::getSelection()
 
 	    if (selecting >= 0 && selecting < m_nItems) {
 		raiseFeedbackLevel(selecting);
-		XRaiseWindow(display(), m_window);
+		XRaiseWindow(display(), m_window[screen()]);
 	    }
 
 	    speculating = True;
@@ -259,6 +285,8 @@ int Menu::getSelection()
 		if (selecting >= 0 && y >= selecting * entryHeight - 3 &&
 		    y <= (selecting + 1) * entryHeight - 3) i = selecting;
 
+		if (m_hasSubmenus && (i >= 0 && i < m_nHidden)) i = -i;
+		
 		if (x < 0 || x > maxWidth || y < -3) i = -1;
 		else if (i < 0 || i >= m_nItems) i = -1;
 		
@@ -268,7 +296,7 @@ int Menu::getSelection()
 	    
 	    if (!nobuttons(&event.xbutton)) i = -1;
 	    m_windowManager->releaseGrab(&event.xbutton);
-	    XUnmapWindow(display(), m_window);
+	    XUnmapWindow(display(), m_window[screen()]);
 	    selecting = i;
 	    done = True;
 	    break;
@@ -284,6 +312,17 @@ int Menu::getSelection()
 	    if (prev >= 0 && y >= prev * entryHeight - 3 &&
 		y <= (prev+1) * entryHeight - 3) selecting = prev;
 
+	    if (m_hasSubmenus && (selecting >= 0 && selecting < m_nHidden) &&
+		x >= maxWidth-32 && x < maxWidth)
+	    {
+		xbev->x += event.xbutton.x - 32;
+		xbev->y += event.xbutton.y;
+		
+		createSubmenu ((XEvent *)xbev, selecting);
+		done = True;
+		break;
+	    }
+	    
 	    if (x < 0 || x > maxWidth || y < -3) selecting = -1;
 	    else if (selecting < 0 || selecting > m_nItems) selecting = -1;
 
@@ -292,15 +331,15 @@ int Menu::getSelection()
 
 	    if (prev >= 0 && prev < m_nItems) {
 		removeFeedback(prev, speculating);
-		XFillRectangle(display(), m_window, m_menuGC,
+		XFillRectangle(display(), m_window[screen()], m_menuGC[screen()],
 			       4, prev * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
 
 	    if (selecting >= 0 && selecting < m_nItems) {
 		showFeedback(selecting);
-		XRaiseWindow(display(), m_window);
-		XFillRectangle(display(), m_window, m_menuGC,
+		XRaiseWindow(display(), m_window[screen()]);
+		XFillRectangle(display(), m_window[screen()], m_menuGC[screen()],
 			       4, selecting * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
@@ -309,35 +348,36 @@ int Menu::getSelection()
 			
 	case Expose:
 
-	    if (CONFIG_MAD_FEEDBACK && event.xexpose.window != m_window) {
+	    if (CONFIG_MAD_FEEDBACK && event.xexpose.window != m_window[screen()]) {
 		m_windowManager->dispatchEvent(&event);
 		break;
 	    }
 
-	    XClearWindow(display(), m_window);
+	    XClearWindow(display(), m_window[screen()]);
 			
-	    XDrawRectangle(display(), m_window, m_menuGC, 2, 7,
+	    XDrawRectangle(display(), m_window[screen()], m_menuGC[screen()], 2, 7,
 			   maxWidth - 5, totalHeight - 10);
 
 	    for (i = 0; i < m_nItems; i++) {
 
-		int dx = XTextWidth(m_font, m_items[i], strlen(m_items[i]));
-		int dy = i * entryHeight + m_font->ascent + 10;
+		int dx = XTextWidth(m_font[screen()], m_items[i], 
+				    STRLEN_MITEMS(i));
+		int dy = i * entryHeight + m_font[screen()]->ascent + 10;
 
 		if (i >= m_nHidden) {
-		    XDrawString(display(), m_window,
-				Border::drawGC(m_windowManager),
+		    XDrawString(display(), m_window[screen()],
+				Border::drawGC(m_windowManager,screen()),
 				maxWidth - 8 - dx, dy,
-				m_items[i], strlen(m_items[i]));
+				m_items[i], STRLEN_MITEMS(i));
 		} else {
-		    XDrawString(display(), m_window,
-				Border::drawGC(m_windowManager),
-				8, dy, m_items[i], strlen(m_items[i]));
+		    XDrawString(display(), m_window[screen()],
+				Border::drawGC(m_windowManager,screen()),
+				8, dy, m_items[i], STRLEN_MITEMS(i));
 		}
 	    }
 
 	    if (selecting >= 0 && selecting < m_nItems) {
-		XFillRectangle(display(), m_window, m_menuGC,
+		XFillRectangle(display(), m_window[screen()], m_menuGC[screen()],
 			       4, selecting * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
@@ -354,15 +394,21 @@ int Menu::getSelection()
 	    if (key == CONFIG_MENU_SELECT_KEY) {
 
 		if (!drawn) selecting = -1;
+
+		if (m_hasSubmenus && selecting >= 0 && selecting < m_nHidden)
+		{
+		    createSubmenu((XEvent *)xbev, selecting);
+		    selecting = -1;
+		}
 		m_windowManager->releaseGrabKeyMode(&event.xkey);
-		XUnmapWindow(display(), m_window);
+		XUnmapWindow(display(), m_window[screen()]);
 		done = True;
 		break;
 
 	    } else if (key == CONFIG_MENU_CANCEL_KEY) {
 
 		m_windowManager->releaseGrabKeyMode(&event.xkey);
-		XUnmapWindow(display(), m_window);
+		XUnmapWindow(display(), m_window[screen()]);
 		if (selecting >= 0) removeFeedback(selecting, speculating);
 		selecting = -1;
 		done = True;
@@ -391,15 +437,15 @@ int Menu::getSelection()
 	    
 	    if (prev >= 0 && prev < m_nItems) {
 	    	removeFeedback(prev, speculating);
-		XFillRectangle(display(), m_window, m_menuGC,
+		XFillRectangle(display(), m_window[screen()], m_menuGC[screen()],
 			       4, prev * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
 
 	    if (selecting >= 0 && selecting < m_nItems) {
 		showFeedback(selecting);
-		XRaiseWindow(display(), m_window);
-		XFillRectangle(display(), m_window, m_menuGC,
+		XRaiseWindow(display(), m_window[screen()]);
+		XFillRectangle(display(), m_window[screen()], m_menuGC[screen()],
 			       4, selecting * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
@@ -411,7 +457,7 @@ int Menu::getSelection()
 	    break;
 
 	default:
-	    if (event.xmap.window == m_window) break;
+	    if (event.xmap.window == m_window[screen()]) break;
 	    m_windowManager->dispatchEvent(&event);
 	}
     }
@@ -447,11 +493,14 @@ ClientMenu::ClientMenu(WindowManager *manager, XEvent *e)
 	    
 	if (selecting < m_nHidden) cl->unhide(True);
 	else if (selecting < m_nItems) {
-	    
+	    if (!cl->isKilled()) // Don't activate nonexistant windows
 	    if (CONFIG_CLICK_TO_FOCUS) cl->activate();
 	    else cl->mapRaised();
 	    cl->ensureVisible();
 	}
+
+	if (CONFIG_WANT_KEYBOARD_MENU && e->type == KeyPress)
+	    cl->activateAndWarp();
     }
 
     --m_nHidden; // just in case
@@ -469,7 +518,10 @@ char **ClientMenu::getItems(int *niR, int *nhR)
     XButtonEvent *xbev = (XButtonEvent *)m_event; // KeyEvent is similar enough
 
     for (i = 0; i < m_windowManager->hiddenClients().count(); ++i) {
-	if (m_windowManager->hiddenClients().item(i)->channel() ==
+	if (
+	    m_windowManager->hiddenClients().item(i)->root() ==
+	    m_windowManager->root() &&
+	    m_windowManager->hiddenClients().item(i)->channel() ==
 	    m_windowManager->channel()) {
 	    m_clients.append(m_windowManager->hiddenClients().item(i));
 	}
@@ -481,6 +533,8 @@ char **ClientMenu::getItems(int *niR, int *nhR)
     if (CONFIG_EVERYTHING_ON_ROOT_MENU) {
 	for (i = 0; i < m_windowManager->clients().count(); ++i) {
 	    if (m_windowManager->clients().item(i)->isNormal() &&
+		m_windowManager->clients().item(i)->root() ==
+		m_windowManager->root() &&
 		m_windowManager->clients().item(i)->channel() ==
 		m_windowManager->channel()) {
 		m_clients.append(m_windowManager->clients().item(i));
@@ -503,6 +557,9 @@ char **ClientMenu::getItems(int *niR, int *nhR)
 	  (CONFIG_EXIT_CLICK_SIZE_Y > 0 ? 
 	   (xbev->y < CONFIG_EXIT_CLICK_SIZE_Y) : 
 	   (xbev->y > my + CONFIG_EXIT_CLICK_SIZE_Y)) : 1));
+
+    m_allowExit = m_allowExit ||
+	(isKeyboardMenuEvent(m_event) && CONFIG_EXIT_ON_KBD_MENU);
 
     if (m_allowExit) ++n;
 
@@ -564,41 +621,57 @@ void ClientMenu::raiseFeedbackLevel(int item)
 }
 
 
-CommandMenu::CommandMenu(WindowManager *manager, XEvent *e)
+CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
+			 char* otherdir = NULL)
     : Menu(manager, e)
 {
-    m_commandDir = NULL;
     const char *home = getenv("HOME");
     const char *wmxdir = getenv("WMXDIR");
 
-    if (wmxdir == NULL)
+    m_commandDir = NULL;
+    m_hasSubmenus = True;
+    
+    if (otherdir == NULL)
     {
-	if (home == NULL) return;
-    m_commandDir =
-	(char *)malloc(strlen(home) + strlen(CONFIG_COMMAND_MENU) + 2);
-    sprintf(m_commandDir, "%s/%s", home, CONFIG_COMMAND_MENU);
-    }
-    else
-    {
-	if(wmxdir[0] == '/')
+	if (wmxdir == NULL)
 	{
+	    if (home == NULL) return;
 	    m_commandDir =
-	      (char *)malloc(strlen(wmxdir) + 1);
-	    strcpy(m_commandDir, wmxdir);
+		(char *)malloc(strlen(home) + strlen(CONFIG_COMMAND_MENU) + 2);
+	    sprintf(m_commandDir, "%s/%s", home, CONFIG_COMMAND_MENU);
 	}
 	else
 	{
-	    m_commandDir =
-	      (char *)malloc(strlen(home) + strlen(wmxdir) + 2);
-	    sprintf(m_commandDir, "%s/%s", home, wmxdir);
+	    if(wmxdir[0] == '/')
+	    {
+		m_commandDir =
+		    (char *)malloc(strlen(wmxdir) + 1);
+		strcpy(m_commandDir, wmxdir);
+	    }
+	    else
+	    {
+		m_commandDir =
+		    (char *)malloc(strlen(home) + strlen(wmxdir) + 2);
+		sprintf(m_commandDir, "%s/%s", home, wmxdir);
+	    }
 	}
+    }
+    else
+    {
+	m_commandDir = (char *)malloc(strlen(otherdir)+1);
+	strcpy(m_commandDir, otherdir);
     }
 
     int i = getSelection();
 	
-    if (i >= 0 && i < m_nItems) {
+    if (i >= 0 && i < m_nHidden) {
+	// This should never happen.
+    }
+
+    if (i >= m_nHidden && i < m_nItems)
+    {
 	char *commandFile =
-	    (char *)malloc(strlen(m_commandDir) + strlen(m_items[i]) + 2);
+	    (char *)malloc(strlen(m_commandDir) + STRLEN_MITEMS(i) + 2);
 
 	sprintf(commandFile, "%s/%s", m_commandDir, m_items[i]);
 	m_windowManager->spawn(m_items[i], commandFile);
@@ -620,6 +693,20 @@ static int sortstrs(const void *va, const void *vb)
     char **a = (char **)va;
     char **b = (char **)vb;    
     return strcmp(*a, *b);
+}
+
+void CommandMenu::createSubmenu (XEvent *e, int i)
+{
+    char *new_directory;
+    int dirlen = strlen (m_commandDir);
+    
+    new_directory = (char *)malloc (dirlen + STRLEN_MITEMS(i) + 2);
+    strcpy (new_directory, m_commandDir);
+    new_directory[dirlen] = '/';
+    strcpy (new_directory + dirlen + 1, m_items[i]);
+    
+    CommandMenu menu (m_windowManager, e, new_directory);
+    free(new_directory);
 }
 
 char **CommandMenu::getItems(int *niR, int *nhR)
@@ -669,6 +756,26 @@ char **CommandMenu::getItems(int *niR, int *nhR)
 	sprintf(dirpath + dirlen, "/%s", ent->d_name);
 		
 	if (stat(dirpath, &st) == -1) continue;
+	if (!S_ISDIR(st.st_mode) || !(st.st_mode & 0444)) continue;
+	if (ent->d_name[0] == '.') continue;
+
+	items = (!items ? (char **)malloc(sizeof(char *)) :
+		 (char **)realloc(items, (count + 1) * sizeof(char *)));
+
+	items[count++] = NewString(ent->d_name);
+    }
+
+    qsort(items, count, sizeof(char *), sortstrs);
+    *nhR = count;
+
+    rewinddir(dir);
+
+    while ((ent = readdir(dir)) != NULL) {
+
+	struct stat st;
+	sprintf(dirpath + dirlen, "/%s", ent->d_name);
+		
+	if (stat(dirpath, &st) == -1) continue;
 	if (!S_ISREG(st.st_mode) || !(st.st_mode & 0111)) continue;
 
 	items = (!items ? (char **)malloc(sizeof(char *)) :
@@ -677,12 +784,12 @@ char **CommandMenu::getItems(int *niR, int *nhR)
 	items[count++] = NewString(ent->d_name);
     }
 
+    *niR = count;
+    qsort(items + *nhR, *niR - *nhR, sizeof(char *), sortstrs);
+    
     free(dirpath);
     closedir(dir);
 
-    qsort(items, count, sizeof(char *), sortstrs);
-
-    *niR = *nhR = count;
     return items;
 }
 
@@ -700,23 +807,24 @@ void ShowGeometry::update(int x, int y)
     char string[20];
 
     sprintf(string, "%d %d", x, y);
-    int width = XTextWidth(m_font, string, strlen(string)) + 8;
-    int height = m_font->ascent + m_font->descent + 8;
+    int width = XTextWidth(m_font[screen()], string, strlen(string)) + 8;
+    int height = m_font[screen()]->ascent + m_font[screen()]->descent + 8;
     int mx = DisplayWidth (display(), screen()) - 1;
     int my = DisplayHeight(display(), screen()) - 1;
   
-    XMoveResizeWindow(display(), m_window,
-		      (mx - width) / 2, (my - height) / 2, width, height);
-    XClearWindow(display(), m_window);
-    XMapRaised(display(), m_window);
+    XMoveResizeWindow(display(), m_window[screen()],
+		      (mx - width) / 2, (my - height) /*/ 2*/, width, height);
+    XClearWindow(display(), m_window[screen()]);
+    XMapRaised(display(), m_window[screen()]);
     
-    XDrawString(display(), m_window, Border::drawGC(m_windowManager),
-		4, 4 + m_font->ascent, string, strlen(string));
+    XDrawString(display(), m_window[screen()],
+		Border::drawGC(m_windowManager,screen()),
+		4, 4 + m_font[screen()]->ascent, string, strlen(string));
 }
 
 void ShowGeometry::remove()
 {
-    XUnmapWindow(display(), m_window);
+    XUnmapWindow(display(), m_window[screen()]);
 }
 
 ShowGeometry::~ShowGeometry()

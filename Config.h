@@ -46,7 +46,11 @@ public:
     char useKeyboard();
     char fullMenu();
     char useFeedback();
+    int  feedbackDelay();
     char disableNew();
+    char rightCirculate();
+    char rightLower();
+    char rightToggleHeight();
 
     static DynamicConfig dynamicConfig;
 
@@ -139,7 +143,9 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // window as a group leader, when iconified, moved between desktops,
 // killed etc, the leader will take all the rest of its window group
 // with it.  Very few applications make any use of this -- indeed I
-// haven't found any to test it on yet, so it probably doesn't work
+// haven't found any to test it on yet, so it probably doesn't work.
+// This is different from the group stuff from Henri Naccache to be
+// found further down this file
 
 #define CONFIG_USE_WINDOW_GROUPS	True
 
@@ -151,6 +157,11 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // You're welcome.
 
 #define CONFIG_USE_SESSION_MANAGER	False
+
+// Specify the maximum length of an entry in the client menu or the command
+// menu. Set this to zero if you want no limitation
+
+#define MENU_ENTRY_MAXLENGTH		80
 
 
 // ========================
@@ -167,8 +178,9 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // PC keyboard, Mod3Mask corresponds to the windows-95 key.)
 // N.B.: if you have NumLock switched on, wmx might not get key events.
 
-#define CONFIG_ALT_KEY_MASK       Mod1Mask
+#define CONFIG_ALT_KEY_MASK       Mod4Mask
 //#define CONFIG_ALT_KEY_MASK       Mod3Mask
+#define CONFIG_ALT_KEY_SYM        XK_Meta_L
 
 // And these define the rest of the keyboard controls, when the above
 // modifier is pressed; they're keysyms as defined in <X11/keysym.h>
@@ -186,17 +198,19 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 // The next two may clash badly with Emacs, if you use Alt as the
 // modifier.  The commented variants might work better for some.
-#define CONFIG_CIRCULATE_KEY      XK_Tab
-//#define CONFIG_CIRCULATE_KEY      XK_grave
-//#define CONFIG_CIRCULATE_KEY      XK_section
-#define CONFIG_DESTROY_KEY		XK_BackSpace
-//#define CONFIG_DESTROY_KEY        XK_Delete
-//#define CONFIG_DESTROY_KEY        XK_Insert
+#define CONFIG_CIRCULATE_KEY	XK_Tab
+//#define CONFIG_CIRCULATE_KEY	XK_grave
+//#define CONFIG_CIRCULATE_KEY	XK_section
+#define CONFIG_DESTROY_KEY	XK_BackSpace
+//#define CONFIG_DESTROY_KEY	XK_Delete
+//#define CONFIG_DESTROY_KEY	XK_Insert
 
 // If WANT_KEYBOARD_MENU is True, then the MENU_KEY, when pressed with
 // the modifier, will call up a client menu with keyboard navigation
 #define CONFIG_WANT_KEYBOARD_MENU	True
-#define CONFIG_MENU_KEY		XK_Menu
+#define CONFIG_CLIENT_MENU_KEY		XK_Menu
+#define CONFIG_COMMAND_MENU_KEY		XK_Multi_key
+#define CONFIG_EXIT_ON_KBD_MENU		True
 // these are for navigating on the menu; they don't require a modifier
 #define CONFIG_MENU_UP_KEY	XK_Up
 #define CONFIG_MENU_DOWN_KEY	XK_Down
@@ -205,11 +219,16 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 // Useful for fortunate people with Sun Type-5 keyboards.  These don't
 // require the modifier to be pressed.
+#define CONFIG_WANT_SUNKEYS	True
+#define CONFIG_WANT_SUNPOWERKEY	True
 #define CONFIG_QUICKRAISE_KEY	XK_F15
 #define CONFIG_QUICKHIDE_KEY	XK_F17
 #define CONFIG_QUICKHEIGHT_KEY	XK_F13
+#define CONFIG_QUICKCLOSE_KEY	XK_F11
 #define CONFIG_QUICKRAISE_ALSO_LOWERS True 
-
+#define CONFIG_SUNPOWER_EXEC	"/usr/openwin/bin/sys-suspend"
+#define CONFIG_SUNPOWER_OPTIONS	"-x","-h",0
+#define CONFIG_SUNPOWER_SHIFTOPTIONS	"-x","-n",0
 
 // ==============================
 // Section III. Colours and fonts
@@ -227,7 +246,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // all, probably you should compile your X11 library with -DX_LOCALE.
 // I did it for my NetBSD box. :-)
 
-#define I18N 1
+#define I18N 0
 
 // Fonts used all over the place.  NICE_FONT is for the frames, and
 // NICE_MENU_FONT for the menus.  NASTY_FONT is what you'll get if it
@@ -261,6 +280,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_FRAME_BACKGROUND   "gray95"
 #define CONFIG_BUTTON_BACKGROUND  "gray95"
 #define CONFIG_BORDERS            "black"
+#define CONFIG_CHANNEL_NUMBER	  "green"
 
 #define CONFIG_MENU_FOREGROUND    "black"
 #define CONFIG_MENU_BACKGROUND    "gray80"
@@ -282,7 +302,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // should be okay in true-colour.
 
 #define CONFIG_USE_PIXMAPS        True
-#define CONFIG_USE_PIXMAP_MENUS   False
+#define CONFIG_USE_PIXMAP_MENUS   True
 
 // Set CHANNEL_SURF for multi-channel switching; CHANNEL_CLICK_SIZE is
 // how close you have to middle-button-click to the top-right corner
@@ -311,8 +331,45 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // delay of 0ms.
 
 #define CONFIG_MAD_FEEDBACK       (dConfig.useFeedback())
-#define CONFIG_FEEDBACK_DELAY     300
+#define CONFIG_FEEDBACK_DELAY     (dConfig.feedbackDelay())
 
+// Groups are fun. you can bind a bunch of windows to a number key
+// and when you press CONFIG_ALT_KEY_MASK and the number key
+// all the windows of that group are raised.
+
+// You bind a window to a group by pressing the 
+// CONFIG_ALT_KEY_MASK + CONFIG_GROUP_ADD + a number key
+
+// if you press CONFIG_ALT_KEY_MASK + CONFIG_GROUP_REMOVE_ALL
+// + a number key that group is cleared of all windows.
+
+#define CONFIG_GROUPS             True
+#define CONFIG_GROUP_ADD          ControlMask  
+#define CONFIG_GROUP_REMOVE_ALL   ShiftMask
+
+// This is a first crack at GNOME compliance. So far it only
+// deals w/ the gnome-pager. For best results restart the 
+// window manager after GNOME starts up (you can do this from
+// the Control Center by starting another wm then starting
+// wmx again) otherwise you may end up with a frame around
+// the GNOME panel. 
+//
+// Also watch out that you don't unhide a window on a channel
+// that you are not currently on, some strange things happen.
+// (Patch due to Henri Naccache <henri@asu.edu>)
+
+#define CONFIG_GNOME_COMPLIANCE   False
+
+// This lets you choose if you want to keep the regular wmx
+// mouse button behaviour, or go w/ the GNOME described one
+
+// The if True, the left mouse button (button1) lets you 
+// select 1 or more gmc 'icons' and drag them around etc.
+// the right mouse button (button3) pops up the GNOME 
+// command menu, and the middle mouse button (button2)
+// acts like the left mouse normally does (list of windows)
+
+#define CONFIG_GNOME_BUTTON_COMPLIANCE   False
 
 #endif
 

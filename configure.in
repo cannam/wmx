@@ -1,0 +1,40 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(Border.C)
+
+dnl Checks for programs.
+AC_PROG_MAKE_SET
+AC_PROG_CXX
+AC_LANG_CPLUSPLUS
+
+AC_PATH_X
+
+dnl libX11 _is_ necessary
+dnl and some systems do find it without any path.
+
+if test ! "$no_x" = "yes" ; then
+	if test ! X"$x_libraries" = X ; then
+		LDFLAGS="$LDFLAGS -L$x_libraries"
+	fi
+	if test ! X"$x_includes" = X ; then
+		CXXFLAGS="$CXXFLAGS -I$x_includes"
+	fi
+else
+	AC_MSG_ERROR(X11 is necessary.)
+fi
+
+AC_CHECK_LIB(X11, XOpenDisplay)
+
+dnl Shape extension is necessary.
+AC_CHECK_LIB(Xext, XShapeQueryExtension)
+
+dnl Xpm is not strictly necessary
+AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData)
+
+dnl We want to put wmx where twm lies.
+AC_PREFIX_PROGRAM(twm)
+
+AC_MSG_CHECKING([whether you're still watching])
+AC_MSG_RESULT([probably not :-)])
+
+dnl Now we can go home.
+AC_OUTPUT(Makefile)

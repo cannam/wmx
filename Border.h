@@ -44,31 +44,33 @@ public:
     Boolean isTransient();	// calls into Client
     Boolean isFixedSize();	// calls into Client
     Window parent() { return m_parent; }
-    Boolean hasWindow(Window w) {
-	return (w != root() && (w == m_parent || w == m_tab ||
-				w == m_button || w == m_resize));
-    }
-
+    Boolean hasWindow(Window);
+      
     Display *display();
+    int screen();
     Window root();
 
     void expose(XExposeEvent *);
     void eventButton(XButtonEvent *); // in Buttons.C
 
     int yIndent() {
-	return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
+      if (shaped) return 0;
+      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
     }
     int xIndent() {
-	return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
-	    m_tabWidth + FRAME_WIDTH + 1;
+      if (shaped) return 0;
+      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
+        m_tabWidth[screen()] + FRAME_WIDTH + 1;
     }
 
     Boolean coordsInHole(int, int); // in Events.C of all places
     static Pixmap backgroundPixmap(WindowManager *);
-    static GC drawGC(WindowManager *);
+    static GC drawGC(WindowManager *,int);
     
 private:
     Client *m_client;
+
+    int shaped;
 
     Window m_parent;
     Window m_tab;
@@ -101,14 +103,14 @@ private:
 
 private:
     int        m_tabHeight;	// depends on the label
-    static int m_tabWidth;	// depends on the label font
-    static XRotFontStruct *m_tabFont;
-    static GC m_drawGC;
-    static unsigned long m_foregroundPixel;
-    static unsigned long m_backgroundPixel;
-    static unsigned long m_frameBackgroundPixel;
-    static unsigned long m_buttonBackgroundPixel;
-    static unsigned long m_borderPixel;
+    static int *m_tabWidth;	// depends on the label font
+    static XRotFontStruct **m_tabFont;
+    static GC  *m_drawGC;
+    static unsigned long *m_foregroundPixel;
+    static unsigned long *m_backgroundPixel;
+    static unsigned long *m_frameBackgroundPixel;
+    static unsigned long *m_buttonBackgroundPixel;
+    static unsigned long *m_borderPixel;
     static Pixmap m_backgroundPixmap;
 
     static void initialiseStatics(WindowManager *);

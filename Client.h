@@ -9,7 +9,7 @@
 
 class Client {
 public:
-    Client(WindowManager *const, Window);
+    Client(WindowManager *const, Window, Boolean);
     void release();
 
     /* for call from WindowManager: */
@@ -41,9 +41,7 @@ public:
     void removeFeedback(Boolean mapped);
 
     void manage(Boolean mapped);
-    Boolean hasWindow(Window w) {
-	return ((m_window == w) || m_border->hasWindow(w));
-    }
+    Boolean hasWindow(Window);
 
     Client *revertTo() { return m_revert; }
     void setRevertTo(Client *c) { m_revert = c; }
@@ -51,7 +49,8 @@ public:
     Boolean isHidden()     { return (m_state == IconicState);    }
     Boolean isWithdrawn()  { return (m_state == WithdrawnState); }
     Boolean isNormal()     { return (m_state == NormalState);    }
-    Boolean isTransient()  { return (m_transient != None);       }
+    Boolean isKilled()     { return (m_window == None);          }
+    Boolean isTransient()  { return ((m_transient != None)||(m_shaped)); }
     Boolean isSticky()    { return m_sticky; }
     Window  transientFor() { return m_transient; }
 #ifdef CONFIG_USE_WINDOW_GROUPS
@@ -59,6 +58,7 @@ public:
     Boolean isGroupParent() { return m_window == m_groupParent; }
 #endif
     Boolean isFixedSize()  { return m_fixedSize; }
+    Boolean isShaped()     { return m_shaped; }
 
     const char *label()    { return m_label;    }
     const char *name()     { return m_name;     }
@@ -67,7 +67,11 @@ public:
     int channel() { return m_channel;  }
     void flipChannel(Boolean leaving, int newChannel);
     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
-    void setChannel(int channel) { m_channel = channel; }
+    void setChannel(int channel) { m_channel = channel;
+#if CONFIG_GNOME_COMPLIANCE != False
+                                   gnomeSetChannel();
+#endif
+}
     void setSticky(Boolean sticky) { m_sticky = sticky; }
 
     void sendMessage(Atom, long);
@@ -87,8 +91,9 @@ public:
 
     void fatal(char *m)    { m_windowManager->fatal(m);              }
     Display *display()     { return m_windowManager->display();      }
+    int screen();
     Window parent()        { return m_border->parent();              }
-    Window root()          { return m_windowManager->root();         }
+    Window root();
     Client *activeClient() { return m_windowManager->activeClient(); }
     Boolean isActive()     { return (activeClient() == this);        }
 
@@ -106,6 +111,11 @@ public:
     void eventFocusIn(XFocusInEvent *);
     void eventExposure(XExposeEvent *);
 
+#if CONFIG_GNOME_COMPLIANCE != False
+    void gnomeSetChannel();
+    Window window()        { return m_window; }
+#endif
+
 protected:      // cravenly submitting to gcc's warnings
     ~Client();
 
@@ -116,6 +126,8 @@ private:
     Window m_groupParent;
     Border *m_border;
 
+    Boolean m_shaped;
+
     Client *m_revert;
 
     int m_x;
@@ -123,6 +135,8 @@ private:
     int m_w;
     int m_h;
     int m_bw;
+    Window m_wroot;
+    int m_screen;
     Boolean doSomething;	// Become true if move() or resize() made
 				// effect to this client.
 

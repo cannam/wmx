@@ -9,11 +9,16 @@
 #include <X11/Xmu/Atoms.h>
 #endif
 
+#if CONFIG_GNOME_COMPLIANCE != False
+// needed this to be able to use CARD32
+#include <X11/Xmd.h>
+#endif
+
 const char *const Client::m_defaultLabel = "incognito";
 
 
 
-Client::Client(WindowManager *const wm, Window w) :
+Client::Client(WindowManager *const wm, Window w, Boolean shaped) :
     m_window(w),
     m_transient(None),
     m_revert(0),
@@ -29,8 +34,10 @@ Client::Client(WindowManager *const wm, Window w) :
     m_colormapWinCount(0),
     m_colormapWindows(NULL),
     m_windowColormaps(NULL),
-    m_windowManager(wm)
+    m_windowManager(wm),
+    m_shaped(shaped)
 {
+
     XWindowAttributes attr;
     XGetWindowAttributes(display(), m_window, &attr);
 
@@ -39,14 +46,23 @@ Client::Client(WindowManager *const wm, Window w) :
     m_w = attr.width;
     m_h = attr.height;
     m_bw = attr.border_width;
+    m_wroot = attr.root;
     m_name = m_iconName = 0;
     m_sizeHints.flags = 0L;
 
+    wm->setScreenFromRoot(m_wroot);
+    m_screen = wm->screen();
+    
     m_label = NewString(m_defaultLabel);
     m_border = new Border(this, w);
 
     m_channel = wm->channel();
     m_unmappedForChannel = False;
+
+#if CONFIG_GNOME_COMPLIANCE != False
+    gnomeSetChannel();
+#endif
+
 
 //#if CONFIG_MAD_FEEDBACK != 0
     m_speculating = m_levelRaised = False;
@@ -61,6 +77,22 @@ Client::~Client()
     // empty
 }    
 
+
+Boolean Client::hasWindow(Window w)
+{
+    return ((m_window == w) || m_border->hasWindow(w));
+}
+
+Window Client::root()
+{
+    return m_wroot;
+}
+
+
+int Client::screen()
+{
+    return m_screen;
+}
 
 void Client::release()
 {
@@ -98,7 +130,7 @@ void Client::release()
     if (m_iconName) XFree(m_iconName);
     if (m_name)     XFree(m_name);
     if (m_label) free((void *)m_label);
-
+    
     delete this;
 }
 
@@ -139,8 +171,8 @@ void Client::installColormap()
 
     } else if (m_transient != None &&
  	       (cc = windowManager()->windowToClient(m_transient))) {
-
-	cc->installColormap();
+	if (cc)
+	    cc->installColormap();
     } else {
 	windowManager()->installColormap(m_colormap);
     }
@@ -172,34 +204,122 @@ void Client::manage(Boolean mapped)
 	    CONFIG_STICKY_KEY
 
 #if CONFIG_WANT_KEYBOARD_MENU
-	    , CONFIG_MENU_KEY
+	    , CONFIG_CLIENT_MENU_KEY, CONFIG_COMMAND_MENU_KEY
 #endif
 	};
+
+        XGrabKey(display(), XKeysymToKeycode(display(), CONFIG_ALT_KEY_SYM),
+                 0, m_window, True, GrabModeAsync, GrabModeAsync);
 
 	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
 	    keycode = XKeysymToKeycode(display(), keys[i]);
 	    if (keycode) {
 		XGrabKey(display(), keycode,
-			 CONFIG_ALT_KEY_MASK, m_window, True,
+			 CONFIG_ALT_KEY_MASK|LockMask|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|LockMask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK,
+			 m_window, True,
 			 GrabModeAsync, GrabModeAsync);
 	    }
 	}
 
+#if CONFIG_GROUPS != False
+	static KeySym numbers[] = {
+	    XK_0, XK_1, XK_2, XK_3, XK_4, XK_5, XK_5, 
+	    XK_6, XK_7, XK_8, XK_9 };
+
+	for (i = 0; i < sizeof(numbers)/sizeof(numbers[0]); ++i) {
+	    keycode = XKeysymToKeycode(display(), numbers[i]);
+	    if (keycode) {
+		// someone please tell me there is a better way of 
+		// doing this....
+
+		// both caps-lock and num-lock
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 LockMask|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|
+			 LockMask|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|LockMask|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+
+		// only caps-lock
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 LockMask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|LockMask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|LockMask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		// only num-lock
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL|
+			 Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|Mod2Mask,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		// no locks
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_REMOVE_ALL,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK|CONFIG_GROUP_ADD,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+		XGrabKey(display(), keycode,
+			 CONFIG_ALT_KEY_MASK,
+			 m_window, True,
+			 GrabModeAsync, GrabModeAsync);
+
+	    }
+	}
+#endif
 	keycode = XKeysymToKeycode(display(), CONFIG_QUICKRAISE_KEY);
 	if (keycode) {
-	    XGrabKey(display(), keycode, 0, m_window, True,
+	    XGrabKey(display(), keycode, AnyModifier, m_window, True,
 		     GrabModeAsync, GrabModeAsync);
 	}
 
 	keycode = XKeysymToKeycode(display(), CONFIG_QUICKHIDE_KEY);
 	if (keycode) {
-	    XGrabKey(display(), keycode, 0, m_window, True,
+	    XGrabKey(display(), keycode, AnyModifier, m_window, True,
 		     GrabModeAsync, GrabModeAsync);
 	}
 
 	keycode = XKeysymToKeycode(display(), CONFIG_QUICKHEIGHT_KEY);
 	if (keycode) {
-	    XGrabKey(display(), keycode, 0, m_window, True,
+	    XGrabKey(display(), keycode, AnyModifier, m_window, True,
 		     GrabModeAsync, GrabModeAsync);
 	}
 
@@ -474,7 +594,7 @@ tryagain:
 
     if (status != Success || *p == 0) return -1;
     if (n == 0) XFree((void *) *p);
-    if (type == XA_STRING || retried) {
+    if (type == XA_STRING || type == AnyPropertyType || retried) {
 	if (realType != XA_STRING || format != 8) {
 #if I18N
 	    // XA_STRING is needed by a caller.  But XGetWindowProperty()
@@ -848,6 +968,9 @@ void Client::sendConfigureNotify()
 
 void Client::withdraw(Boolean changeState)
 {
+    
+    
+
     m_border->unmap();
 
     gravitate(True);
@@ -1082,3 +1205,20 @@ void Client::removeFeedback(Boolean mapped)
     }
 }
 
+#if CONFIG_GNOME_COMPLIANCE != False
+void Client::gnomeSetChannel() {
+
+    Atom                atom_set;
+    CARD32              val;
+   
+    // which is the current channel (or workspace)
+    atom_set = XInternAtom(display(), "_WIN_WORKSPACE", False);
+
+    // gnome numbers then 0... not 1...
+    val =(CARD32)(channel() - 1);
+
+    XChangeProperty(display(), window(), atom_set, XA_CARDINAL, 32, 
+		    PropModeReplace, (unsigned char *)&val, 1);
+
+}
+#endif
