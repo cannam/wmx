@@ -63,13 +63,16 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 		   e->y < CONFIG_CHANNEL_CLICK_SIZE) {
 
 	    if (e->button == Button2) {
-
-		if (m_channelChangeTime == 0) flipChannel(True, False, False,0);
-		else flipChannel(False, False, False, 0);
-
-	    } else if (e->button == Button1 && m_channelChangeTime != 0) {
-
-		flipChannel(False, True, False, 0);
+#if CONFIG_USE_CHANNEL_MENU	
+                ChannelMenu(this, (XEvent *)e);
+#else
+                if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
+                else flipChannel(False, False, False, 0);
+                
+            } else if (e->button == Button1 && m_channelChangeTime != 0) {
+                
+                flipChannel(False, True, False, 0);
+#endif
 	    }
 
 	} else if (e->button == Button2 && m_channelChangeTime == 0) {
@@ -80,8 +83,12 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     } else if (c) {
 
 	if (e->button == Button2 && CONFIG_CHANNEL_SURF) {
-	    if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
-	    else flipChannel(False, False, False, c);
+#if CONFIG_USE_CHANNEL_MENU	
+	    ChannelMenu menu(this, (XEvent *)e);
+#else
+            if (m_channelChangeTime == 0) flipChannel(True, False, False, 0);
+            else flipChannel(False, False, False, c);
+#endif
 	    return;
 	} else if (e->button == Button1 && m_channelChangeTime != 0) {
 	    // allow left-button to push down a channel --cc 19991001
@@ -216,29 +223,17 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
                fprintf(stderr, "wmx: Alt key record in inconsistent state\n");
                m_altPressed = True;
                m_altStateRetained = False;
+//        fprintf(stderr, "state is %ld, mask is %ld\n",
+//                (long)ev->state, (long)CONFIG_ALT_KEY_MASK);
            }
 
            if (key >= XK_F1 && key <= XK_F12 &&
 		CONFIG_CHANNEL_SURF && CONFIG_USE_CHANNEL_KEYS) {
 
 		int channel = key - XK_F1 + 1;
-	    
-		if (channel == m_currentChannel) {
 
-		    flipChannel(True, False, False, 0);
-
-		} else if (channel > 0 && channel <= m_channels) {
-
-		    while (m_currentChannel != channel) {
-			if (m_currentChannel < channel) {
-			    flipChannel(False, False, True, 0);
-			} else {
-			    flipChannel(False, True, True, 0);
-			}
-			XSync(display(), False);
-		    }
-		}
-
+		gotoChannel(channel, 0);
+		
 	    } else {
 
 		// These key names also appear in Client::manage(), so
@@ -332,6 +327,9 @@ void WindowManager::eventKeyRelease(XKeyEvent *ev)
     if (key == CONFIG_ALT_KEY_SYM) {
         m_altPressed = False;
         m_altStateRetained = False;
+
+//        fprintf(stderr, "state is %ld, mask is %ld\n",
+//                (long)ev->state, (long)CONFIG_ALT_KEY_MASK);
     }
     return;
 }

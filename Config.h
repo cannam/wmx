@@ -308,11 +308,14 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // how close you have to middle-button-click to the top-right corner
 // of the root window before the channel change happens.  Set
 // USE_CHANNEL_KEYS if you want Alt-F1, Alt-F2 etc for quick channel
-// changes, provided USE_KEYBOARD is also True.
+// changes, provided USE_KEYBOARD is also True.  Set USE_CHANNEL_MENU
+// if you want to change channels via a keyboard-controlled menu
+// instead of linearly up and down one at a time like TV.
 
 #define CONFIG_CHANNEL_SURF       True
 #define CONFIG_CHANNEL_CLICK_SIZE 120
 #define CONFIG_USE_CHANNEL_KEYS   True
+#define CONFIG_USE_CHANNEL_MENU   False
 
 // FLIP_DELAY is the length of time the big green number stays in the
 // top-right when flipping channels, before the windows reappear.

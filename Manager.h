@@ -71,8 +71,10 @@ public:
     void spawn(char *, char *);
 
     int channel() { return m_currentChannel; }
+    int channels() { return m_channels; }
     void setSignalled() { m_looping = False; } // ...
-
+    void gotoChannel(int channel, Client *push);
+    
     ClientList &clients() { return m_clients; }
     ClientList &hiddenClients() { return m_hiddenClients; }
 

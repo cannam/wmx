@@ -184,4 +184,22 @@ void WindowManager::createNewChannel()
 
 }
 
+void WindowManager::gotoChannel(int channel, Client *push)
+{
+    if (channel == m_currentChannel) {
+	flipChannel(True, False, False, 0);
+	return;
+   }
 
+    if (channel > 0 && channel <= m_channels) {
+
+	while (m_currentChannel != channel) {
+	    if (m_channels < channel) {
+		flipChannel(False, False, True, push);
+	    } else {
+		flipChannel(False, True, True, push);
+	    }
+	    XSync(display(), False);
+	}
+    }
+}

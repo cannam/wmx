@@ -587,7 +587,8 @@ void WindowManager::eventDestroy(XDestroyWindowEvent *e)
 	}
 
         int there = -1;
-	
+
+#if CONFIG_GROUPS != False
 	for (int y = 0; y < 10; y++) {
 	    there = -1;
 //	    fprintf(stderr, "y = %d : ", y);
@@ -606,7 +607,7 @@ void WindowManager::eventDestroy(XDestroyWindowEvent *e)
 	    }
 //	    fprintf(stderr,"\n");
 	}
-
+#endif
 
 	checkChannel(c->channel());
 	c->release();

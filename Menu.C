@@ -793,6 +793,47 @@ char **CommandMenu::getItems(int *niR, int *nhR)
     return items;
 }
 
+#if CONFIG_USE_CHANNEL_MENU
+
+ChannelMenu::ChannelMenu(WindowManager *manager, XEvent *e)
+    : Menu(manager, e), m_channels(manager->channels()),
+      m_channel(manager->channel())
+{
+    XButtonEvent *ev = (XButtonEvent *)e;
+
+    Client *c = m_windowManager->windowToClient(ev->window);
+    ev->x = ev->x_root; ev->y = ev->y_root;
+	
+    int channel = getSelection() + 1;
+
+    m_windowManager->gotoChannel(channel, c);
+}
+
+ChannelMenu::~ChannelMenu()
+{
+    for (int i = 0; i < m_channels; i++) {
+	free(m_items[i]);
+    }
+    free(m_items);
+}
+
+char **ChannelMenu::getItems(int *niR, int *nhR)
+{
+    *niR = m_windowManager->channels();
+    *nhR = 0;
+
+    char **items = (char **)malloc(*niR * sizeof(char *));
+    for (int i = 0; i < *niR; i++) {
+	char temp[50]; // Warning! Works only, if int < 136 bits.
+	sprintf(temp, "Channel %d", i + 1);
+	char *item = (char *)malloc(strlen(temp) + 1);
+	strcpy (item, temp);
+	items[i] = item;
+    }
+    return m_items = items;
+}
+
+#endif
 
 // Fake geometry as a "menu" to save on code
 
