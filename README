@@ -13,7 +13,7 @@ editing the source and recompiling the code.
 This release
 ============
 
-This is the fourth preview of the sixth release, dating from May 2000.
+This is the sixth release, dating from April 2001.
 
 
 Building wmx
@@ -174,8 +174,16 @@ important one is that for the Alt modifier.  The default bindings are:
     from the menu.
 
 Some of these bindings (notably the keyboard menu) can be switched off
-altogether in Config.h.  If you have NumLock switched on, the key
-controls might not work.
+altogether in Config.h.
+
+
+Wheel mouse
+===========
+
+If you have a wheel mouse, you can use the wheel to switch channels.
+Moving the wheel in the root window selects the next or previous
+channel; moving it in the tab of a window moves that window up or down
+a channel.
 
 
 Focus policy
@@ -283,6 +291,18 @@ right-hand side of the rxvt window and is thick enough that wmx's
 resize handle doesn't obscure any of the text area.
 
 
+GNOME
+=====
+
+Since the 6pre2 release, wmx has included some basic GNOME support
+due to Henri Naccache.  There are various other patches around that
+improve or extend this GNOME support, including one from James
+Montgomerie.  If you want to run wmx with GNOME, start by taking a
+look at this message:
+
+  http://ml.42.org/wmx/msg00502.html
+
+
 Credits
 =======
 
@@ -307,8 +327,9 @@ Multiheaded X support is due to Sven Oliver `SvOlli' Moll.
 Gnome and shaped client support is mostly due to Henri Naccache.
 
 This release contains code and bug fixes provided by Eric Marsden,
-Lasse Rasinen, Bill Spitzak, Jacques Garrigue, Stefan `Sec' Zehl,
-Sven Oliver Moll, Martin Andrews and, well, probably several others.
+Lasse Rasinen, Bill Spitzak, Jacques Garrigue, Stefan `Sec' Zehl, Sven
+Oliver Moll, Richard Sharman, Martin Andrews and, well, probably
+several other people.
 
 If you want to hack the code into something else for your own
 amusement, please go ahead.  Feel free to modify and redistribute, as
@@ -325,4 +346,4 @@ the web at http://ml.42.org/wmx/.
 
 
 Chris Cannam, cannam@all-day-breakfast.com
-May 2000
+April 2001

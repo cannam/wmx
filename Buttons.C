@@ -39,6 +39,16 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     }
 #endif
  
+    if (e->button == Button4 && CONFIG_CHANNEL_SURF) {
+        // wheel "up" - increase channel
+        flipChannel(False, False, True, c);
+        return ;
+    } else if (e->button == Button5 && CONFIG_CHANNEL_SURF) {
+        // wheel "down" - decrease channel
+        flipChannel(False, True, True, c);
+        return ;
+    }
+    
     if (e->window == e->root) {
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE != False

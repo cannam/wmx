@@ -55,8 +55,8 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *home = getenv("HOME");
     char *wmxdir = getenv("WMXDIR");
     
-    fprintf(stderr, "\nwmx: Copyright (c) 1996-2000 Chris Cannam."
-	    "  Sixth release pre-6, May 2000\n"
+    fprintf(stderr, "\nwmx: Copyright (c) 1996-2001 Chris Cannam."
+	    "  Sixth release, April 2001\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
  	    "     Japanize code Copyright (c) 1998 Kazushi (Jam) Marukawa\n"
@@ -941,10 +941,11 @@ void WindowManager::spawn(char *name, char *file)
 		char *pstring = (char *)malloc(strlen(displayName) + 11 +
 					       numdigits(screen()));
 		sprintf(pstring, "DISPLAY=%s", displayName);
-		for(c=pstring; *c && (*c != '.'); c++);
-		*(c++)='.';
-		sprintf(c, "%d", screen());
-		putenv(pstring);
+                c = strrchr(pstring, '.');
+                if (c) {
+                  sprintf(c + 1, "%d", screen());
+                  putenv(pstring);
+                }
 	    }
 
 	    if (CONFIG_EXEC_USING_SHELL) {
@@ -1048,11 +1049,13 @@ void WindowManager::gnomeUpdateWindowList()
     Window *windows = new Window[hiddenCount + orderedCount];
     int j = 0;
 
+    /* henri@qais.com requested removal 20001128 --cc
     for (i = 0; i < hiddenCount; i++) {
         if (!m_hiddenClients.item(i)->isKilled()) {
             windows[j++] = m_hiddenClients.item(i)->window();
         }
     }
+    */
 
     for (i = 0; i < orderedCount; i++) {
 	if (!m_orderedClients.item(i)->isKilled()) {

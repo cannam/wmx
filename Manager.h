@@ -99,6 +99,9 @@ public:
     void gnomeUpdateCurrentChannel();
 #endif
 
+    // Stupid little helper function
+    static int numdigits(int);
+
 private:
     int loop();
     void release();
@@ -204,9 +207,6 @@ private:
     Boolean m_altPressed;
     Boolean m_altStateRetained;
     void eventKeyPress(XKeyEvent *);
-
-    // Stupid little helper function
-    static int numdigits(int);
 
 #if CONFIG_GNOME_COMPLIANCE != False
     void gnomeInitialiseCompliance();
