@@ -64,6 +64,7 @@ extern Boolean ignoreBadWindowErrors; // tidiness hack
 #define ButtonMask	( ButtonPressMask | ButtonReleaseMask )
 #define DragMask        ( ButtonMask | ButtonMotionMask )
 #define MenuMask	( ButtonMask | ButtonMotionMask | ExposureMask )
-#define MenuGrabMask	( ButtonMask | ButtonMotionMask | StructureNotifyMask )
+#define MenuGrabMask	( ButtonMask | ButtonMotionMask | StructureNotifyMask \
+			  | SubstructureNotifyMask )
 
 #endif

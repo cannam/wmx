@@ -394,14 +394,18 @@ void Client::eventMapRequest(XMapRequestEvent *)
 
 	if (CONFIG_AUTO_RAISE) m_windowManager->stopConsideringFocus();
 	XAddToSaveSet(display(), m_window);
-	XMapWindow(display(), m_window);
+	if (m_channel == windowManager()->channel()) {
+	    XMapWindow(display(), m_window);
+	}
 	mapRaised();
 	setState(NormalState);
 	if (CONFIG_CLICK_TO_FOCUS) activate();
 	break;
 
     case NormalState:
-	XMapWindow(display(), m_window);
+	if (m_channel == windowManager()->channel()) {
+	    XMapWindow(display(), m_window);
+	}
 	mapRaised();
 	if (CONFIG_CLICK_TO_FOCUS) activate();
 	break;
@@ -423,6 +427,8 @@ void WindowManager::eventUnmap(XUnmapEvent *e)
 
 void Client::eventUnmap(XUnmapEvent *e)
 {
+    if (e->window != m_window) return;
+
     if (m_unmappedForChannel) {
 	setState(NormalState);
  	return;
@@ -584,7 +590,18 @@ void WindowManager::eventReparent(XReparentEvent *e)
 
 void WindowManager::eventEnter(XCrossingEvent *e)
 {
-    if (e->type != EnterNotify) return;
+    // quick hack for multi-screen stuff; although it still only
+    // manages one screen, it will now allow focus on others.
+    // thanks to Johan Danielsson
+
+    if (e->type != EnterNotify) {
+	if (e->same_screen == 0) {
+	    if (m_activeClient) m_activeClient->deactivate();
+	    m_activeClient = 0;
+	    XSetInputFocus(m_display, PointerRoot, None, timestamp(False));
+	}
+	return;
+    }
 
     while (XCheckMaskEvent(m_display, EnterWindowMask, (XEvent *)e));
     m_currentTime = e->time;	// not CurrentTime

@@ -53,13 +53,19 @@ Menu::Menu(WindowManager *manager, XButtonEvent *e)
 
 	XSetWindowAttributes attr;
 
+#if ( CONFIG_USE_PIXMAPS != False ) && ( CONFIG_USE_PIXMAP_MENUS != False )
 	attr.background_pixmap = Border::backgroundPixmap(manager);
+#endif
 	attr.save_under =
 	    (DoesSaveUnders(ScreenOfDisplay(display(), screen())) ?
 	     True : False);
 
+#if ( CONFIG_USE_PIXMAPS != False ) && ( CONFIG_USE_PIXMAP_MENUS != False ) 
 	XChangeWindowAttributes
-	    (display(), m_window, CWSaveUnder | CWBackPixmap, &attr);
+	    (display(), m_window, CWBackPixmap, &attr);
+#endif
+	XChangeWindowAttributes
+	    (display(), m_window, CWSaveUnder, &attr);
     }
 }
 
@@ -140,11 +146,38 @@ int Menu::getSelection()
     Boolean done = False;
     Boolean drawn = False;
     XEvent event;
+    struct timeval sleepval;
+    unsigned long tdiff = 0L;
+    Boolean speculating = False;
+    Boolean foundEvent;
 
     while (!done)
     {
-	XMaskEvent(display(), MenuMask, &event);
-		
+	foundEvent = False;
+	if (CONFIG_FEEDBACK_DELAY >= 0 &&
+	    tdiff > CONFIG_FEEDBACK_DELAY && !speculating) {
+
+	    if (selecting >= 0 && selecting < m_nItems) {
+		raiseFeedbackLevel(selecting);
+		XRaiseWindow(display(), m_window);
+	    }
+
+	    speculating = True;
+	}
+
+	while (XCheckMaskEvent(display(), MenuMask, &event)) {
+	    foundEvent = True;
+	    if (event.type != MotionNotify) break;
+	}
+
+	if (!foundEvent) {
+	    sleepval.tv_sec = 0;
+	    sleepval.tv_usec = 10000;
+	    select(0, 0, 0, 0, &sleepval);
+	    tdiff += 10;
+	    continue;
+	}
+	
 	switch (event.type)
 	{
 	default:
@@ -197,14 +230,18 @@ int Menu::getSelection()
 	    else if (selecting < 0 || selecting > m_nItems) selecting = -1;
 
 	    if (selecting == prev) break;
+	    tdiff = 0; speculating = False;
 
 	    if (prev >= 0 && prev < m_nItems) {
+		removeFeedback(prev, speculating);
 		XFillRectangle(display(), m_window, m_menuGC,
 			       4, prev * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
 	    }
 
 	    if (selecting >= 0 && selecting < m_nItems) {
+		showFeedback(selecting);
+		XRaiseWindow(display(), m_window);
 		XFillRectangle(display(), m_window, m_menuGC,
 			       4, selecting * entryHeight + 9,
 			       maxWidth - 8, entryHeight);
@@ -213,6 +250,12 @@ int Menu::getSelection()
 	    break;
 			
 	case Expose:
+
+	    if (CONFIG_MAD_FEEDBACK && event.xexpose.window != m_window) {
+		m_windowManager->eventExposure((XExposeEvent *)&event);
+		break;
+	    }
+
 	    XClearWindow(display(), m_window);
 			
 	    XDrawRectangle(display(), m_window, m_menuGC, 2, 7,
@@ -246,6 +289,7 @@ int Menu::getSelection()
 	}
     }
 
+    if (selecting >= 0) removeFeedback(selecting, speculating);
     return selecting;
 }
 
@@ -271,8 +315,8 @@ ClientMenu::ClientMenu(WindowManager *manager, XButtonEvent *e)
 	Client *cl = m_clients.item(selecting - 1);
 	
 	if (selecting < m_nHidden) cl->unhide(True);
-	else if (selecting < m_nItems)
-	{
+	else if (selecting < m_nItems) {
+
 	    if (CONFIG_CLICK_TO_FOCUS) cl->activate();
 	    else cl->mapRaised();
 	    cl->ensureVisible();
@@ -331,6 +375,31 @@ char **ClientMenu::getItems(int *niR, int *nhR)
     return (char **)items;
 }
 
+
+#if CONFIG_MAD_FEEDBACK != 0
+
+void ClientMenu::showFeedback(int item)
+{
+    if (item == 0) return;
+    Client *c = m_clients.item(item-1);
+    c->showFeedback();
+}
+
+void ClientMenu::removeFeedback(int item, Boolean mapped)
+{
+    if (item == 0) return;
+    Client *c = m_clients.item(item-1);
+    c->removeFeedback(mapped);
+}
+
+void ClientMenu::raiseFeedbackLevel(int item)
+{
+    if (item == 0) return;
+    Client *c = m_clients.item(item-1);
+    c->raiseFeedbackLevel();
+}
+
+#endif
 
 
 CommandMenu::CommandMenu(WindowManager *manager, XButtonEvent *e)

@@ -52,6 +52,11 @@ Border::Border(Client *const c, Window child) :
     m_parent = root();
     if (m_tabFont == 0) initialiseStatics(c->windowManager());
     ++borderCounter;
+
+#if CONFIG_MAD_FEEDBACK != 0
+    m_feedback = 0;
+    m_fedback = False;
+#endif
 }
 
 
@@ -636,6 +641,11 @@ void Border::configure(int x, int y, int w, int h,
 	    (display(), m_child, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
 	     CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
 
+#if CONFIG_MAD_FEEDBACK != 0
+	m_feedback = XCreateSimpleWindow(display(), root(), 0, 0, 1, 1, 1,
+					 m_borderPixel, m_backgroundPixel);
+#endif
+
 	shapeResize();
 
 	XSelectInput(display(), m_parent,
@@ -645,21 +655,32 @@ void Border::configure(int x, int y, int w, int h,
 	if (!isTransient()) {
 	    XSelectInput(display(), m_tab,
 			 ExposureMask | ButtonPressMask | ButtonReleaseMask |
-			 EnterWindowMask/* | LeaveWindowMask*/);
+			 EnterWindowMask);
 	}
 
-	XSelectInput(display(), m_button,
-		     ButtonPressMask | ButtonReleaseMask/* | LeaveWindowMask*/);
+	XSelectInput(display(), m_button, ButtonPressMask | ButtonReleaseMask);
 	XSelectInput(display(), m_resize, ButtonPressMask | ButtonReleaseMask);
 	mask |= CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 
+	XSetWindowAttributes wa;
+	wa.background_pixmap = m_backgroundPixmap;
+
 	if (m_backgroundPixmap) {
-	    XSetWindowAttributes wa;
-	    wa.background_pixmap = m_backgroundPixmap;
 	    XChangeWindowAttributes(display(), m_parent, CWBackPixmap, &wa);
 	    XChangeWindowAttributes(display(), m_tab,    CWBackPixmap, &wa);
 	    XChangeWindowAttributes(display(), m_button, CWBackPixmap, &wa);
 	}
+
+#if CONFIG_MAD_FEEDBACK != 0
+	wa.save_under =
+	    (DoesSaveUnders(ScreenOfDisplay(display(), 0)) ? True : False);
+	if (m_backgroundPixmap) {
+	    XChangeWindowAttributes
+		(display(), m_feedback, CWSaveUnder | CWBackPixmap, &wa);
+	} else {
+	    XChangeWindowAttributes(display(), m_feedback, CWSaveUnder, &wa);
+	}
+#endif
     }
 
     XWindowChanges wc;
@@ -789,4 +810,65 @@ void Border::reparent()
 {
     XReparentWindow(display(), m_child, m_parent, xIndent(), yIndent());
 }
+
+
+#if CONFIG_MAD_FEEDBACK != 0
+
+void Border::toggleFeedback(int x, int y, int w, int h)
+{
+    m_fedback = !m_fedback;
+    if (!m_feedback) return;
+
+    if (m_fedback) {
+
+	w += CONFIG_FRAME_THICKNESS + 1;
+	h += CONFIG_FRAME_THICKNESS - TAB_TOP_HEIGHT + 1;
+
+	XMoveResizeWindow(display(), m_feedback,
+			  x - CONFIG_FRAME_THICKNESS - 1,
+			  y - CONFIG_FRAME_THICKNESS + TAB_TOP_HEIGHT - 1,
+			  w, h);
+
+	XRectangle r[2];
+
+	r[0].x = 0; r[0].y = 0; r[0].width = w;
+	r[0].height = CONFIG_FRAME_THICKNESS - 2;
+	r[1].x = 0; r[1].y = r[0].height; r[1].width = r[0].height + 2;
+	r[1].height = h - r[0].height;
+
+	XShapeCombineRectangles(display(), m_feedback, ShapeBounding,
+				0, 0, r, 2, ShapeSet, YXBanded);
+
+	r[0].x++; r[0].y++; r[0].width -= 2; r[0].height -= 2;
+	r[1].x++; r[1].y--; r[1].width -= 2;
+
+	XShapeCombineRectangles(display(), m_feedback, ShapeClip, 0, 0, r, 2,
+				ShapeSet, YXBanded);
+
+/* I just can't decide!
+
+	r[0].x = w - 1; r[0].y = 0; r[0].width = 1; r[0].height = h - 1;
+	r[1].x = 0; r[1].y = h - 1; r[1].width = w - 1; r[1].height = 1;
+
+	XShapeCombineRectangles(display(), m_feedback, ShapeBounding,
+				0, 0, r, 2, ShapeUnion, YXBanded);
+				*/
+	XMapRaised(display(), m_feedback);
+
+    } else {
+	XUnmapWindow(display(), m_feedback);
+    }
+}
+
+void Border::showFeedback(int x, int y, int w, int h)
+{
+    if (!m_fedback) toggleFeedback(x, y, w, h);
+}
+
+void Border::removeFeedback()
+{
+    if (m_fedback) toggleFeedback(0, 0, 0, 0);
+}
+
+#endif
 

@@ -40,7 +40,10 @@ Client::Client(WindowManager *const wm, Window w) :
 
     m_channel = wm->channel();
     m_unmappedForChannel = False;
-//    fprintf(stderr, "I'm on channel %d\n",m_channel);
+
+#if CONFIG_MAD_FEEDBACK != 0
+    m_speculating = m_levelRaised = False;
+#endif
 
     if (attr.map_state == IsViewable) manage(True);
 }
@@ -56,16 +59,12 @@ void Client::release()
 {
     // assume wm called for this, and will remove me from its list itself
 
-//    fprintf(stderr, "deleting client %p\n",this);
-
     if (m_window == None) {
 	fprintf(stderr,
 		"wmx: invalid parent in Client::release (released twice?)\n");
     }
 
     windowManager()->skipInRevert(this, m_revert);
-
-//    fprintf(stderr, "deleting %lx\n",m_window);
 
     if (isHidden()) unhide(False);
     windowManager()->removeFromOrderedList(this);
@@ -78,7 +77,7 @@ void Client::release()
 	    if (m_revert) {
 		windowManager()->setActiveClient(m_revert);
 		m_revert->activate();
-	    } else windowManager()->setActiveClient(0);// windowManager()->clearFocus();
+	    } else windowManager()->setActiveClient(0);
 	} else {
 	    windowManager()->setActiveClient(0);
 	}
@@ -132,7 +131,7 @@ void Client::installColormap()
 	}
 
     } else if (m_transient != None &&
-	       (cc = windowManager()->windowToClient(m_transient))) {
+ 	       (cc = windowManager()->windowToClient(m_transient))) {
 
 	cc->installColormap();
     } else {
@@ -143,6 +142,7 @@ void Client::installColormap()
 
 void Client::manage(Boolean mapped)
 {
+    static int lastX = 0, lastY = 0;
     Boolean shouldHide, reshape;
     XWMHints *hints;
     Display *d = display();
@@ -175,7 +175,6 @@ void Client::manage(Boolean mapped)
     }
 
     m_fixedSize = False;
-//    if ((m_sizeHints.flags & (USSize | PSize))) m_fixedSize = True;
     if ((m_sizeHints.flags & (PMinSize | PMaxSize)) == (PMinSize | PMaxSize) &&
 	(m_sizeHints.min_width  == m_sizeHints.max_width &&
 	 m_sizeHints.min_height == m_sizeHints.max_height)) m_fixedSize = True;
@@ -214,6 +213,20 @@ void Client::manage(Boolean mapped)
 
     if (m_w > dw - 8) m_w = dw - 8;
     if (m_h > dh - 8) m_h = dh - 8;
+
+    if (!mapped && m_transient == None &&
+	!(m_sizeHints.flags & (PPosition | USPosition))) {
+
+	lastX += 60; lastY += 40;
+
+	if (lastX + m_w + m_border->xIndent() > dw) {
+	    lastX = 0;
+	}
+	if (lastY + m_h + m_border->yIndent() > dh) {
+	    lastY = 0;
+	}
+	m_x = lastX; m_y = lastY;
+    }
 
     if (m_x > dw - m_border->xIndent()) {
 	m_x = dw - m_border->xIndent();
@@ -300,7 +313,8 @@ void Client::activate()
 	return;
     }
 
-    if (!m_managed || isHidden() || isWithdrawn()) return;
+    if (!m_managed || isHidden() || isWithdrawn() ||
+	(m_channel != windowManager()->channel())) return;
 
     if (isActive()) {
 	decorate(True);
@@ -331,7 +345,6 @@ void Client::activate()
     while (m_revert && !m_revert->isNormal()) m_revert = m_revert->revertTo();
 
     windowManager()->setActiveClient(this);
-//    if (CONFIG_AUTO_RAISE || CONFIG_RAISE_ON_FOCUS) mapRaised();
     decorate(True);
 
     installColormap();		// new!
@@ -340,10 +353,6 @@ void Client::activate()
 
 void Client::deactivate()	// called from wm?
 {
-//    fprintf(stderr, 
-//	    "Client::deactivate (this = %p, window = %x, parent = %x)\n",
-//	    this, m_window, parent());
-
     if (parent() == root()) {
 	fprintf(stderr, "wmx: warning: bad parent in Client::deactivate\n");
 	return;
@@ -430,8 +439,6 @@ int Client::getIntegerProperty(Atom a)
 void Client::setState(int state)
 {
     m_state = state;
-
-//    fprintf(stderr, "state set to %d\n",state);
 
     long data[2];
     data[0] = (long)state;
@@ -585,8 +592,6 @@ void Client::getColormaps(void)
     if (!m_managed) {
 	XGetWindowAttributes(display(), m_window, &attr);
 	m_colormap = attr.colormap;
-
-//	fprintf(stderr, "colormap for %s is %p\n",m_label, (void *)m_colormap);
     }
 
     n = getProperty_aux(display(), m_window, Atoms::wm_colormaps, XA_WINDOW,
@@ -648,9 +653,8 @@ void Client::hide()
     }
 
     m_border->unmap();
-    XUnmapWindow(display(), m_window);
+//    XUnmapWindow(display(), m_window);
 
-//    if (isActive()) windowManager()->setActiveClient(0);
     if (isActive()) windowManager()->clearFocus();
 
     setState(IconicState);
@@ -660,6 +664,11 @@ void Client::hide()
 
 void Client::unhide(Boolean map)
 {
+#if CONFIG_MAD_FEEDBACK != 0
+    m_speculating = False;
+    if (!isHidden()) return;
+#endif
+
     if (!isHidden()) {
 	fprintf(stderr, "wmx: Client not hidden in Client::unhide\n");
 	return;
@@ -669,7 +678,10 @@ void Client::unhide(Boolean map)
 
     if (map) {
 	setState(NormalState);
-	XMapWindow(display(), m_window);
+
+	if (m_channel == windowManager()->channel()) {
+	    XMapWindow(display(), m_window);
+	}
 	mapRaised();
 
 	if (CONFIG_AUTO_RAISE) focusIfAppropriate(False);
@@ -700,8 +712,6 @@ void Client::sendConfigureNotify()
 
 void Client::withdraw(Boolean changeState)
 {
-//    fprintf(stderr,"withdrawing\n");
-
     m_border->unmap();
 
     gravitate(True);
@@ -728,7 +738,7 @@ void Client::rename()
 
 void Client::mapRaised()
 {
-    m_border->mapRaised();
+    if (m_channel == windowManager()->channel()) m_border->mapRaised();
     windowManager()->hoistToTop(this);
     windowManager()->raiseTransients(this);
 }
@@ -756,7 +766,10 @@ void Client::ensureVisible()
     if (m_x < 0) m_x = 0;
     if (m_y < 0) m_y = 0;
 
-    if (m_x != px || m_y != py) m_border->moveTo(m_x, m_y);
+    if (m_x != px || m_y != py) {
+	m_border->moveTo(m_x, m_y);
+	sendConfigureNotify();
+    }
 }
 
 
@@ -766,19 +779,28 @@ void Client::lower()
 }
 
 
-void Client::flipChannel(Boolean leaving)
+void Client::flipChannel(Boolean leaving, int newChannel)
 {
 //    fprintf(stderr, "I could be supposed to pop up now...\n");
 
     if (m_channel != windowManager()->channel()) {
-//	fprintf(stderr, "but i'm on channel %d\n",m_channel);
+
+#if CONFIG_MAD_FEEDBACK != 0
+	if (leaving && m_channel == newChannel && m_unmappedForChannel) {
+	    showFeedback();
+	}
+#endif
+
 	return;
     }
 
     if (leaving) {
 
+#if CONFIG_MAD_FEEDBACK != 0
+	removeFeedback(isNormal()); // mostly it won't be there anyway, but...
+#endif
+
 	if (!isNormal()) return;
-//	fprintf(stderr,"trying to run away...\n");
 	m_unmappedForChannel = True;
 	XUnmapWindow(display(), m_window);
 	withdraw(False);
@@ -786,13 +808,16 @@ void Client::flipChannel(Boolean leaving)
 
     } else {
 
+#if CONFIG_MAD_FEEDBACK != 0
+	removeFeedback(isNormal()); // likewise
+#endif
+
 	if (!m_unmappedForChannel) {
 	    if (isNormal()) mapRaised();
 	    return;
 	}
 
 	m_unmappedForChannel = False;
-//	fprintf(stderr,"trying to restore...\n");
 
 	setState(WithdrawnState);
 	m_border->reparent();
@@ -805,3 +830,40 @@ void Client::flipChannel(Boolean leaving)
     }
 }
 
+
+#if CONFIG_MAD_FEEDBACK != 0
+
+void Client::showFeedback()
+{
+    if (m_speculating || m_levelRaised) removeFeedback(False);
+    m_border->showFeedback(m_x, m_y, m_w, m_h);
+}
+
+void Client::raiseFeedbackLevel()
+{
+    m_levelRaised = True;
+
+    if (isNormal()) {
+	mapRaised();
+    } else if (isHidden()) {
+	unhide(True);
+	m_speculating = True;
+    }
+}
+
+void Client::removeFeedback(Boolean mapped)
+{
+    m_border->removeFeedback();
+
+    if (m_levelRaised) {
+	if (m_speculating) {
+	    if (!mapped) hide();
+	} else {
+	    // not much we can do
+	}
+    }
+
+    m_speculating = m_levelRaised = False;
+}
+
+#endif

@@ -27,7 +27,7 @@ WindowManager::WindowManager() :
     m_focusChanging(False)
 {
     fprintf(stderr, "\nwmx: Copyright (c) 1996-7 Chris Cannam."
-	    "  First release, March 1997\n"
+	    "  Second release, May 1997\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
 	    "     %s\n     Copying and redistribution encouraged.  "
@@ -76,8 +76,10 @@ WindowManager::WindowManager() :
 	fprintf(stderr, "Plain borders.  ");
     }
 
-    if (CONFIG_ABSOLUTELY_MINIMAL) {
-	fprintf(stderr, "Minimal frames.");
+    if (CONFIG_MAD_FEEDBACK) {
+	fprintf(stderr, "Skeletal feedback on.  ");
+    } else {
+	fprintf(stderr, "Skeletal feedback off.  ");
     }
 
     fprintf(stderr, "\n     Command menu taken from $HOME/"
@@ -134,7 +136,7 @@ WindowManager::WindowManager() :
     flipChannel(True);
     loop();
 }
-    
+
 
 WindowManager::~WindowManager()
 {
@@ -290,7 +292,7 @@ void WindowManager::initialiseScreen()
     attr.cursor = m_cursor;
     attr.event_mask = SubstructureRedirectMask | SubstructureNotifyMask |
 	ColormapChangeMask | ButtonPressMask | ButtonReleaseMask | 
-	PropertyChangeMask;
+	PropertyChangeMask | LeaveWindowMask;
     XChangeWindowAttributes(m_display, m_root, CWCursor | CWEventMask, &attr);
     XSync(m_display, False);
 }

@@ -18,7 +18,7 @@ static char *numerals[10][7] = {
 
 
 void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
-				Client *push)
+				Client *push, Boolean flipDown)
 {
     if (!CONFIG_CHANNEL_SURF) return;
 
@@ -46,9 +46,18 @@ void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
     }
 
-    int nextChannel =
-	(statusOnly || firstTime) ? m_currentChannel : m_currentChannel + 1;
-    if (nextChannel > m_channels) nextChannel = 1;
+    int nextChannel;
+
+    if (statusOnly || firstTime) nextChannel = m_currentChannel;
+    else {
+	if (!flipDown) {
+	    nextChannel = m_currentChannel + 1;
+	    if (nextChannel > m_channels) nextChannel = 1;
+	} else {
+	    nextChannel = m_currentChannel - 1;
+	    if (nextChannel < 1) nextChannel = m_channels;
+	}
+    }
 
     int x, y, i;
     XRectangle r;
@@ -91,7 +100,7 @@ void WindowManager::flipChannel(Boolean firstTime, Boolean statusOnly,
 	    if (considering.item(i) == push) {
 		considering.item(i)->setChannel(nextChannel);
 	    } else {
-		considering.item(i)->flipChannel(True);
+		considering.item(i)->flipChannel(True, nextChannel);
 	    }
 	}
 
@@ -116,7 +125,7 @@ void WindowManager::instateChannel()
     }
 
     for (i = 0; i < considering.count(); ++i) {
-	considering.item(i)->flipChannel(False);
+	considering.item(i)->flipChannel(False, m_currentChannel);
 	if (considering.item(i)->channel() == m_channels) createNewChannel();
     }
 

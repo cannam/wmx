@@ -13,7 +13,8 @@ the source and recompiling the code.
 This release
 ============
 
-This is a development release of wmx, made in March 1997.
+This is a development release of wmx, made in May 1997.  It's the
+second release to be made generally available.
 
 
 Building wmx
@@ -31,10 +32,11 @@ wmx makes relatively heavy demands on the performance of your X
 server, because of the use of shaped windows, but it shouldn't place
 too much of a load on other aspects of your system.
 
-Inspect the file Config.h.  If any of the settings (fonts, colours and
-"xterm" application name) in this file are unlikely to work with your
-system, change them.  Ensure that CONFIG_NASTY_FONT is set to
-something which is unlikely not to be found.
+Inspect the file Config.h.  This lists everything that can be usefully
+configured before building, with comments to tell you what means what.
+Change the settings to something that looks suitable now, and ensure
+that CONFIG_NASTY_FONT is set to something which is unlikely not to be
+found.
 
 Edit the Makefile to suit the requirements of your system, and run
 "make depend" followed by "make".  This should build wmx.  On certain
@@ -46,13 +48,14 @@ Using wmx
 =========
 
 To run wmx, make sure you're not already running a window manager,
-make sure the DISPLAY variable is correctly set, and then execute the
-file "wmx".  There are no command-line options or X resources, and
-there is no start-up file.  If your X server doesn't support the Shape
-extension, wmx will exit (and will never work on your server); if it
-can't find the required fonts or allocate the required colours, it
-will also exit (but you should be able to fix this by changing the
-definitions in Config.h and recompiling).
+make sure the DISPLAY variable is correctly set and the X server is
+running, and then execute the file "wmx".  There are no command-line
+options or X resources, and there is no start-up file.  If your X
+server doesn't support the Shape extension, wmx will exit (and will
+never work on your server); if it can't find the required fonts or
+allocate the required colours, it will also exit (but you should be
+able to fix this by changing the definitions in Config.h and
+recompiling).
 
 Available window manipulations are:
 
@@ -95,10 +98,12 @@ Available window manipulations are:
     mouse button towards the top-right corner of the root window.  A
     big green number will be displayed showing which channel you are
     currently on.  Click again before this number disappears to change
-    to the next channel.
+    to the next channel.  If you click with the left button after the
+    first middle-button click, you will move down a channel instead
+    of up.
 
  -- To move a window from one channel to another: click with the
-    middle mouse button on its frame, and then repeatedly until you
+    middle mouse button on its frame, and then repeat until you
     reach the channel you want to move it to.
 
  -- To start a new application of your choice: use the middle mouse
@@ -131,14 +136,31 @@ provides a short delay before raising each window.  The delay is also
 definable in Config.h.
 
 
+Skeletal feedback
+=================
+
+If you have CONFIG_MAD_FEEDBACK set to True in Config.h, you will get
+some natty feedback effects when using the left-button root menu (the
+Client menu).  Each window selected on the menu will be indicated with
+a half-frame at the correct position on the screen, to make it easier
+to distinguish between windows with similar names on the menu.  If you
+have CONFIG_FEEDBACK_DELAY set to zero or more, then the window itself
+will be shown on the screen after a delay.  You can use this to
+speculatively see what a hidden window is showing, without having to
+restore it and hide it again.
+
+
 Pixmaps
 =======
 
 wmx allows you to specify a background pixmap for the window frames.
 If you set CONFIG_USE_PIXMAPS to True in Config.h and supply a file
 ./background.xpm which contains an Xpm pixmap called "background", wmx
-will use this to colour in the frames.  An especially unpleasant
-example file, cribbed and modified from
+will use this to colour in the frames.  If you also set
+CONFIG_USE_PIXMAP_MENUS, the root menus will be filled in with the
+background too.
+
+An especially unpleasant example file, cribbed and modified from
 http://home.netscape.com/assist/net_sites/bg/marble/greenred_marble.gif,
 is included, although you're advised to find your own.
 
@@ -175,18 +197,9 @@ long as you retain the original copyrights as appropriate.
 Bugs
 ====
 
-I know of one rather nasty bug that occasionally shows up: if you have
-some windows already on-screen (and not iconified or otherwise
-withdrawn) before you start wmx, they might not be reparented
-correctly and you could end up in a horrible mess.  On the other hand,
-everything might work fine.  I think this is a race condition; it can
-be okay for weeks and then suddenly start to fail repeatedly on the
-same machine.  I'll fix this as soon as I work out how...
-
-Otherwise, if you find a bug, please report it to me (preferably with
-a fix).
+If you find a bug, please report it to me (preferably with a fix).
 
 
 
 Chris Cannam, cannam@zands.demon.co.uk
-March 1997
+May 1997

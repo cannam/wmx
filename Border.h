@@ -32,6 +32,14 @@ public:
 		   Boolean force = False);
     void moveTo(int x, int y);
 
+#if CONFIG_MAD_FEEDBACK != 0
+    // For call from Client only, please
+
+    void showFeedback(int x, int y, int w, int h);
+    void removeFeedback();
+    void toggleFeedback(int x, int y, int w, int h);
+#endif
+
     WindowManager *windowManager(); // calls into Client
     Boolean isTransient();	// calls into Client
     Boolean isFixedSize();	// calls into Client
@@ -67,6 +75,11 @@ private:
     Window m_child;
     Window m_button;
     Window m_resize;
+
+#if CONFIG_MAD_FEEDBACK != 0
+    Window m_feedback;
+    Boolean m_fedback;
+#endif
 
     void fatal(char *);
 

@@ -36,6 +36,10 @@ protected:
     Display *display() { return m_windowManager->display(); }
     Window root()      { return m_windowManager->root();    }
     int screen()       { return m_windowManager->screen();  }
+
+    virtual void showFeedback(int) { }
+    virtual void removeFeedback(int, Boolean) { }
+    virtual void raiseFeedbackLevel(int) { }
 };
 
 class ClientMenu : public Menu
@@ -48,6 +52,12 @@ private:
     virtual char **getItems(int *, int *);
     ClientList m_clients;
     Boolean m_allowExit;
+
+#if CONFIG_MAD_FEEDBACK != 0
+    virtual void showFeedback(int);
+    virtual void removeFeedback(int, Boolean);
+    virtual void raiseFeedbackLevel(int);
+#endif
 };
 
 class CommandMenu : public Menu

@@ -1,5 +1,5 @@
 
-# if you're not using frame background pixmaps, remove -lXpm from the next line
+# if you're not using background pixmaps, remove -lXpm from the next line
 LIBS	=  -L/usr/X11/lib -lXpm -lXext -lX11 -lXmu -lm
 
 CC	= gcc
@@ -25,3 +25,4 @@ clean:
 
 distclean: clean
 	rm -f wmx wmx.old *~
+

@@ -32,6 +32,15 @@ public:
     void moveOrResize(XButtonEvent *);
     void ensureVisible();	// make sure x, y are on-screen
 
+#if CONFIG_MAD_FEEDBACK != 0
+    // These are the only accepted calls for feedback: the Manager
+    // should *not* call directly into the Border
+
+    void showFeedback();
+    void raiseFeedbackLevel();
+    void removeFeedback(Boolean mapped);
+#endif
+
     void manage(Boolean mapped);
     Boolean hasWindow(Window w) {
 	return ((m_window == w) || m_border->hasWindow(w));
@@ -52,7 +61,7 @@ public:
     const char *iconName() { return m_iconName; }
 
     int channel() { return m_channel;  }
-    void flipChannel(Boolean);
+    void flipChannel(Boolean, int);
     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
     void setChannel(int channel) { m_channel = channel; }
 
@@ -105,6 +114,11 @@ private:
 
     int m_channel;
     Boolean m_unmappedForChannel;
+
+#if CONFIG_MAD_FEEDBACK != 0
+    Boolean m_levelRaised;
+    Boolean m_speculating;
+#endif
 
     XSizeHints m_sizeHints;
     Boolean m_fixedSize;

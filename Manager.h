@@ -53,7 +53,7 @@ public:
     void spawn(char *, char *);
 
     int channel() { return m_currentChannel; }
-    void setSignalled() { m_signalled = True; }
+    void setSignalled() { m_looping = False; } // ...
 
     ClientList &clients() { return m_clients; }
     ClientList &hiddenClients() { return m_hiddenClients; }
@@ -92,7 +92,8 @@ private:
 
     int m_channels;
     int m_currentChannel;	// from 1 to ...
-    void flipChannel(Boolean = False, Boolean = False, Client * = 0);
+    void flipChannel(Boolean = False, Boolean = False,
+		     Client * = 0, Boolean = False);
     void instateChannel();
     void createNewChannel();
     void checkChannel(int);

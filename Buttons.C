@@ -9,8 +9,8 @@ void WindowManager::eventButton(XButtonEvent *e)
 {
     Client *c = windowToClient(e->window);
 
-    if (e->button == Button3) {
-	circulate(e->window == e->root); // always false here, never mind
+    if (e->button == Button3 && m_channelChangeTime == 0) {
+	circulate(e->window == e->root);
 	return;
     }
 
@@ -19,12 +19,19 @@ void WindowManager::eventButton(XButtonEvent *e)
 	if (e->button == Button1 && m_channelChangeTime == 0) {
 	    ClientMenu menu(this, e);
 
-	} else if
-	    (e->button == Button2 &&
-	     (e->x > DisplayWidth(display(), screen()) - 100 && e->y < 100)) {
+	} else if (e->x > DisplayWidth(display(), screen()) -
+		   CONFIG_CHANNEL_CLICK_SIZE &&
+		   e->y < CONFIG_CHANNEL_CLICK_SIZE) {
 
-	    if (m_channelChangeTime == 0) flipChannel(False, True);
-	    else flipChannel(False, False);
+	    if (e->button == Button2) {
+
+		if (m_channelChangeTime == 0) flipChannel(False, True);
+		else flipChannel(False, False);
+
+	    } else if (e->button == Button1 && m_channelChangeTime != 0) {
+
+		flipChannel(False, False, NULL, True);
+	    }
 
 	} else if (e->button == Button2 && m_channelChangeTime == 0) {
 	    CommandMenu menu(this, e);
@@ -191,7 +198,6 @@ void Client::move(XButtonEvent *e)
 	    x = event.xbutton.x; y = event.xbutton.y;
 	    if (!nobuttons(&event.xbutton)) doSomething = False;
 
-//	    XUngrabPointer(display(), event.xbutton.time);
 	    m_windowManager->releaseGrab(&event.xbutton);
 	    done = True;
 	    break;
@@ -199,7 +205,6 @@ void Client::move(XButtonEvent *e)
 	case MotionNotify:
 	    x = event.xbutton.x; y = event.xbutton.y;
 	    if (x + xoff != m_x || y + yoff != m_y) {
-//		windowManager()->showGeometry(x + xoff, y + yoff);
 		geometry.update(x + xoff, y + yoff);
 		m_border->moveTo(x + xoff, y + yoff);
 		doSomething = True;
@@ -208,7 +213,6 @@ void Client::move(XButtonEvent *e)
 	}
     }
 
-//    windowManager()->removeGeometry();
     geometry.remove();
 
     if (x >= 0 && doSomething) {
@@ -335,7 +339,8 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		fixResizeDimensions(w, h, dw, dh);
 		if (h == prevH && w == prevW) break;
 		m_border->configure(m_x, m_y, w, h, CWWidth | CWHeight, 0);
-//		windowManager()->showGeometry(dw, dh);
+		if (CONFIG_RESIZE_UPDATE)
+		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
 		doSomething = True;
 
@@ -344,7 +349,8 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		fixResizeDimensions(w, h, dw, dh);
 		if (h == prevH) break;
 		m_border->configure(m_x, m_y, w, h, CWHeight, 0);
-//		windowManager()->showGeometry(dw, dh);
+		if (CONFIG_RESIZE_UPDATE)
+		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
 		doSomething = True;
 
@@ -353,7 +359,8 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 		fixResizeDimensions(w, h, dw, dh);
 		if (w == prevW) break;
 		m_border->configure(m_x, m_y, w, h, CWWidth, 0);
-//		windowManager()->showGeometry(dw, dh);
+		if (CONFIG_RESIZE_UPDATE)
+		    XResizeWindow(display(), m_window, w, h);
 		geometry.update(dw, dh);
 		doSomething = True;
 	    }
@@ -364,7 +371,6 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 
     if (doSomething) {
 
-//	windowManager()->removeGeometry();
 	geometry.remove();
 
 	if (vertical && horizontal) {
@@ -531,4 +537,5 @@ void Border::eventButton(XButtonEvent *e)
     if (action == 1) m_client->hide();
     else if (action == 2) m_client->kill();
 }
+
 
