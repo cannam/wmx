@@ -27,8 +27,9 @@ Window       *Menu::m_window;
 
 Menu::Menu(WindowManager *manager, XEvent *e)
     : m_items(0), m_nItems(0), m_nHidden(0),
-      m_windowManager(manager), m_event(e),
-      m_hasSubmenus(False)
+      m_hasSubmenus(False),
+      m_windowManager(manager),
+      m_event(e)
 {
     if (!m_initialised)
     {
@@ -238,7 +239,7 @@ int Menu::getSelection()
 	foundEvent = False;
 
 	if (CONFIG_FEEDBACK_DELAY >= 0 &&
-	    tdiff > CONFIG_FEEDBACK_DELAY &&
+	    tdiff > (unsigned long)CONFIG_FEEDBACK_DELAY &&
 	    !isKeyboardMenu && // removeFeedback didn't seem to work for it
 	    !speculating) {
 

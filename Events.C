@@ -246,7 +246,7 @@ void WindowManager::checkDelaysForFocus()
 {
     if (!CONFIG_AUTO_RAISE) return;
 
-    int t = timestamp(True);
+    Time t = timestamp(True);
 
     if (m_focusPointerMoved) {	// only raise when pointer stops
 
@@ -264,7 +264,7 @@ void WindowManager::checkDelaysForFocus()
     } else {
 
 	if (t < m_focusTimestamp ||
-	    t - m_focusTimestamp > CONFIG_AUTO_RAISE_DELAY) {
+	    t - m_focusTimestamp > (Time)CONFIG_AUTO_RAISE_DELAY) {
 
 	    m_focusCandidate->focusIfAppropriate(True);
 

@@ -55,14 +55,12 @@ public:
     char *tabBackground();
     char *frameBackground();
 
-    static DynamicConfig dynamicConfig;
+    static DynamicConfig config;
 
 private:
     DynamicConfigImpl *m_impl;
     void update(char *);
 };
-
-static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 
 // =================================================
@@ -71,7 +69,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 // List visible as well as hidden clients on the root menu?  (Visible
 // ones will be towards the bottom of the menu, flush-right.)
-#define CONFIG_EVERYTHING_ON_ROOT_MENU (dConfig.fullMenu())
+#define CONFIG_EVERYTHING_ON_ROOT_MENU (DynamicConfig::config.fullMenu())
 
 // Spawn a temporary new shell between the wm and each new process?
 #define CONFIG_EXEC_USING_SHELL   False
@@ -84,7 +82,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // or, for example,
 //#define CONFIG_NEW_WINDOW_COMMAND_OPTIONS "-ls","-sb","-sl","1024",0
 // alternatively,
-#define CONFIG_DISABLE_NEW_WINDOW_COMMAND (dConfig.disableNew())
+#define CONFIG_DISABLE_NEW_WINDOW_COMMAND (DynamicConfig::config.disableNew())
 
 // Area where [exit wmx] is added (0 -> everywhere -# -> px from other side)
 #define CONFIG_EXIT_CLICK_SIZE_X 0
@@ -106,9 +104,9 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // the other two False; you'll then get focus-follows, auto-raise, and
 // a delay on auto-raise as configured in the DELAY settings below.
 
-#define CONFIG_CLICK_TO_FOCUS     (dConfig.clickFocus())
-#define CONFIG_RAISE_ON_FOCUS     (dConfig.raiseFocus())
-#define CONFIG_AUTO_RAISE         (dConfig.autoRaiseFocus())
+#define CONFIG_CLICK_TO_FOCUS     (DynamicConfig::config.clickFocus())
+#define CONFIG_RAISE_ON_FOCUS     (DynamicConfig::config.raiseFocus())
+#define CONFIG_AUTO_RAISE         (DynamicConfig::config.autoRaiseFocus())
 
 // Delays when using AUTO_RAISE focus method
 // 
@@ -117,7 +115,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // usual delay before raising; second is the delay after the pointer
 // has stopped moving (only when over simple X windows such as xvt).
 
-#define CONFIG_AUTO_RAISE_DELAY       (dConfig.raiseDelay())
+#define CONFIG_AUTO_RAISE_DELAY       (DynamicConfig::config.raiseDelay())
 #define CONFIG_POINTER_STOPPED_DELAY  80
 #define CONFIG_DESTROY_WINDOW_DELAY   600
 
@@ -176,7 +174,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // ========================
 
 // Allow keyboard control?
-#define CONFIG_USE_KEYBOARD       (dConfig.useKeyboard())
+#define CONFIG_USE_KEYBOARD       (DynamicConfig::config.useKeyboard())
 
 // This is the key for wm controls: e.g. Alt/Left and Alt/Right to
 // flip channels, and Alt/Tab to switch windows.  (On my 105-key
@@ -294,15 +292,15 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // one-pixel border around the edge of each piece of decoration, not
 // for the whole decoration
 
-#define CONFIG_TAB_FOREGROUND     (dConfig.tabForeground())
-#define CONFIG_TAB_BACKGROUND     (dConfig.tabBackground())
-#define CONFIG_FRAME_BACKGROUND   (dConfig.frameBackground())
-#define CONFIG_BUTTON_BACKGROUND  (dConfig.frameBackground())
+#define CONFIG_TAB_FOREGROUND     (DynamicConfig::config.tabForeground())
+#define CONFIG_TAB_BACKGROUND     (DynamicConfig::config.tabBackground())
+#define CONFIG_FRAME_BACKGROUND   (DynamicConfig::config.frameBackground())
+#define CONFIG_BUTTON_BACKGROUND  (DynamicConfig::config.frameBackground())
 #define CONFIG_BORDERS            "black"
 #define CONFIG_CHANNEL_NUMBER	  "green"
 
-#define CONFIG_MENU_FOREGROUND    (dConfig.tabForeground())
-#define CONFIG_MENU_BACKGROUND    (dConfig.tabBackground())
+#define CONFIG_MENU_FOREGROUND    (DynamicConfig::config.tabForeground())
+#define CONFIG_MENU_BACKGROUND    (DynamicConfig::config.tabBackground())
 #define CONFIG_MENU_BORDERS       "black"
 
 // Pixel width for the bit of frame to the left of the window and the
@@ -353,8 +351,8 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // machine is fast and you're really hyper, you might even like a
 // delay of 0ms.
 
-#define CONFIG_MAD_FEEDBACK       (dConfig.useFeedback())
-#define CONFIG_FEEDBACK_DELAY     (dConfig.feedbackDelay())
+#define CONFIG_MAD_FEEDBACK       (DynamicConfig::config.useFeedback())
+#define CONFIG_FEEDBACK_DELAY     (DynamicConfig::config.feedbackDelay())
 
 // Groups are fun. you can bind a bunch of windows to a number key
 // and when you press CONFIG_ALT_KEY_MASK and the number key

@@ -19,13 +19,13 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE == False
     if (e->button == CONFIG_CIRCULATE_BUTTON && m_channelChangeTime == 0) {
-	if (dConfig.rightCirculate())
+	if (DynamicConfig::config.rightCirculate())
 	    circulate(e->window == e->root);
-	else if (dConfig.rightLower())
+	else if (DynamicConfig::config.rightLower())
  	{
 	    if (e->window != e->root && c) c->lower();
  	}
- 	else if (dConfig.rightToggleHeight())
+ 	else if (DynamicConfig::config.rightToggleHeight())
  	{
   	    if (e->window != e->root && c) {
  		if (c->isFullHeight()) {
@@ -87,7 +87,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 	    }
 
 	} else if (e->button == CONFIG_COMMANDMENU_BUTTON && m_channelChangeTime == 0) {
-	    dConfig.scan();
+	    DynamicConfig::config.scan();
 	    CommandMenu menu(this, (XEvent *)e);
 	}
         

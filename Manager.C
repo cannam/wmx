@@ -518,7 +518,9 @@ unsigned long WindowManager::allocateColour(int screen, char *name, char *desc)
 	sprintf(error, "couldn't load %s colour", desc);
 	fatal(error);
 
-    } else return nearest.pixel;
+    }
+
+    return nearest.pixel;
 }
 
 
@@ -571,11 +573,12 @@ void WindowManager::sigHandler(int signal)
 
 void WindowManager::scanInitialWindows()
 {
-    unsigned int i, n, s;
+    unsigned int i, n;
+    int s;
     Window w1, w2, *wins;
     XWindowAttributes attr;
     
-    for(s=0;s<m_screensTotal;s++)
+    for (s = 0; s < m_screensTotal; s++)
     {
         XQueryTree(m_display, m_root[s], &w1, &w2, &wins, &n);
 
@@ -648,10 +651,10 @@ Client *WindowManager::windowToClient(Window w, Boolean create)
         int x_clip = 0;
         int y_clip = 0;
 
-        int shapeq = XShapeQueryExtents(m_display, w, &bounding_shape, 
-                                        &x_bounding, &y_bounding, 
-                                        &w_bounding, &h_bounding, &clip_shape,
-                                        &x_clip, &y_clip, &w_clip, &h_clip);
+        (void)XShapeQueryExtents(m_display, w, &bounding_shape, 
+				 &x_bounding, &y_bounding, 
+				 &w_bounding, &h_bounding, &clip_shape,
+				 &x_clip, &y_clip, &w_clip, &h_clip);
 
         if (bounding_shape == 1) {
             //	fprintf(stderr, "0x%X: shapeq = %d, bounding_shape = %d x=%d y=%d w=%d h=%d clip_shape=%d x=%d y=%d w=%d h=%d\n",w, shapeq, bounding_shape, x_bounding, y_bounding, w_bounding, h_bounding,clip_shape,  x_clip, y_clip, w_clip, h_clip);

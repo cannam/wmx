@@ -20,7 +20,8 @@ static char *numerals[10][7] = {
 void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 				Boolean quickFlip, Client *push)
 {
-    int x, y, i, sc;
+    int x, y, sc;
+    size_t i;
     if (!CONFIG_CHANNEL_SURF) return;
 
     for(sc = 0; sc < screensTotal(); sc++)

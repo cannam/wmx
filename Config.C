@@ -10,7 +10,7 @@
 // 32 is enough to fit even "light goldenrod yellow" comfortably
 #define COLOR_LEN 32
 
-DynamicConfig DynamicConfig::dynamicConfig;
+DynamicConfig DynamicConfig::config;
 
 struct DynamicConfigImpl
 {
@@ -160,7 +160,7 @@ void DynamicConfig::update(char *string)
 		    "`%s' @ position %d", s, string - s);
 	}
 
-    } while (s = strtok(NULL, "/"));
+    } while ((s = strtok(NULL, "/")));
 
     fprintf(stderr, "\n");
 
