@@ -30,6 +30,7 @@ Client::Client(WindowManager *const wm, Window w, Boolean shaped) :
     m_stubborn(False),
     m_lastPopTime(0L),
     m_isFullHeight(False),
+    m_isFullWidth(False),
     m_colormap(None),
     m_colormapWinCount(0),
     m_colormapWindows(NULL),
@@ -201,7 +202,9 @@ void Client::manage(Boolean mapped)
 	    CONFIG_FLIP_UP_KEY, CONFIG_FLIP_DOWN_KEY, CONFIG_CIRCULATE_KEY,
 	    CONFIG_HIDE_KEY, CONFIG_DESTROY_KEY, CONFIG_RAISE_KEY,
 	    CONFIG_LOWER_KEY, CONFIG_FULLHEIGHT_KEY, CONFIG_NORMALHEIGHT_KEY,
-	    CONFIG_STICKY_KEY
+            CONFIG_FULLWIDTH_KEY, CONFIG_NORMALWIDTH_KEY,
+	    CONFIG_MAXIMISE_KEY, CONFIG_UNMAXIMISE_KEY,
+            CONFIG_STICKY_KEY
 
 #if CONFIG_WANT_KEYBOARD_MENU
 	    , CONFIG_CLIENT_MENU_KEY, CONFIG_COMMAND_MENU_KEY
@@ -214,10 +217,6 @@ void Client::manage(Boolean mapped)
 	for (i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
 	    keycode = XKeysymToKeycode(display(), keys[i]);
 	    if (keycode) {
-                //!!! This assumes Mod2 is Num_Lock, which I don't
-                // much like.  Maybe we should set the mask to everything
-                // except shift, control and Mod1Mask, plus our Alt (which
-                // may be Mod1)?
 		XGrabKey(display(), keycode,
 			 m_windowManager->altModMask()|LockMask|Mod2Mask,
 			 m_window, True,
@@ -1065,40 +1064,122 @@ void Client::raiseOrLower()
 }
 
 
-void Client::fullHeight()
+void Client::maximise(int max)
 {
-    if (m_isFullHeight || m_fixedSize || (m_transient != None)) return;
+    enum {Vertical, Maximum, Horizontal};
+    
+    if (max != Vertical && max != Horizontal && max != Maximum)
+        return;
+    
+    if (m_fixedSize || (m_transient != None))
+        return;
 
-    m_normalH = m_h;
-    m_normalY = m_y;
+    if (CONFIG_SAME_KEY_MAX_UNMAX) {
+        if (m_isFullHeight && m_isFullWidth) {
+            unmaximise(max);
+            return;
+        } else if (m_isFullHeight && max == Vertical) {
+            unmaximise(max);
+            return;
+        } else if (m_isFullWidth && max == Horizontal) {
+            unmaximise(max);
+            return;
+        }
+    } else if ((m_isFullHeight && max == Vertical)
+               || (m_isFullHeight && m_isFullWidth && max == Maximum)
+               || (m_isFullWidth && max == Horizontal))
+        return;
 
-    m_h = DisplayHeight(display(), windowManager()->screen())
-	- m_border->yIndent() - 1;
+    int w = (max == Horizontal || (max == Maximum && !m_isFullWidth));
+    int h = (max == Vertical || (max == Maximum && !m_isFullHeight));
+
+    if (h) {
+	m_normalH = m_h;
+	m_normalY = m_y;
+	m_h = DisplayHeight(display(), windowManager()->screen())
+	      - m_border->yIndent() - 1;
+
+    }
+    if (w) {
+	m_normalW = m_w;
+	m_normalX = m_x;
+	m_w = DisplayWidth(display(), windowManager()->screen())
+	      - m_border->xIndent() - 1;
+    }
+
     int dw, dh;
 
     fixResizeDimensions(m_w, m_h, dw, dh);
 
-    if (m_h > m_normalH) {
-	m_y -= (m_h - m_normalH);
-	if (m_y < m_border->yIndent()) m_y = m_border->yIndent();
+    if (h) {
+	if (m_h > m_normalH) {
+	    m_y -= (m_h - m_normalH);
+	    if (m_y < m_border->yIndent()) m_y = m_border->yIndent();
+	}
+	m_isFullHeight = True;
     }
+    
+    if (w) {
+        if (m_w > m_normalW) {
+	    m_x -= (m_w - m_normalW);
+	    if (m_x < m_border->xIndent()) m_x = m_border->xIndent();
+	}
+	m_isFullWidth = True;
+    }
+    
+    unsigned long mask;
 
-    m_isFullHeight = True;
-    m_border->configure(m_x, m_y, m_w, m_h, CWY | CWHeight, 0);
+    if (h & w)
+	mask = CWY | CWX | CWHeight | CWWidth;
+    else if (h)
+	mask = CWY | CWHeight;
+    else
+	mask = CWX | CWWidth;
+    
+    m_border->configure(m_x, m_y, m_w, m_h, mask, 0, True);
+
     XResizeWindow(display(), m_window, m_w, m_h);
     sendConfigureNotify();
 }
 
 
-void Client::normalHeight()
+void Client::unmaximise(int max)
 {
-    if (!m_isFullHeight) return;
+    enum {Vertical, Maximum, Horizontal};
+    
+    if (max != Vertical && max != Horizontal && max != Maximum)
+        return;
+    
+    if ((!m_isFullHeight && max == Vertical)
+        || (!m_isFullWidth && max == Horizontal)
+        || (!(m_isFullHeight && m_isFullWidth) && max == Maximum))
+        return;
+    
+    int w = (max == Horizontal || (max == Maximum && m_isFullWidth));
+    int h = (max == Vertical || (max == Maximum && m_isFullHeight));
 
-    m_h = m_normalH;
-    m_y = m_normalY;
+    if (h) {
+        m_h = m_normalH;
+	m_y = m_normalY;
+	m_isFullHeight = False;
+    }
+    if (w) {
+	m_w = m_normalW;
+	m_x = m_normalX;
+	m_isFullWidth = False;
+    }
 
-    m_isFullHeight = False;
-    m_border->configure(m_x, m_y, m_w, m_h, CWY | CWHeight, 0);
+    unsigned long mask;
+
+    if (h & w)
+	mask = CWY | CWX | CWHeight | CWWidth;
+    else if (h)
+	mask = CWY | CWHeight;
+    else
+	mask = CWX | CWWidth;
+    
+    m_border->configure(m_x, m_y, m_w, m_h, mask, 0, True);
+    
     XResizeWindow(display(), m_window, m_w, m_h);
     sendConfigureNotify();
 }

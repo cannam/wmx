@@ -173,8 +173,16 @@ void Border::initialiseStatics(WindowManager *wm)
 #if CONFIG_USE_PIXMAPS != False
         int use_dynamic = True;
         XpmAttributes attrs;
-        attrs.valuemask = XpmCloseness;
+
+        //	attrs.valuemask = 0L;
+
+        attrs.valuemask =
+          XpmCloseness | XpmVisual | XpmColormap | XpmDepth;
         attrs.closeness = 40000;
+	attrs.visual = XDefaultVisual(wm->display(), i);
+	attrs.colormap = XDefaultColormap(wm->display(), i);
+	attrs.depth = XDefaultDepth(wm->display(), i);
+			
         char *home = getenv ("HOME");
         if (home) {
             char *pixMapPath = (char *) malloc (sizeof (char) * (strlen (home)

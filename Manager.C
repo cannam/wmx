@@ -56,7 +56,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *wmxdir = getenv("WMXDIR");
     
     fprintf(stderr, "\nwmx: Copyright (c) 1996-2000 Chris Cannam."
-	    "  Sixth release pre-2, May 2000\n"
+	    "  Sixth release pre-5, May 2000\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
  	    "     Japanize code Copyright (c) 1998 Kazushi (Jam) Marukawa\n"
@@ -185,6 +185,17 @@ WindowManager::WindowManager(int argc, char **argv) :
 	fprintf(stderr, "  No quick keyboard channel-surf.");
     }
 
+#if I18N
+    fprintf(stderr, "\n     Operating system locale is \"%s\".",
+	    ret_setlocale ? ret_setlocale : "(NULL)");
+#endif
+
+    if (CONFIG_GNOME_COMPLIANCE) {
+        fprintf(stderr, "  Partial GNOME compliance.");
+    } else {
+        fprintf(stderr, "  Not GNOME compliant.");
+    }
+
     fprintf(stderr, "\n     Command menu taken from ");
     if (wmxdir == NULL) {
 	fprintf(stderr, "%s/%s.", home, CONFIG_COMMAND_MENU);
@@ -194,17 +205,6 @@ WindowManager::WindowManager(int argc, char **argv) :
 	} else {
 	    fprintf(stderr, "%s/%s.", home, wmxdir);
 	}
-    }
-
-#if I18N
-    fprintf(stderr, "\n     Operating system locale is \"%s\".",
-	    ret_setlocale ? ret_setlocale : "(NULL)");
-#endif
-
-    if (CONFIG_GNOME_COMPLIANCE) {
-        fprintf(stderr, "  Partial GNOME compliance.\n");
-    } else {
-        fprintf(stderr, "  Not GNOME compliant.\n");
     }
 
 //    fprintf(stderr, "     (To reconfigure, simply edit and recompile.)\n\n");
@@ -270,11 +270,7 @@ WindowManager::WindowManager(int argc, char **argv) :
 
     initialiseScreen();
     if (m_screensTotal > 1) {
-	if (m_screensTotal > 10) {
-	    fatal("No support for more than 10 screens (:x.0 - :x.9).\n");
-	} else {
-	    fprintf(stderr, "\n     Detected %d screens.", m_screensTotal);
-	}
+        fprintf(stderr, "\n     Detected %d screens.", m_screensTotal);
     }
     
     XSetSelectionOwner(m_display, Atoms::wmx_running,
@@ -310,6 +306,14 @@ WindowManager::WindowManager(int argc, char **argv) :
 WindowManager::~WindowManager()
 {
     // empty
+}
+
+
+int WindowManager::numdigits(int number)
+{
+    int n = 0;
+    do { ++n; number /= 10; } while (number);
+    return n;
 }
 
 
@@ -939,11 +943,12 @@ void WindowManager::spawn(char *name, char *file)
 
 	    if (displayName && (displayName[0] != '\0')) {
 		char *c;
-		char *pstring = (char *)malloc(strlen(displayName) + 12);
+		char *pstring = (char *)malloc(strlen(displayName) + 11 +
+					       numdigits(screen()));
 		sprintf(pstring, "DISPLAY=%s", displayName);
 		for(c=pstring; *c && (*c != '.'); c++);
 		*(c++)='.';
-		*(c)='0'+screen();
+		sprintf(c, "%d", screen());
 		putenv(pstring);
 	    }
 

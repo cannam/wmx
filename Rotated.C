@@ -206,6 +206,7 @@ XRotFontStruct *XRotLoadFont(Display *dpy, int screen,
   /* we only want printing characters ... */
   if (min_char<32)  min_char = 32;
   //  if (max_char>126) max_char = 126; // bad for non-ascii iso
+  if (max_char>255) max_char = 255;
      
   /* some overall font data ... */
   rotfont->name = my_strdup(fontname);

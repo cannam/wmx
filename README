@@ -13,7 +13,7 @@ editing the source and recompiling the code.
 This release
 ============
 
-This is the fifth release, dating from January 1999.
+This is the fourth preview of the sixth release, dating from May 2000.
 
 
 Building wmx
@@ -23,9 +23,8 @@ You will need a Unix machine, X libraries and a C++ compiler such as
 gcc.  You will also need a mouse, preferably with three buttons.  Your
 X server and libraries must be R4 or newer and must support the Shape
 extension.  If you want to use frame background-pixmaps (see "Pixmaps"
-below), you will need the Xpm header and library.  wmx does NOT
-support multi-screen displays, because I don't have anything to test
-multi-screen code on.
+below), you will need the Xpm header and library.  As of this release,
+wmx should now work with multi-screen displays.
 
 wmx makes relatively heavy demands on the performance of your X
 server, because of the use of shaped windows, but it shouldn't place
@@ -37,12 +36,8 @@ Change the settings to something that looks suitable now, and ensure
 that CONFIG_NASTY_FONT is set to something which is unlikely not to be
 found.
 
-Edit the Makefile to suit the requirements of your system, and run
-"make".  This should build wmx.  On certain systems you may need to
-edit the source to overcome problems with the location of non-POSIX
-functions such as putenv(), select() and signal() -- check Manager.C
-for the putenv() prototype, Events.C for a select #define, and
-General.h for the SIGNAL_CALLBACK_TYPE macro.
+Having edited Config.h, run "configure" and then "make".  This should
+build wmx.
 
 
 Using wmx
@@ -104,7 +99,7 @@ Available window manipulations are:
     of up.
 
  -- To move a window from one channel to another: click with the
-    middle mouse button on its frame, and then repeat until you
+    middle mouse button on its frame, and then keep clicking until you
     reach the channel you want to move it to.
 
  -- To start a new application of your choice: use the middle mouse
@@ -128,9 +123,8 @@ Keyboard controls
 =================
 
 By popular request, there are now some keyboard controls available.
-The key combinations are configurable in Config.h, and the particular
-modifier used depends on your X server (the default of Mod1
-corresponds to Alt on most).  The default bindings are:
+The key combinations are configurable in Config.h -- the most
+important one is that for the Alt modifier.  The default bindings are:
 
  -- To raise the focused window in the stacking order: Alt/cursor-Up
 
@@ -141,12 +135,27 @@ corresponds to Alt on most).  The default bindings are:
 
  -- To hide the focused window: Alt/Return
 
- -- To delete the focused window: Alt/Delete
+ -- To delete the focused window: Alt/BackSpace
 
  -- To expand the focused window to the full height of the screen:
     Alt/PageUp
 
  -- To contract the focused window after expanding it: Alt/PageDown
+
+ -- To expand the focused window to the full screen (maximise):
+    Alt/Home
+
+ -- To contract the focused window after expanding it (unmaximise): 
+    Alt/End
+
+ -- To expand the focused window to the full width of the screen:
+    Alt/KP_Add (numeric pad +)
+
+ -- To contract the focused window after expanding it:
+    Alt/KP_Subtract (numeric pad -)
+
+ -- If you want the same key to maximise/unmaximise set
+    CONFIG_SAME_KEY_MAX_UNMAX to True
 
  -- To switch channels: Alt/cursor-Left and Alt/cursor-Right
 
@@ -154,17 +163,19 @@ corresponds to Alt on most).  The default bindings are:
     a channel N (i.e. some client has been created there already):
     Alt plus F-key N.  Thus for channel 2 press Alt/F2 and so on.
 
-And new in the fifth release:
-
  -- To make the currently focused window "sticky", so it appears on
     all channels: Alt/Pause.  Repeat to unstick the window.
 
- -- To pop up a keyboard-powered client menu: Alt/Menu.  (On my PC,
-    Menu is bound to the rightmost Windows-95-specific key.)  You
-    can then use cursor-Up and cursor-Down, Return, and Escape to
-    choose, select or cancel from the menu.
+ -- To pop up a keyboard-powered client menu: Alt/Menu; for a
+    keyboard-powered new-application menu: Alt/Multi_Key.  (On my
+    PC, Menu is bound to the rightmost Windows-95-specific key and
+    Multi_Key to the one next to it.)  You can then use cursor-Up
+    and cursor-Down, Return, and Escape to choose, select or cancel
+    from the menu.
 
-If you have NumLock switched on, the key controls might not work.
+Some of these bindings (notably the keyboard menu) can be switched off
+altogether in Config.h.  If you have NumLock switched on, the key
+controls might not work.
 
 
 Focus policy
@@ -237,6 +248,16 @@ http://home.netscape.com/assist/net_sites/bg/marble/greenred_marble.gif,
 is included, although you're advised to find your own.
 
 
+Groups
+======
+
+This release also supports user-definable window groupings.  To put a
+window in a group, press Alt/Ctrl/{0-9} (for the group of that
+number).  To ungroup a window group, press Alt/Shift/{0-9}.  Pressing
+Alt/{0-9} raises all the windows in the numbered group.  Like the
+"sticky" mode, there is no visual feedback for window groups.
+
+
 Decoration-free windows
 =======================
 
@@ -281,6 +302,8 @@ Jeremy Fitzhardinge provided the original application-menu code.
 
 The dynamic configuration code is mostly due to Stefan `Sec' Zehl.
 
+Multiheaded X support is due to Sven Oliver `SvOlli' Moll.
+
 Gnome and shaped client support is mostly due to Henri Naccache.
 
 This release contains code and bug fixes provided by Eric Marsden,
@@ -302,4 +325,4 @@ the web at http://ml.42.org/wmx/.
 
 
 Chris Cannam, cannam@all-day-breakfast.com
-January 1999
+May 2000

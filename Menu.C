@@ -4,7 +4,6 @@
 #include "Client.h"
 
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <X11/keysym.h>
 
@@ -633,6 +632,9 @@ CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
     
     if (otherdir == NULL)
     {
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+	isRootDir = True;
+#endif
 	if (wmxdir == NULL)
 	{
 	    if (home == NULL) return;
@@ -640,7 +642,7 @@ CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
 		(char *)malloc(strlen(home) + strlen(CONFIG_COMMAND_MENU) + 2);
 	    sprintf(m_commandDir, "%s/%s", home, CONFIG_COMMAND_MENU);
 	}
-	else
+	else // wmxdir != NULL
 	{
 	    if(wmxdir[0] == '/')
 	    {
@@ -648,7 +650,7 @@ CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
 		    (char *)malloc(strlen(wmxdir) + 1);
 		strcpy(m_commandDir, wmxdir);
 	    }
-	    else
+	    else // wmxdir doesn't start with /
 	    {
 		m_commandDir =
 		    (char *)malloc(strlen(home) + strlen(wmxdir) + 2);
@@ -656,9 +658,12 @@ CommandMenu::CommandMenu(WindowManager *manager, XEvent *e,
 	    }
 	}
     }
-    else
+    else // otherdir != NULL
     {
-	m_commandDir = (char *)malloc(strlen(otherdir)+1);
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+	isRootDir = False;
+#endif
+	m_commandDir = (char *)malloc(strlen(otherdir) + 1);
 	strcpy(m_commandDir, otherdir);
     }
 
@@ -709,38 +714,74 @@ void CommandMenu::createSubmenu (XEvent *e, int i)
     free(new_directory);
 }
 
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+DIR *CommandMenu::screenopendir(char *m_commandDir,int *dirlen,int olddirlen)
+{
+    char *p;
+    DIR *dir;
+    
+    if(isRootDir)
+    {
+	for(p=m_commandDir;*p;p++);  // search end of m_commandDir
+	sprintf(p,".%d",screen());   // append screen number
+	dir = opendir(m_commandDir);
+	if (dir == NULL) {
+	    m_commandDir[olddirlen] = '\0'; // strip of screen number
+	    *dirlen = olddirlen;
+	    dir = opendir(m_commandDir);
+	}
+    }
+    else
+    {
+	*dirlen = olddirlen;
+	dir = opendir(m_commandDir);
+    }
+    return(dir);
+}
+#endif
+
 char **CommandMenu::getItems(int *niR, int *nhR)
 {
     *niR = *nhR = 0;
+    DIR *dir;
     const char *home;
+    char *dirpath;
 
     if ((home = getenv("HOME")) == NULL) return NULL;
 	
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+    int olddirlen = strlen(m_commandDir);
+    int dirlen = olddirlen + 1 + m_windowManager->numdigits(screen());
+    m_commandDir=(char *)realloc((void *)m_commandDir,(size_t)dirlen);
+    dir = screenopendir(m_commandDir,&dirlen,olddirlen);
+#else
     int dirlen = strlen(m_commandDir);
-    char *dirpath = (char *)malloc(dirlen + 1024 + 2); // NAME_MAX guess
-    strcpy(dirpath, m_commandDir);
-
-    DIR *dir = opendir(m_commandDir);
+    dir = opendir(m_commandDir);
+#endif
 
     if (dir == NULL) {
 
-	free(dirpath);
         free(m_commandDir);
         m_commandDir =
 	    (char *)malloc(strlen(CONFIG_SYSTEM_COMMAND_MENU) + 1);
         sprintf(m_commandDir, CONFIG_SYSTEM_COMMAND_MENU);
 
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+        olddirlen = strlen(m_commandDir);
+	dirlen = olddirlen + 1 + m_windowManager->numdigits(screen());
+	dir = screenopendir(m_commandDir,&dirlen,olddirlen);
+#else
         dirlen = strlen(m_commandDir);
-        dirpath = (char *)malloc(dirlen + 1024 + 2); // NAME_MAX guess
-        strcpy(dirpath, m_commandDir);
-
         dir = opendir(m_commandDir);
+#endif
 
         if (dir == NULL) {
-	    free(dirpath);
 	    return NULL;
 	}
     }
+
+    dirpath = (char *)malloc(dirlen + 1024 + 2); // NAME_MAX guess
+    strcpy(dirpath, m_commandDir);
 
     int count = 0;
     struct dirent *ent;
@@ -854,7 +895,7 @@ void ShowGeometry::update(int x, int y)
     int my = DisplayHeight(display(), screen()) - 1;
   
     XMoveResizeWindow(display(), m_window[screen()],
-		      (mx - width) / 2, (my - height) /*/ 2*/, width, height);
+		      (mx - width) / 2, (my - height) / 2, width, height);
     XClearWindow(display(), m_window[screen()]);
     XMapRaised(display(), m_window[screen()]);
     

@@ -75,7 +75,8 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 // What to run to get a new window (from the "New" menu option)
 #define CONFIG_NEW_WINDOW_LABEL "New"
-#define CONFIG_NEW_WINDOW_COMMAND "xterm"
+//#define CONFIG_NEW_WINDOW_COMMAND "xterm"
+#define CONFIG_NEW_WINDOW_COMMAND "/home/chris/.wmx/terminal"
 #define CONFIG_NEW_WINDOW_COMMAND_OPTIONS 0
 // or, for example,
 //#define CONFIG_NEW_WINDOW_COMMAND_OPTIONS "-ls","-sb","-sl","1024",0
@@ -91,7 +92,10 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_COMMAND_MENU       ".wmx"
 // only used if COMMAND_MENU is not found; ignored if invalid directory:
 #define CONFIG_SYSTEM_COMMAND_MENU	"/usr/local/lib/wmx/menu"
-
+// append screennumber to COMMAND_MENU directory;
+// use non screen style as fallback
+#define CONFIG_ADD_SCREEN_TO_COMMAND_MENU False
+ 
 // Focus possibilities.
 // 
 // You can't have CLICK_TO_FOCUS without RAISE_ON_FOCUS, but the other
@@ -190,6 +194,11 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // Prior and Next should be the same as Page_Up and Page_Down in R6
 #define CONFIG_FULLHEIGHT_KEY     XK_Prior
 #define CONFIG_NORMALHEIGHT_KEY   XK_Next
+#define CONFIG_FULLWIDTH_KEY      XK_KP_Add
+#define CONFIG_NORMALWIDTH_KEY    XK_KP_Subtract
+#define CONFIG_MAXIMISE_KEY       XK_Home
+#define CONFIG_UNMAXIMISE_KEY     XK_End
+#define CONFIG_SAME_KEY_MAX_UNMAX False
 
 // The next two may clash badly with Emacs, if you use Alt as the
 // modifier.  The commented variants might work better for some.
@@ -224,6 +233,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 #define CONFIG_SUNPOWER_EXEC	"/usr/openwin/bin/sys-suspend"
 #define CONFIG_SUNPOWER_OPTIONS	"-x","-h",0
 #define CONFIG_SUNPOWER_SHIFTOPTIONS	"-x","-n",0
+
 
 // ==============================
 // Section III. Colours and fonts
@@ -358,11 +368,10 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 #define CONFIG_GNOME_COMPLIANCE   False
 
-// This lets you choose if you want to keep the regular wmx
-// mouse button behaviour, or go w/ the GNOME described one
-
-// The if True, the left mouse button (button1) lets you 
-// select 1 or more gmc 'icons' and drag them around etc.
+// This lets you choose whether to keep the regular wmx
+// mouse button behaviour, or go w/ the GNOME-described one.
+// If this is True, the left mouse button (button1) lets you 
+// select 1 or more gmc 'icons' and drag them around etc,
 // the right mouse button (button3) pops up the GNOME 
 // command menu, and the middle mouse button (button2)
 // acts like the left mouse normally does (list of windows)

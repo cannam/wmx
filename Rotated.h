@@ -51,7 +51,7 @@ struct XRotFontStruct {
     XFontSet		 xfontset;
     XFontStruct		*xfontstruct;
 
-  XRotCharStruct	 per_char[223]; // all chars from 32 to 255
+  XRotCharStruct	 per_char[224]; // all chars from 32 to 255
 };
 
 

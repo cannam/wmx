@@ -4,6 +4,7 @@
 
 #include "General.h"
 #include "Manager.h"
+#include <dirent.h>
 
 class Menu 
 {
@@ -13,7 +14,8 @@ public:
 
     virtual int getSelection();
     static void cleanup(WindowManager *const);
-
+    int screen() { return m_windowManager->screen(); }
+ 
  protected:
     static Window *m_window;
     
@@ -41,7 +43,6 @@ public:
 
     Display *display() { return m_windowManager->display(); }
     Window root()      { return m_windowManager->root();    }
-    int screen()       { return m_windowManager->screen();  }
     
     Boolean isKeyboardMenuEvent (XEvent *e) {
         return (CONFIG_WANT_KEYBOARD_MENU && (e->type == KeyPress));
@@ -95,6 +96,11 @@ private:
     void createSubmenu(XEvent *, int i);
     virtual char **getItems(int *, int *);
     char *m_commandDir;
+
+#if CONFIG_ADD_SCREEN_TO_COMMAND_MENU
+    Boolean isRootDir;
+    DIR *screenopendir(char *,int *,int);
+#endif
 };
 
 class ShowGeometry : public Menu

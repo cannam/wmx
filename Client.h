@@ -82,10 +82,11 @@ public:
     void focusIfAppropriate(Boolean);
     void selectOnMotion(Window, Boolean);
 
-    void fullHeight();
-    void normalHeight();
+    void maximise(int);
+    void unmaximise(int);
     Boolean isFullHeight() { return m_isFullHeight; }
     void makeThisNormalHeight() { m_isFullHeight = False; }
+    void makeThisNormalWidth() { m_isFullWidth = False; }
 
     /* for call from within: */
 
@@ -164,8 +165,11 @@ private:
     Time m_lastPopTime;
 
     Boolean m_isFullHeight;
+    Boolean m_isFullWidth;
     int m_normalH;
     int m_normalY;
+    int m_normalW;
+    int m_normalX;
 
     char *m_name;
     char *m_iconName;

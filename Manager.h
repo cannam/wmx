@@ -205,6 +205,9 @@ private:
     Boolean m_altStateRetained;
     void eventKeyPress(XKeyEvent *);
 
+    // Stupid little helper function
+    static int numdigits(int);
+
 #if CONFIG_GNOME_COMPLIANCE != False
     void gnomeInitialiseCompliance();
     Window gnome_win;

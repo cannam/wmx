@@ -13,6 +13,7 @@
 
 void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 {
+    enum {Vertical, Maximum, Horizontal};
     setScreenFromPointer();
     Client *c = windowToClient(e->window);
 
@@ -28,9 +29,9 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
  	{
   	    if (e->window != e->root && c) {
  		if (c->isFullHeight()) {
- 		    c->normalHeight();
+ 		    c->unmaximise(Vertical);
  		} else {
- 		    c->fullHeight();
+ 		    c->maximise(Vertical);
  		}
  	    }
  	}
@@ -150,6 +151,7 @@ void WindowManager::circulate(Boolean activeFirst)
 
 void WindowManager::eventKeyPress(XKeyEvent *ev)
 {
+    enum {Vertical, Maximum, Horizontal};
     KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
     
     if (CONFIG_USE_KEYBOARD) {
@@ -189,9 +191,9 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 	if (key == CONFIG_QUICKHEIGHT_KEY && c) {
 
 	    if (c->isFullHeight()) {
-		c->normalHeight();
+		c->unmaximise(Vertical);
 	    } else {
-		c->fullHeight();
+		c->maximise(Vertical);
 	    }
 
 	} else
@@ -270,13 +272,32 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 		    break;
 
 		case CONFIG_FULLHEIGHT_KEY:
-		    if (c) c->fullHeight();
+		    if (c) c->maximise(Vertical);
 		    break;
 		
 		case CONFIG_NORMALHEIGHT_KEY:
-		    if (c) c->normalHeight();
+		    if (c && !CONFIG_SAME_KEY_MAX_UNMAX)
+                        c->unmaximise(Vertical);
 		    break;
-
+		
+		case CONFIG_FULLWIDTH_KEY:
+		    if (c) c->maximise(Horizontal);
+		    break;
+		
+		case CONFIG_NORMALWIDTH_KEY:
+		    if (c && !CONFIG_SAME_KEY_MAX_UNMAX)
+                        c->unmaximise(Horizontal);
+		    break;
+		
+		case CONFIG_MAXIMISE_KEY:
+		    if (c) c->maximise(Maximum);
+		    break;
+		
+		case CONFIG_UNMAXIMISE_KEY:
+		    if (c && !CONFIG_SAME_KEY_MAX_UNMAX)
+                        c->unmaximise(Maximum);
+		    break;
+		
 		case CONFIG_STICKY_KEY:
 		    if (c) c->setSticky(!(c->isSticky()));
 		    break;
@@ -786,7 +807,14 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 	XMoveResizeWindow(display(), m_window,
 			  m_border->xIndent(), m_border->yIndent(), m_w, m_h);
 
-	if (vertical) makeThisNormalHeight(); // in case it was full-height
+	if (vertical && horizontal) {
+	    makeThisNormalHeight();
+	    makeThisNormalWidth();
+	} else if (vertical)
+	    makeThisNormalHeight(); // in case it was full-height
+	else if (horizontal)
+	    makeThisNormalWidth();
+	
 	sendConfigureNotify();
     }
 
