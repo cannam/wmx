@@ -66,6 +66,8 @@ Menu::Menu(WindowManager *manager, XButtonEvent *e)
 #endif
 	XChangeWindowAttributes
 	    (display(), m_window, CWSaveUnder, &attr);
+
+	m_initialised = True;
     }
 }
 
@@ -380,21 +382,24 @@ char **ClientMenu::getItems(int *niR, int *nhR)
 
 void ClientMenu::showFeedback(int item)
 {
-    if (item == 0) return;
+    if (item <= 0 || item > m_clients.count()) return;
+    if (m_allowExit && item == m_clients.count()+1) return;
     Client *c = m_clients.item(item-1);
     c->showFeedback();
 }
 
 void ClientMenu::removeFeedback(int item, Boolean mapped)
 {
-    if (item == 0) return;
+    if (item <= 0 || item > m_clients.count()) return;
+    if (m_allowExit && item == m_clients.count()+1) return;
     Client *c = m_clients.item(item-1);
     c->removeFeedback(mapped);
 }
 
 void ClientMenu::raiseFeedbackLevel(int item)
 {
-    if (item == 0) return;
+    if (item <= 0 || item > m_clients.count()) return;
+    if (m_allowExit && item == m_clients.count()+1) return;
     Client *c = m_clients.item(item-1);
     c->raiseFeedbackLevel();
 }
@@ -449,7 +454,7 @@ char **CommandMenu::getItems(int *niR, int *nhR)
     if ((home = getenv("HOME")) == NULL) return NULL;
 	
     int dirlen = strlen(m_commandDir);
-    char *dirpath = (char *)malloc(dirlen + NAME_MAX + 2);
+    char *dirpath = (char *)malloc(dirlen + 1024 + 2); // NAME_MAX guess
     strcpy(dirpath, m_commandDir);
 
     DIR *dir = opendir(m_commandDir);
@@ -477,7 +482,11 @@ char **CommandMenu::getItems(int *niR, int *nhR)
 
 	items = (!items ? (char **)malloc(sizeof(char *)) :
 		 (char **)realloc(items, (count + 1) * sizeof(char *)));
-	items[count++] = strdup(ent->d_name);
+
+//	items[count++] = strdup(ent->d_name);
+	items[count] = (char *)malloc(strlen(ent->d_name));
+	strcpy(items[count], ent->d_name);
+	++count;
     }
 
     free(dirpath);

@@ -3,6 +3,7 @@
 #include "Client.h"
 
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 
 const char *const Client::m_defaultLabel = "incognito";
 
@@ -18,6 +19,7 @@ Client::Client(WindowManager *const wm, Window w) :
     m_reparenting(False),
     m_stubborn(False),
     m_lastPopTime(0L),
+    m_isFullHeight(False),
     m_colormap(None),
     m_colormapWinCount(0),
     m_colormapWindows(NULL),
@@ -150,7 +152,24 @@ void Client::manage(Boolean mapped)
     int state;
 
     XSelectInput(d, m_window, ColormapChangeMask | EnterWindowMask |
-		 PropertyChangeMask | FocusChangeMask);
+		 PropertyChangeMask | FocusChangeMask | KeyPressMask |
+		 KeyReleaseMask); //!!!
+
+    if (CONFIG_USE_KEYBOARD) {
+
+	static KeySym keys[] = {
+	    CONFIG_FLIP_UP_KEY, CONFIG_FLIP_DOWN_KEY, CONFIG_CIRCULATE_KEY,
+	    CONFIG_HIDE_KEY, CONFIG_DESTROY_KEY, CONFIG_RAISE_KEY,
+	    CONFIG_LOWER_KEY, CONFIG_FULLHEIGHT_KEY, CONFIG_NORMALHEIGHT_KEY
+	};
+
+	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); ++i) {
+
+	    XGrabKey(display(), XKeysymToKeycode(display(), keys[i]),
+		     CONFIG_ALT_KEY_MASK, m_window, True,
+		     GrabModeAsync, GrabModeAsync);
+	}
+    }
 
     m_iconName = getProperty(XA_WM_ICON_NAME);
     m_name = getProperty(XA_WM_NAME);
@@ -653,7 +672,7 @@ void Client::hide()
     }
 
     m_border->unmap();
-//    XUnmapWindow(display(), m_window);
+    XUnmapWindow(display(), m_window);
 
     if (isActive()) windowManager()->clearFocus();
 
@@ -779,6 +798,45 @@ void Client::lower()
 }
 
 
+void Client::fullHeight()
+{
+    if (m_isFullHeight || m_fixedSize || (m_transient != None)) return;
+
+    m_normalH = m_h;
+    m_normalY = m_y;
+
+    m_h = DisplayHeight(display(), windowManager()->screen())
+	- m_border->yIndent() - 1;
+    int dw, dh;
+
+    fixResizeDimensions(m_w, m_h, dw, dh);
+
+    if (m_h > m_normalH) {
+	m_y -= (m_h - m_normalH);
+	if (m_y < m_border->yIndent()) m_y = m_border->yIndent();
+    }
+
+    m_isFullHeight = True;
+    m_border->configure(m_x, m_y, m_w, m_h, CWY | CWHeight, 0);
+    XResizeWindow(display(), m_window, m_w, m_h);
+    sendConfigureNotify();
+}
+
+
+void Client::normalHeight()
+{
+    if (!m_isFullHeight) return;
+
+    m_h = m_normalH;
+    m_y = m_normalY;
+
+    m_isFullHeight = False;
+    m_border->configure(m_x, m_y, m_w, m_h, CWY | CWHeight, 0);
+    XResizeWindow(display(), m_window, m_w, m_h);
+    sendConfigureNotify();
+}
+
+
 void Client::flipChannel(Boolean leaving, int newChannel)
 {
 //    fprintf(stderr, "I could be supposed to pop up now...\n");
@@ -837,6 +895,7 @@ void Client::showFeedback()
 {
     if (m_speculating || m_levelRaised) removeFeedback(False);
     m_border->showFeedback(m_x, m_y, m_w, m_h);
+//    XSync(display(), False);
 }
 
 void Client::raiseFeedbackLevel()
@@ -848,6 +907,7 @@ void Client::raiseFeedbackLevel()
     } else if (isHidden()) {
 	unhide(True);
 	m_speculating = True;
+//	XSync(display(), False);
     }
 }
 
@@ -858,6 +918,7 @@ void Client::removeFeedback(Boolean mapped)
     if (m_levelRaised) {
 	if (m_speculating) {
 	    if (!mapped) hide();
+	    XSync(display(), False);
 	} else {
 	    // not much we can do
 	}

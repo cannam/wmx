@@ -124,6 +124,7 @@ private:
     void nextEvent(XEvent *);	// return
 
     void eventButton(XButtonEvent *);
+    void eventKeyRelease(XKeyEvent *);
     void eventMapRequest(XMapRequestEvent *);
     void eventConfigureRequest(XConfigureRequestEvent *);
     void eventUnmap(XUnmapEvent *);
@@ -135,6 +136,9 @@ private:
     void eventEnter(XCrossingEvent *);
     void eventReparent(XReparentEvent *);
     void eventFocusIn(XFocusInEvent *);
+
+    Boolean m_altPressed;
+    void eventKeyPress(XKeyEvent *);
 };
 
 #endif

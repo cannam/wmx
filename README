@@ -13,8 +13,8 @@ the source and recompiling the code.
 This release
 ============
 
-This is a development release of wmx, made in May 1997.  It's the
-second release to be made generally available.
+This is a development release of wmx, made in November 1997.  It's the
+third release to be made generally available.
 
 
 Building wmx
@@ -122,6 +122,33 @@ Available window manipulations are:
 All move and resize operations are opaque.
 
 
+Keyboard controls
+=================
+
+By popular request, there are now some keyboard controls available.
+The key combinations are configurable in Config.h, but the default
+bindings are:
+
+ -- To raise the focused window in the stacking order: Mod1
+    (corresponding to Alt with many X servers) and cursor-Up
+
+ -- To lower the focused window: Mod1/cursor-Down
+
+ -- To flip through the windows on screen: Mod1/Tab (equivalent to
+    clicking the right mouse-button on the focused window's frame)
+
+ -- To hide the focused window: Mod1/Return
+
+ -- To delete the focused window: Mod1/Delete
+
+ -- To expand the focused window to the full height of the screen:
+    Mod1/PageUp
+
+ -- To contract the focused window after expanding it: Mod1/PageDown
+
+ -- To switch channels: Mod1/cursor-Left and Mod1/cursor-Right
+
+
 Focus policy
 ============
 
@@ -201,5 +228,5 @@ If you find a bug, please report it to me (preferably with a fix).
 
 
 
-Chris Cannam, cannam@zands.demon.co.uk
-May 1997
+Chris Cannam, cannam@zands.com
+November 1997

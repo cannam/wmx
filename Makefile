@@ -4,7 +4,7 @@ LIBS	=  -L/usr/X11/lib -lXpm -lXext -lX11 -lXmu -lm
 
 CC	= gcc
 CCC	= gcc
-CFLAGS	= -O2
+CFLAGS	= -g -O2
 OBJECTS	= Border.o Buttons.o Channel.o Client.o Events.o Main.o Manager.o Menu.o Rotated.o
 
 .c.o:

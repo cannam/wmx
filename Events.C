@@ -22,6 +22,14 @@ int WindowManager::loop()
 	case ButtonRelease:
 	    break;
 
+	case KeyPress:
+	    eventKeyPress(&ev.xkey); // in Buttons.C
+	    break;
+
+	case KeyRelease:
+	    eventKeyRelease(&ev.xkey); // in Buttons.C
+	    break;
+
 	case MapRequest:
 	    eventMapRequest(&ev.xmaprequest);
 	    break;
@@ -173,6 +181,7 @@ void WindowManager::nextEvent(XEvent *e)
     }
 
     fprintf(stderr, "wmx: signal caught, exiting\n");
+    ignoreBadWindowErrors = True;
     m_looping = False;
     m_returnCode = 0;
 }

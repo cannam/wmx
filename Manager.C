@@ -24,7 +24,8 @@ implementPList(ClientList, Client);
 
 
 WindowManager::WindowManager() :
-    m_focusChanging(False)
+    m_focusChanging(False),
+    m_altPressed(False)
 {
     fprintf(stderr, "\nwmx: Copyright (c) 1996-7 Chris Cannam."
 	    "  Second release, May 1997\n"
@@ -82,7 +83,13 @@ WindowManager::WindowManager() :
 	fprintf(stderr, "Skeletal feedback off.  ");
     }
 
-    fprintf(stderr, "\n     Command menu taken from $HOME/"
+    if (CONFIG_USE_KEYBOARD) {
+	fprintf(stderr, "\n     Keyboard controls available.  ");
+    } else {
+	fprintf(stderr, "\n     No keyboard controls.  ");
+    }
+
+    fprintf(stderr, "Command menu taken from $HOME/"
 	    CONFIG_COMMAND_MENU ".");
 
     fprintf(stderr, "\n     (To reconfigure, simply edit and recompile.)\n\n");
@@ -133,7 +140,7 @@ WindowManager::WindowManager() :
     
     clearFocus();
     scanInitialWindows();
-    flipChannel(True);
+//    flipChannel(True);
     loop();
 }
 
@@ -292,7 +299,7 @@ void WindowManager::initialiseScreen()
     attr.cursor = m_cursor;
     attr.event_mask = SubstructureRedirectMask | SubstructureNotifyMask |
 	ColormapChangeMask | ButtonPressMask | ButtonReleaseMask | 
-	PropertyChangeMask | LeaveWindowMask;
+	PropertyChangeMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask;
     XChangeWindowAttributes(m_display, m_root, CWCursor | CWEventMask, &attr);
     XSync(m_display, False);
 }
@@ -569,7 +576,8 @@ void WindowManager::spawn(char *name, char *file)
 	    }
 
 	    if (CONFIG_EXEC_USING_SHELL) {
-		execl(m_shell, m_shell, "-c", file, 0);
+		if (file) execl(m_shell, m_shell, "-c", file, 0);
+		else execl(m_shell, m_shell, "-c", name, 0);
 		fprintf(stderr, "wmx: exec %s", m_shell);
 		perror(" failed");
 	    }

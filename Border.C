@@ -1,4 +1,3 @@
-
 #include "Border.h"
 #include "Client.h"
 #include "Manager.h"
@@ -63,7 +62,7 @@ Border::Border(Client *const c, Window child) :
 Border::~Border()
 {
     if (m_parent != root()) {
-	if (!m_parent) fprintf(stderr,"wm2: zero parent in Border::~Border\n");
+	if (!m_parent) fprintf(stderr,"wmx: zero parent in Border::~Border\n");
 	else {
 	    XDestroyWindow(display(), m_tab);
 	    XDestroyWindow(display(), m_button);
@@ -638,7 +637,7 @@ void Border::configure(int x, int y, int w, int h,
 	     m_borderPixel, m_buttonBackgroundPixel);
 
 	m_resize = XCreateWindow
-	    (display(), m_child, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
+	    (display(), m_parent, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
 	     CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
 
 #if CONFIG_MAD_FEEDBACK != 0
@@ -696,8 +695,8 @@ void Border::configure(int x, int y, int w, int h,
     unsigned long rmask = 0L;
     if (mask & CWWidth)  rmask |= CWX;
     if (mask & CWHeight) rmask |= CWY;
-    wc.x = w - FRAME_WIDTH*2;
-    wc.y = h - FRAME_WIDTH*2;
+    wc.x = w - FRAME_WIDTH*2 + xIndent();
+    wc.y = h - FRAME_WIDTH*2 + yIndent();
     XConfigureWindow(display(), m_resize, rmask, &wc);
     
     if (force ||
@@ -749,7 +748,7 @@ void Border::moveTo(int x, int y)
 void Border::map()
 {
     if (m_parent == root()) {
-	fprintf(stderr, "wm2: bad parent in Border::map()\n");
+	fprintf(stderr, "wmx: bad parent in Border::map()\n");
     } else {
 	XMapWindow(display(), m_parent);
 
@@ -765,7 +764,7 @@ void Border::map()
 void Border::mapRaised()
 {
     if (m_parent == root()) {
-	fprintf(stderr, "wm2: bad parent in Border::mapRaised()\n");
+	fprintf(stderr, "wmx: bad parent in Border::mapRaised()\n");
     } else {
 	XMapRaised(display(), m_parent);
 
@@ -787,7 +786,7 @@ void Border::lower()
 void Border::unmap()
 {
     if (m_parent == root()) {
-	fprintf(stderr, "wm2: bad parent in Border::unmap()\n");
+	fprintf(stderr, "wmx: bad parent in Border::unmap()\n");
     } else {
 	XUnmapWindow(display(), m_parent);
 

@@ -2,6 +2,7 @@
 #include "Manager.h"
 #include "Client.h"
 #include "Menu.h"
+#include <X11/keysym.h>
 #include <sys/time.h>
 
 
@@ -85,6 +86,67 @@ void WindowManager::circulate(Boolean activeFirst)
     c->activateAndWarp();
 }
 
+void WindowManager::eventKeyPress(XKeyEvent *ev)
+{
+    KeySym key = XKeycodeToKeysym(display(), ev->keycode, 0);
+
+    if (CONFIG_USE_KEYBOARD && (ev->state & CONFIG_ALT_KEY_MASK)) {
+
+	Client *c = windowToClient(ev->window);
+
+	switch (key) {
+
+	case CONFIG_FLIP_DOWN_KEY:
+	    flipChannel(False, False, NULL, True);
+	    break;
+
+	case CONFIG_FLIP_UP_KEY:
+	    flipChannel(False, False);
+	    break;
+	
+	case CONFIG_CIRCULATE_KEY:
+	    circulate(False);
+	    break;
+
+	case CONFIG_HIDE_KEY:
+	    c->hide();
+	    break;
+
+	case CONFIG_DESTROY_KEY:
+	    c->kill();
+	    break;
+
+	case CONFIG_RAISE_KEY:
+	    c->mapRaised();
+	    break;
+
+	case CONFIG_LOWER_KEY:
+	    c->lower();
+	    break;
+
+	case CONFIG_FULLHEIGHT_KEY:
+	    c->fullHeight();
+	    break;
+
+	case CONFIG_NORMALHEIGHT_KEY:
+	    c->normalHeight();
+	    break;
+
+	default:
+	    return;
+	}
+
+	XSync(display(), False);
+	XUngrabKeyboard(display(), CurrentTime);
+    }
+
+    return;
+}
+
+void WindowManager::eventKeyRelease(XKeyEvent *ev)
+{
+    return;
+}
 
 void Client::activateAndWarp()
 {
@@ -391,6 +453,7 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 	XMoveResizeWindow(display(), m_window,
 			  m_border->xIndent(), m_border->yIndent(), m_w, m_h);
 
+	if (vertical) makeThisNormalHeight(); // in case it was full-height
 	sendConfigureNotify();
     }
 

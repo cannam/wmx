@@ -72,6 +72,11 @@ public:
     void focusIfAppropriate(Boolean);
     void selectOnMotion(Window, Boolean);
 
+    void fullHeight();
+    void normalHeight();
+    Boolean isFullHeight() { return m_isFullHeight; }
+    void makeThisNormalHeight() { m_isFullHeight = False; }
+
     /* for call from within: */
 
     void fatal(char *m)    { m_windowManager->fatal(m);              }
@@ -133,6 +138,10 @@ private:
     Boolean m_reparenting;
     Boolean m_stubborn;		// keeps popping itself to the front
     Time m_lastPopTime;
+
+    Boolean m_isFullHeight;
+    int m_normalH;
+    int m_normalY;
 
     char *m_name;
     char *m_iconName;

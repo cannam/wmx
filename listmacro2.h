@@ -25,7 +25,7 @@ public: \
 	assert(index >= 0 && index < m_count); \
 	return m_items[index]; \
     } \
-    T *array(long index, long count) { \
+    T *array(long index, long) { \
 	return m_items + index; \
     } \
 \

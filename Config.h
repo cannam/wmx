@@ -17,8 +17,32 @@
 #define CONFIG_NASTY_FONT	  "fixed"
 
 #define CONFIG_EXEC_USING_SHELL   False
-#define CONFIG_NEW_WINDOW_COMMAND "/home/cannam/bin_Linux/terminal"
-#define CONFIG_EVERYTHING_ON_ROOT_MENU False
+#define CONFIG_NEW_WINDOW_COMMAND "xterm"
+#define CONFIG_EVERYTHING_ON_ROOT_MENU True
+
+// Include keyboard control?
+#define CONFIG_USE_KEYBOARD       True
+
+// This is a keyboard modifier mask as defined in <X11/X.h>.  It's the
+// modifier required for wm controls: e.g. Alt/Left and Alt/Right to
+// flip channels, and Alt/Tab to switch windows.  (The default value
+// of Mod1Mask corresponds to Alt on many keyboards.)
+
+#define CONFIG_ALT_KEY_MASK       Mod1Mask
+
+// And these define the rest of the keyboard controls, when the above
+// modifier is pressed; they're keysyms as defined in <X11/keysym.h>
+// and <X11/keysymdef.h>
+
+#define CONFIG_FLIP_UP_KEY        XK_Right
+#define CONFIG_FLIP_DOWN_KEY      XK_Left
+#define CONFIG_CIRCULATE_KEY      XK_Tab
+#define CONFIG_HIDE_KEY           XK_Return
+#define CONFIG_DESTROY_KEY        XK_Delete
+#define CONFIG_RAISE_KEY          XK_Up
+#define CONFIG_LOWER_KEY          XK_Down
+#define CONFIG_FULLHEIGHT_KEY     XK_Page_Up
+#define CONFIG_NORMALHEIGHT_KEY   XK_Page_Down
 
 // Directory under $HOME which is used for commands
 
@@ -31,7 +55,7 @@
 
 #define CONFIG_CLICK_TO_FOCUS     False
 #define CONFIG_RAISE_ON_FOCUS     False
-#define CONFIG_AUTO_RAISE         True
+#define CONFIG_AUTO_RAISE         False
 
 // In theory these only apply when using AUTO_RAISE, not when just
 // using RAISE_ON_FOCUS without CLICK_TO_FOCUS.  First of these is the
@@ -54,7 +78,7 @@
 
 // I like 7 for plain frames, or 8 if using pixmaps:
 
-#define CONFIG_FRAME_THICKNESS    7
+#define CONFIG_FRAME_THICKNESS    8
 
 // If CONFIG_PROD_SHAPE is True, all frame element shapes will be
 // recalculated afresh every time their focus changes.  This will
@@ -72,7 +96,7 @@
 // should be okay in true-colour.
 
 #define CONFIG_USE_PIXMAPS        True
-#define CONFIG_USE_PIXMAP_MENUS   True
+#define CONFIG_USE_PIXMAP_MENUS   False
 
 // Set CHANNEL_SURF for multi-channel switching; CHANNEL_CLICK_SIZE is
 // how close you have to middle-button-click to the top-right corner
