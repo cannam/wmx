@@ -20,8 +20,7 @@ static char *numerals[10][7] = {
 void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 				Boolean quickFlip, Client *push)
 {
-    int x, y, sc;
-    size_t i;
+    int x, y, i, sc;
     if (!CONFIG_CHANNEL_SURF) return;
 
     for(sc = 0; sc < screensTotal(); sc++)
@@ -48,7 +47,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 		(display(), mroot(sc),
 		 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
-    }
+	}
     }
 
 
@@ -70,7 +69,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
     char number[7];
     sprintf(number, "%d", nextChannel);
 
-    for (i = 0; i < strlen(number); ++i) {
+    for (i = 0; i < (int)strlen(number); ++i) {
 	for (y = 0; y < 7; ++y) {
 	    for (x = 0; x < 5; ++x) {
 		if (numerals[number[i]-'0'][y][x] != ' ') {
@@ -113,11 +112,11 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 
 	ClientList considering;
 
-	for (i = m_orderedClients.count()-1; i >= 0; --i) {
+	for (i = (int)m_orderedClients.count()-1; i >= 0; --i) {
 	    considering.append(m_orderedClients.item(i));
 	}
 
-	for (i = 0; i < considering.count(); ++i) {
+	for (i = 0; i < (int)considering.count(); ++i) {
 	    if (considering.item(i) == push || considering.item(i)->isSticky()
 #if CONFIG_USE_WINDOW_GROUPS
 		|| (push &&
