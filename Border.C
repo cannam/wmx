@@ -89,6 +89,10 @@ Border::~Border()
 
 	    // bad window if its parent has already gone:
 	    XDestroyWindow(display(), m_resize);
+
+	    if (m_feedback) {
+	        XDestroyWindow(display(), m_feedback);
+	    }
 	}
     }
 
