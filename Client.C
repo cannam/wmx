@@ -519,11 +519,13 @@ void Client::activate()
 	if (CONFIG_AUTO_RAISE || CONFIG_RAISE_ON_FOCUS) mapRaised();
 	return;
     }
-
+/*!!!
     if (activeClient()) {
 	activeClient()->deactivate();
 	// & some other-screen business
     }
+*/
+    windowManager()->setActiveClient(this); // deactivates any other
 
     XUngrabButton(display(), AnyButton, AnyModifier, parent());
 
@@ -542,7 +544,7 @@ void Client::activate()
     m_revert = activeClient();
     while (m_revert && !m_revert->isNormal()) m_revert = m_revert->revertTo();
 
-    windowManager()->setActiveClient(this);
+//!!!    windowManager()->setActiveClient(this);
     decorate(True);
 
     installColormap();		// new!
@@ -1219,6 +1221,9 @@ void Client::flipChannel(Boolean leaving, int newChannel)
 	}
 
 	if (!isNormal()) return;
+	if (activeClient() == this) {
+	    windowManager()->setActiveClient(0);
+	}
 	m_unmappedForChannel = True;
 	XUnmapWindow(display(), m_window);
 	withdraw(False);

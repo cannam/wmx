@@ -690,6 +690,14 @@ void WindowManager::installColormap(Colormap cmap)
     }
 }
 
+void WindowManager::setActiveClient(Client *const c)
+{
+    if (m_activeClient && m_activeClient != c) {
+	m_activeClient->deactivate();
+    }
+    m_activeClient = c;
+}
+
 void WindowManager::clearFocus()
 {
     static Window w = 0;

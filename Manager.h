@@ -27,7 +27,7 @@ public:
     Time timestamp(Boolean reset);
     void clearFocus();
 
-    void setActiveClient(Client *const c) { m_activeClient = c; }
+    void setActiveClient(Client *const c);
 
     void addToHiddenList(Client *);
     void removeFromHiddenList(Client *);
