@@ -75,7 +75,7 @@ Client::Client(WindowManager *const wm, Window w, Boolean shaped) :
 
 Client::~Client()
 {
-    // empty
+    delete m_border;
 }    
 
 
@@ -109,9 +109,6 @@ void Client::release()
     if (isHidden()) unhide(False);
     windowManager()->removeFromOrderedList(this);
 
-    delete m_border;
-    m_window = None;
-
     if (isActive()) {
 	if (CONFIG_CLICK_TO_FOCUS) {
 	    if (m_revert) {
@@ -122,6 +119,8 @@ void Client::release()
 	    windowManager()->setActiveClient(0);
 	}
     }
+
+    m_window = None;
 
     if (m_colormapWinCount > 0) {
 	XFree((char *)m_colormapWindows);
