@@ -866,7 +866,7 @@ char **ChannelMenu::getItems(int *niR, int *nhR)
     char **items = (char **)malloc(*niR * sizeof(char *));
     for (int i = 0; i < *niR; i++) {
 	char temp[50]; // Warning! Works only, if int < 136 bits.
-	sprintf(temp, "Channel %d", i + 1);
+	sprintf(temp, "%sChannel %d", i+1 == m_channel ? ">" : "", i + 1);
 	char *item = (char *)malloc(strlen(temp) + 1);
 	strcpy (item, temp);
 	items[i] = item;
@@ -895,7 +895,24 @@ void ShowGeometry::update(int x, int y)
     int my = DisplayHeight(display(), screen()) - 1;
   
     XMoveResizeWindow(display(), m_window[screen()],
-		      (mx - width) / 2, (my - height) / 2, width, height);
+
+#if CONFIG_GEOMETRY_X_POS < 0
+		      0
+#elif CONFIG_GEOMETRY_X_POS > 0
+		      (mx - width)
+#else
+		      (mx - width) / 2
+#endif
+		      ,
+#if CONFIG_GEOMETRY_X_POS < 0
+		      0
+#elif CONFIG_GEOMETRY_X_POS > 0
+		      (my - height)
+#else
+                      (my - height) / 2
+#endif
+		      , width, height);
+
     XClearWindow(display(), m_window[screen()]);
     XMapRaised(display(), m_window[screen()]);
     

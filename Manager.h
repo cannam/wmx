@@ -112,11 +112,11 @@ private:
     Colormap *m_defaultColormap;
 //    int *m_minimumColormaps;
 
-    Cursor *m_cursor;
-    Cursor *m_xCursor;
-    Cursor *m_vCursor;
-    Cursor *m_hCursor;
-    Cursor *m_vhCursor;
+    Cursor m_cursor;
+    Cursor m_xCursor;
+    Cursor m_vCursor;
+    Cursor m_hCursor;
+    Cursor m_vhCursor;
     
     char *m_terminal;
     char *m_shell;
@@ -141,7 +141,7 @@ private:
     void createNewChannel();
     void checkChannel(int);
     Time m_channelChangeTime;
-    Window m_channelWindow;
+    Window *m_channelWindow;
 
     Boolean m_looping;
     int m_returnCode;

@@ -319,6 +319,7 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 
 #define CONFIG_CHANNEL_SURF       True
 #define CONFIG_CHANNEL_CLICK_SIZE 120
+#define CONFIG_CHANNEL_NUMBER_SIZE 20
 #define CONFIG_USE_CHANNEL_KEYS   True
 #define CONFIG_USE_CHANNEL_MENU   False
 
@@ -344,6 +345,12 @@ static DynamicConfig &dConfig = DynamicConfig::dynamicConfig;
 // Groups are fun. you can bind a bunch of windows to a number key
 // and when you press CONFIG_ALT_KEY_MASK and the number key
 // all the windows of that group are raised.
+
+// Position of the geometry window:
+// X < 0 left, X > 0 right,  X = 0 center
+// Y < 0 top,  Y > 0 bottom, Y = 0 center
+#define CONFIG_GEOMETRY_X_POS     0
+#define CONFIG_GEOMETRY_Y_POS     0
 
 // You bind a window to a group by pressing the 
 // CONFIG_ALT_KEY_MASK + CONFIG_GROUP_ADD + a number key

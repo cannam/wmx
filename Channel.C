@@ -20,23 +20,19 @@ static char *numerals[10][7] = {
 void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 				Boolean quickFlip, Client *push)
 {
-    static int lastscreen = -1;
+    int x, y, i, sc;
     if (!CONFIG_CHANNEL_SURF) return;
 
-    if (m_channelWindow && (screen() != lastscreen))
+    for(sc = 0; sc < screensTotal(); sc++)
     {
-	XDestroyWindow(display(),m_channelWindow);
-	m_channelWindow = 0;
-    }
-
-    if (!m_channelWindow) {
+	if (!m_channelWindow[sc]) {
 
 	XColor nearest, ideal;
 
-	if (!XAllocNamedColor(display(), DefaultColormap(display(), screen()),
+	    if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
 			      CONFIG_CHANNEL_NUMBER, &nearest, &ideal)) {
 	    
-	    if (!XAllocNamedColor(display(), DefaultColormap(display(), screen()),
+		if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
 				  "black", &nearest, &ideal)) {
 		
 		fatal("Couldn't allocate green or black");
@@ -47,10 +43,12 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	wa.background_pixel = nearest.pixel;
 	wa.override_redirect = True;
 	
-	m_channelWindow = XCreateWindow
-	    (display(), root(), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
+	    m_channelWindow[sc] = XCreateWindow
+	      (display(), mroot(sc), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
     }
+    }
+
 
     int nextChannel;
 
@@ -65,7 +63,6 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	}
     }
 
-    int x, y, i;
     XRectangle r;
     Boolean first = True;
     char number[7];
@@ -75,24 +72,40 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	for (y = 0; y < 7; ++y) {
 	    for (x = 0; x < 5; ++x) {
 		if (numerals[number[i]-'0'][y][x] != ' ') {
-		    
+/*		    
 		    r.x = i * 110 + x * 20; r.y = y * 20;
 		    r.width = r.height = 20;
-		    
+ */      
+                    r.x = 10 + (i * 6 + x) * CONFIG_CHANNEL_NUMBER_SIZE;
+                    r.y = y * CONFIG_CHANNEL_NUMBER_SIZE;
+                    r.width = r.height = CONFIG_CHANNEL_NUMBER_SIZE;
+                    for(sc = 0; sc < screensTotal(); sc++)
+                    {
 		    XShapeCombineRectangles
-			(display(), m_channelWindow, ShapeBounding,
-			 0, 0, &r, 1, first ? ShapeSet : ShapeUnion, YXBanded);
-
+                          (display(), m_channelWindow[sc], ShapeBounding,
+                           0, 0, &r, 1, first ? ShapeSet : ShapeUnion,
+                           YXBanded);
+                    }
 		    first = False;
 		}
 	    }
 	}
     }
 
-    XMoveResizeWindow(display(), m_channelWindow,
-		      DisplayWidth(display(), screen()) - 30 -
+    for(sc = 0; sc < screensTotal(); sc++)
+    {
+/*
+        XMoveResizeWindow(display(), m_channelWindow[sc],
+			  DisplayWidth(display(), sc) - 30 -
 		      110 * strlen(number), 30, 500, 160);
-    XMapRaised(display(), m_channelWindow);
+ */
+
+        XMoveResizeWindow(display(), m_channelWindow[sc],
+                          DisplayWidth(display(), sc) - 30 -
+                          (5 * CONFIG_CHANNEL_NUMBER_SIZE + 10) *
+                          strlen(number), 30, 500, 160);
+	XMapRaised(display(), m_channelWindow[sc]);
+    }
 
     if (!statusOnly) {
 
@@ -125,7 +138,6 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 #if CONFIG_GNOME_COMPLIANCE != False
     gnomeUpdateChannelList();
 #endif
-
 }
 
 
@@ -133,7 +145,10 @@ void WindowManager::instateChannel()
 {
     int i;
     m_channelChangeTime = 0;
-    XUnmapWindow(display(), m_channelWindow);
+    for(i = 0; i < screensTotal(); i++)
+    {
+	XUnmapWindow(display(), m_channelWindow[i]);
+    }
 
     ClientList considering;
 

@@ -56,7 +56,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *wmxdir = getenv("WMXDIR");
     
     fprintf(stderr, "\nwmx: Copyright (c) 1996-2000 Chris Cannam."
-	    "  Sixth release pre-5, May 2000\n"
+	    "  Sixth release pre-6, May 2000\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
  	    "     Japanize code Copyright (c) 1998 Kazushi (Jam) Marukawa\n"
@@ -191,19 +191,19 @@ WindowManager::WindowManager(int argc, char **argv) :
 #endif
 
     if (CONFIG_GNOME_COMPLIANCE) {
-        fprintf(stderr, "  Partial GNOME compliance.");
+        fprintf(stderr, "\n     Partial GNOME compliance.");
     } else {
-        fprintf(stderr, "  Not GNOME compliant.");
+        fprintf(stderr, "\n     Not GNOME compliant.");
     }
 
     fprintf(stderr, "\n     Command menu taken from ");
     if (wmxdir == NULL) {
-	fprintf(stderr, "%s/%s.", home, CONFIG_COMMAND_MENU);
+	fprintf(stderr, "%s/%s.\n", home, CONFIG_COMMAND_MENU);
     } else {
 	if (*wmxdir == '/') {
-	    fprintf(stderr, "%s.", wmxdir);
+	    fprintf(stderr, "%s.\n", wmxdir);
 	} else {
-	    fprintf(stderr, "%s/%s.", home, wmxdir);
+	    fprintf(stderr, "%s/%s.\n", home, wmxdir);
 	}
     }
 
@@ -350,11 +350,11 @@ void WindowManager::release()
 		   timestamp(False));
     installColormap(None);
 
-    XFreeCursor(m_display, m_cursor[screen()]);
-    XFreeCursor(m_display, m_xCursor[screen()]);
-    XFreeCursor(m_display, m_vCursor[screen()]);
-    XFreeCursor(m_display, m_hCursor[screen()]);
-    XFreeCursor(m_display, m_vhCursor[screen()]);
+    XFreeCursor(m_display, m_cursor);
+    XFreeCursor(m_display, m_xCursor);
+    XFreeCursor(m_display, m_vCursor);
+    XFreeCursor(m_display, m_hCursor);
+    XFreeCursor(m_display, m_vhCursor);
 
     Menu::cleanup(this);
 
@@ -447,15 +447,12 @@ void WindowManager::initialiseScreen()
     m_root     = (Window *) malloc(m_screensTotal * sizeof(Window));
     m_defaultColormap = (Colormap *) malloc(m_screensTotal * sizeof(Colormap));
 //    m_minimumColormaps = (int *) malloc(m_screensTotal * sizeof(int));
-    m_cursor   = (Cursor *) malloc(m_screensTotal * sizeof(Cursor));
-    m_xCursor  = (Cursor *) malloc(m_screensTotal * sizeof(Cursor));
-    m_hCursor  = (Cursor *) malloc(m_screensTotal * sizeof(Cursor));
-    m_vCursor  = (Cursor *) malloc(m_screensTotal * sizeof(Cursor));
-    m_vhCursor = (Cursor *) malloc(m_screensTotal * sizeof(Cursor));
+    m_channelWindow = (Window *) malloc(m_screensTotal * sizeof(Window));
     
     for (i = 0 ; i < m_screensTotal ; i++) {
 
         m_screenNumber = i;
+	m_channelWindow[i] = 0;
 
         m_root[i] = RootWindow(m_display, i);
         m_defaultColormap[i] = DefaultColormap(m_display, i);
@@ -464,40 +461,38 @@ void WindowManager::initialiseScreen()
         XColor black, white, temp;
 
         if (!XAllocNamedColor(m_display, m_defaultColormap[i], "black", &black, &temp))
-//        if (!XAllocNamedColor(m_display, m_defaultColormap, "black", &black, &temp))
 	fatal("couldn't load colour \"black\"!");
         if (!XAllocNamedColor(m_display, m_defaultColormap[i], "white", &white, &temp))
-//        if (!XAllocNamedColor(m_display, m_defaultColormap, "white", &white, &temp))
 	fatal("couldn't load colour \"white\"!");
 
-        m_cursor[i] = makeCursor
+        m_cursor = makeCursor
 	(m_display, m_root[i], cursor_bits, cursor_mask_bits,
 	 cursor_width, cursor_height, cursor_x_hot,
 	 cursor_y_hot, &black, &white, XC_top_left_arrow);
 
-        m_xCursor[i] = makeCursor
+        m_xCursor = makeCursor
 	(m_display, m_root[i], ninja_cross_bits, ninja_cross_mask_bits,
 	 ninja_cross_width, ninja_cross_height, ninja_cross_x_hot,
 	 ninja_cross_y_hot, &black, &white, XC_X_cursor);
 
-        m_hCursor[i] = makeCursor
+        m_hCursor = makeCursor
 	(m_display, m_root[i], cursor_right_bits, cursor_right_mask_bits,
 	 cursor_right_width, cursor_right_height, cursor_right_x_hot,
 	 cursor_right_y_hot, &black, &white, XC_right_side);
 
-        m_vCursor[i] = makeCursor
+        m_vCursor = makeCursor
 	(m_display, m_root[i], cursor_down_bits, cursor_down_mask_bits,
 	 cursor_down_width, cursor_down_height, cursor_down_x_hot,
 	 cursor_down_y_hot, &black, &white, XC_bottom_side);
 
-        m_vhCursor[i] = makeCursor
+        m_vhCursor = makeCursor
 	(m_display, m_root[i], cursor_down_right_bits, cursor_down_right_mask_bits,
 	 cursor_down_right_width, cursor_down_right_height,
 	 cursor_down_right_x_hot, cursor_down_right_y_hot, &black, &white,
 	 XC_bottom_right_corner);
 
         XSetWindowAttributes attr;
-        attr.cursor = m_cursor[i];
+        attr.cursor = m_cursor;
         attr.event_mask = SubstructureRedirectMask | SubstructureNotifyMask |
 	ColormapChangeMask | ButtonPressMask | ButtonReleaseMask | 
 	PropertyChangeMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask;
@@ -537,11 +532,11 @@ void WindowManager::installCursorOnWindow(RootCursor c, Window w)
     XSetWindowAttributes attr;
 
     switch (c) {
-    case DeleteCursor:    attr.cursor = m_xCursor[screen()];  break;
-    case DownCursor:      attr.cursor = m_vCursor[screen()];  break;
-    case RightCursor:     attr.cursor = m_hCursor[screen()];  break;
-    case DownrightCursor: attr.cursor = m_vhCursor[screen()]; break;
-    case NormalCursor:    attr.cursor = m_cursor[screen()];   break;
+    case DeleteCursor:    attr.cursor = m_xCursor;  break;
+    case DownCursor:      attr.cursor = m_vCursor;  break;
+    case RightCursor:     attr.cursor = m_hCursor;  break;
+    case DownrightCursor: attr.cursor = m_vhCursor; break;
+    case NormalCursor:    attr.cursor = m_cursor;   break;
     }
 
     XChangeWindowAttributes(m_display, w, CWCursor, &attr);
