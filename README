@@ -1,0 +1,192 @@
+
+wmx -- another window manager
+=============================
+
+wmx is another window manager for X.  It is based on wm2 and provides
+a similarly unusual style of window decoration; but in place of wm2's
+minimal functionality, it offers many of the features of more
+conventional managers in the most simplistic implementations
+imaginable.  wmx is, however, still not configurable except by editing
+the source and recompiling the code.
+
+
+This release
+============
+
+This is a development release of wmx, made in March 1997.
+
+
+Building wmx
+============
+
+You will need a Unix machine, X libraries and a C++ compiler such as
+gcc.  You will also need a mouse, preferably with three buttons.  Your
+X server and libraries must be R4 or newer and must support the Shape
+extension.  If you want to use frame background-pixmaps (see "Pixmaps"
+below), you will need the Xpm header and library.  wmx does NOT
+support multi-screen displays, because I don't have anything to test
+multi-screen code on.
+
+wmx makes relatively heavy demands on the performance of your X
+server, because of the use of shaped windows, but it shouldn't place
+too much of a load on other aspects of your system.
+
+Inspect the file Config.h.  If any of the settings (fonts, colours and
+"xterm" application name) in this file are unlikely to work with your
+system, change them.  Ensure that CONFIG_NASTY_FONT is set to
+something which is unlikely not to be found.
+
+Edit the Makefile to suit the requirements of your system, and run
+"make depend" followed by "make".  This should build wmx.  On certain
+systems you may need to edit the source to overcome problems with the
+location of non-POSIX functions such as putenv() and select().
+
+
+Using wmx
+=========
+
+To run wmx, make sure you're not already running a window manager,
+make sure the DISPLAY variable is correctly set, and then execute the
+file "wmx".  There are no command-line options or X resources, and
+there is no start-up file.  If your X server doesn't support the Shape
+extension, wmx will exit (and will never work on your server); if it
+can't find the required fonts or allocate the required colours, it
+will also exit (but you should be able to fix this by changing the
+definitions in Config.h and recompiling).
+
+Available window manipulations are:
+
+ -- To focus a window: depends on the focus policy you selected
+    in Config.h before compiling.  See "Focus policy", below.
+
+ -- To raise a window: click on its tab or frame, unless you have
+    auto-raise on focus set in Config.h.
+
+ -- To move a window: make sure it's in focus, then click and drag
+    on its tab.
+
+ -- To hide a window: make sure it's in focus, then click on the
+    button at the top of its tab.
+
+ -- To recover a hidden window: hold down left button on the root
+    window for the root menu, and choose the window you want.
+
+ -- To start a new xterm: use the first item on the left-button root
+    menu ("New").
+
+ -- To delete a window: make sure it's in focus, click on the
+    button on the tab, hold the mouse button for at least a
+    second and a half until the cursor changes to a cross, then
+    release.  (I know, it's not very easy.  On the other hand,
+    things like Windows-95 tend to obscure the fact that most
+    windows already have a perfectly good Close option.  If the
+    default delay doesn't suit you, change it in Config.h and
+    recompile.)
+
+ -- To resize a window: make sure it's in focus, then click and
+    drag on its bottom-right corner.  For a constrained resize,
+    click and drag on the bottom-left or top-right corner of
+    the enclosing window frame.
+
+ -- To flip around amongst the windows on-screen: click with the right
+    mouse button on the root window or on any window's frame or tab.
+
+ -- To switch between desktops (or "Channels"): click with the middle
+    mouse button towards the top-right corner of the root window.  A
+    big green number will be displayed showing which channel you are
+    currently on.  Click again before this number disappears to change
+    to the next channel.
+
+ -- To move a window from one channel to another: click with the
+    middle mouse button on its frame, and then repeatedly until you
+    reach the channel you want to move it to.
+
+ -- To start a new application of your choice: use the middle mouse
+    button on the root window, anywhere other than the top-right
+    corner of the root window.  If you have any executable programs in
+    your $HOME/.wmx directory -- or other directory named in
+    CONFIG_COMMAND_MENU -- they will be listed on a menu and you can
+    choose one to be started up.  (You can add and remove programs
+    while wmx is running.)
+
+ -- To exit from wmx: move the mouse pointer to the very edge of the
+    screen at the extreme lower-right corner, and click left button on
+    the root window for the root menu.  The menu should have an extra
+    option labelled "Exit wmx"; select this.
+
+All move and resize operations are opaque.
+
+
+Focus policy
+============
+
+Config.h contains settings for focus policy.  There are three things
+you can define to either True or False: CONFIG_CLICK_TO_FOCUS,
+CONFIG_RAISE_ON_FOCUS and CONFIG_AUTO_RAISE.  The first two are
+connected: together they define a focus policy.  The third is a
+separate focus policy on its own and will only work if the first two
+are both False.  CONFIG_AUTO_RAISE differs from
+(!CONFIG_CLICK_TO_FOCUS && CONFIG_RAISE_ON_FOCUS) only in that it
+provides a short delay before raising each window.  The delay is also
+definable in Config.h.
+
+
+Pixmaps
+=======
+
+wmx allows you to specify a background pixmap for the window frames.
+If you set CONFIG_USE_PIXMAPS to True in Config.h and supply a file
+./background.xpm which contains an Xpm pixmap called "background", wmx
+will use this to colour in the frames.  An especially unpleasant
+example file, cribbed and modified from
+http://home.netscape.com/assist/net_sites/bg/marble/greenred_marble.gif,
+is included, although you're advised to find your own.
+
+
+xterm
+=====
+
+Some versions of xterm and rxvt run badly with wmx.  If you use xterm
+and find that it refreshes the window excessively slowly, you might
+like to try experimenting with a different terminal emulation program.
+I think it might help to ensure that the scrollbar is on the
+right-hand side of the rxvt window and is thick enough that wmx's
+resize handle doesn't obscure any of the text area.
+
+
+Credits
+=======
+
+wmx was written by Chris Cannam, recycling a lot of code and structure
+from "9wm" by David Hogan.
+
+The sideways tabs on the window frames were Andy Green's idea.
+
+Alan Richardson's "xvertext" font-rotation routines are used for the
+window tabs.
+
+Jeremy Fitzhardinge provided the original application-menu code.
+
+If you want to hack the code into something else for your own
+amusement, please go ahead.  Feel free to modify and redistribute, as
+long as you retain the original copyrights as appropriate.
+
+
+Bugs
+====
+
+I know of one rather nasty bug that occasionally shows up: if you have
+some windows already on-screen (and not iconified or otherwise
+withdrawn) before you start wmx, they might not be reparented
+correctly and you could end up in a horrible mess.  On the other hand,
+everything might work fine.  I think this is a race condition; it can
+be okay for weeks and then suddenly start to fail repeatedly on the
+same machine.  I'll fix this as soon as I work out how...
+
+Otherwise, if you find a bug, please report it to me (preferably with
+a fix).
+
+
+
+Chris Cannam, cannam@zands.demon.co.uk
+March 1997
