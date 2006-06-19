@@ -151,9 +151,21 @@ void DynamicConfig::update(char *string)
 	    else if (OPTION("lower")) m_impl->rightBt = 2;
 	    else if (OPTION("toggleheight")) m_impl->rightBt = 4;
 	
-	if (OPTION("tabfg:")) strncpy(m_impl->tabfg, s, COLOR_LEN);
-	if (OPTION("tabbg:")) strncpy(m_impl->tabbg, s, COLOR_LEN);
-	if (OPTION("framebg:")) strncpy(m_impl->framebg, s, COLOR_LEN);
+	if (OPTION("tabfg:")) {
+	    strncpy(m_impl->tabfg, s, COLOR_LEN);
+	    m_impl->tabfg[COLOR_LEN-1] = '\0';	// prevent unterminated string
+	    s += strlen(m_impl->tabfg);		// avoid error message below
+	}
+	if (OPTION("tabbg:")) {
+	    strncpy(m_impl->tabbg, s, COLOR_LEN);
+	    m_impl->tabbg[COLOR_LEN-1] = '\0';
+	    s += strlen(m_impl->tabbg);
+	}
+	if (OPTION("framebg:")) {
+	    strncpy(m_impl->framebg, s, COLOR_LEN);
+	    m_impl->framebg[COLOR_LEN-1] = '\0';
+	    s += strlen(m_impl->framebg);
+	}
 
 	if (*s != '\0') {
 	    fprintf(stderr, "\nwmx: Dynamic configuration error: "
