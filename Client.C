@@ -668,27 +668,6 @@ char *Client::getProperty(Atom a)
     return (char *)p;
 }
 
-
-int Client::getAtomProperty(Atom a, Atom type)
-{
-    char **p, *x;
-    if (getProperty_aux(display(), m_window, a, type, 1L,
-			(unsigned char **)&p) <= 0) {
-	return 0;
-    }
-
-    x = *p;
-    XFree((void *)p);
-    return (int)x;
-}
-
-
-int Client::getIntegerProperty(Atom a)
-{
-    return getAtomProperty(a, XA_INTEGER);
-}
-
-
 void Client::setState(int state)
 {
     m_state = state;

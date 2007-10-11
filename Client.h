@@ -184,8 +184,6 @@ private:
     WindowManager *const m_windowManager;
 
     char *getProperty(Atom);
-    int getAtomProperty(Atom, Atom);
-    int getIntegerProperty(Atom);
 
     // accessors 
     Boolean getState(int *);
