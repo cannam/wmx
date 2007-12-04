@@ -67,7 +67,7 @@ WindowManager::WindowManager(int argc, char **argv) :
 	    "     %s\n     Copying and redistribution encouraged.  "
 	    "No warranty.\n\n", XV_COPYRIGHT);
 
-    int i;
+    int i, j;
 #if CONFIG_USE_SESSION_MANAGER != False
     char *oldSessionId = 0;
 #endif
@@ -217,15 +217,30 @@ WindowManager::WindowManager(int argc, char **argv) :
     if (!m_shell) m_shell = NewString("/bin/sh");
 
     // find out what the Alt keycode and thus modifier mask are
-    KeyCode alt = XKeysymToKeycode(m_display, CONFIG_ALT_KEY);
+    int kpk = 0;
+    int kmin = 0;
+    int kmax = 0;
+    XDisplayKeycodes(m_display, &kmin, &kmax);
+    KeySym *keymap = XGetKeyboardMapping(m_display, kmin, kmax - kmin, &kpk);
     XModifierKeymap *modmap = XGetModifierMapping(m_display);
-    for (i = 0; i < (8 * modmap->max_keypermod); ++i) {
-        if (modmap->modifiermap[i] == alt) {
-            m_altModMask = 1 << (i / modmap->max_keypermod);
-        }
+    KeyCode alt = 0;
+    for (i = 0; i < (kmax - kmin) * kpk; ++i) {
+	if (keymap[i] == CONFIG_ALT_KEY) {
+	    alt = kmin + (i / kpk);
+	    for (j = 0; j < (8 * modmap->max_keypermod); ++j) {
+		if (modmap->modifiermap[j] == alt) {
+		    m_altModMask = 1 << (j / modmap->max_keypermod);
+		}
+	    }
+	    if (m_altModMask) break;
+	}
     }
-    if (!m_altModMask)
+
+    if (!m_altModMask) {
+	fprintf(stderr, "configured Alt keysym: 0x%x (keycode %d, 0x%x)\n",
+                CONFIG_ALT_KEY, alt, alt);
         fatal("no modifier corresponds to the configured Alt keysym");
+    }
     XFreeModifiermap(modmap);
 
     m_initialising = True;
@@ -366,7 +381,8 @@ void WindowManager::release()
 void WindowManager::fatal(const char *message)
 {
     fprintf(stderr, "wmx: ");
-    perror(message);
+    if (errno != 0) perror(message);
+    else fprintf(stderr, "%s", message);
     fprintf(stderr, "\n");
     exit(1);
 }
