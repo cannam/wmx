@@ -251,6 +251,29 @@ private:
 // Section III. Colours and fonts
 // ==============================
 
+// Define CONFIG_USE_XFT to enable Xft support for drawing fonts.
+// Otherwise plain X calls will be used.  The rest of the font
+// configuration depends on whether or not this is set.
+
+#define CONFIG_USE_XFT 1
+
+#ifdef CONFIG_USE_XFT
+
+// Fonts used all over the place.  FRAME_FONT is a comma-separated
+// list of font names to use for the frame text (the first available
+// font in the list is used).  MENU_FONT is likewise for menu text.
+// The SIZE values are in pixels.
+
+//!!! no proper way to handle italic/bold yet
+
+#define CONFIG_FRAME_FONT "Bitstream Vera Sans,Lucida Sans Unicode"
+#define CONFIG_FRAME_FONT_SIZE 12
+
+#define CONFIG_MENU_FONT "Bitstream Vera Sans,Lucida Sans Unicode"
+#define CONFIG_MENU_FONT_SIZE 12
+
+#else
+
 // Define I18N to enable I18N patch by Kazushi (Jam) Marukawa
 // 
 // Ability to display I18N characters.  Defines I18N as "1" to display
@@ -263,7 +286,7 @@ private:
 // all, probably you should compile your X11 library with -DX_LOCALE.
 // I did it for my NetBSD box. :-)
 
-#define I18N 0
+#define I18N 1
 
 // Fonts used all over the place.  NICE_FONT is for the frames, and
 // NICE_MENU_FONT for the menus.  NASTY_FONT is what you'll get if it
@@ -278,6 +301,8 @@ private:
 #define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed"
+#endif
+
 #endif
 
 // If USE_PLAIN_X_CURSORS is True, wmx will use cursors from the

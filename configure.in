@@ -30,6 +30,14 @@ AC_CHECK_LIB(Xext, XShapeQueryExtension)
 dnl Xpm is not strictly necessary
 AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData)
 
+dnl Freetype: actually only needed if CONFIG_USE_XFT
+PKG_CHECK_MODULES([FT],[freetype2])
+PKG_CHECK_MODULES([XFT],[xft])
+AC_SUBST(FT_CFLAGS)
+AC_SUBST(FT_LIBS)
+AC_SUBST(XFT_CFLAGS)
+AC_SUBST(XFT_LIBS)
+
 dnl We want to put wmx where twm lies.
 AC_PREFIX_PROGRAM(twm)
 

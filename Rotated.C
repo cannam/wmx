@@ -1,3 +1,4 @@
+
 /* ********************************************************************** */
 
 /* xvertext, Copyright (c) 1992 Alan Richardson (mppa3@uk.ac.sussex.syma)
@@ -26,6 +27,7 @@
 #include "Config.h"
 #include "Rotated.h"
 
+#ifndef CONFIG_USE_XFT
 
 #if I18N
 #undef NOPIXMAP
@@ -848,3 +850,4 @@ void XRotDrawAlignedString(Display *dpy, int screen, XRotFontStruct *rotfont,
   free(str1);
 }
 
+#endif

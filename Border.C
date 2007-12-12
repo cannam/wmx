@@ -12,9 +12,14 @@
 #endif
 
 // These are degenerate initialisations, don't change them
-int *Border::m_tabWidth = 0;
+#ifdef CONFIG_USE_XFT
+XftFont *Border::m_tabFont = 0;
+XftColor *Border::m_xftColour = 0;
+#else
 XRotFontStruct **Border::m_tabFont = 0;
-GC  *Border::m_drawGC = 0;
+#endif
+int *Border::m_tabWidth = 0;
+GC *Border::m_drawGC = 0;
 
 unsigned long *Border::m_foregroundPixel;
 unsigned long *Border::m_backgroundPixel;
@@ -64,6 +69,9 @@ void BorderRectangleList::append(int x, int y, int w, int h)
 Border::Border(Client *const c, Window child) :
     m_client(c), m_parent(0), m_tab(0),
     m_child(child), m_button(0), m_resize(0), m_label(0),
+#ifdef CONFIG_USE_XFT
+    m_xftDraw(0),
+#endif
     m_prevW(-1), m_prevH(-1), m_tabHeight(-1)
 {
     m_parent = root();
@@ -91,6 +99,10 @@ Border::~Border()
 	    if (m_feedback) {
 	        XDestroyWindow(display(), m_feedback);
 	    }
+
+#ifdef CONFIG_USE_XFT
+	    if (m_xftDraw) XftDrawDestroy(m_xftDraw);
+#endif
 	}
     }
 
@@ -105,8 +117,13 @@ void Border::initialiseStatics(WindowManager *wm)
     XGCValues *values;
     
     m_drawGC = (GC *) malloc(wm->screensTotal() * sizeof(GC));
+#ifdef CONFIG_USE_XFT
+    m_xftColour = (XftColor *) malloc(wm->screensTotal() *
+				      sizeof(XftColor));
+#else
     m_tabFont = (XRotFontStruct **) malloc(wm->screensTotal() * 
 					   sizeof(XRotFontStruct *));
+#endif
     m_tabWidth = (int *) malloc(wm->screensTotal() * sizeof(int));
     m_foregroundPixel = (unsigned long *) malloc(wm->screensTotal() * 
 						 sizeof(unsigned long));
@@ -126,6 +143,81 @@ void Border::initialiseStatics(WindowManager *wm)
 		  "have different storage requirements -- bailing out");
     }
 
+#ifdef CONFIG_USE_XFT
+    char *fi = strdup(CONFIG_FRAME_FONT);
+    char *ffi = fi, *tokstr = fi;
+    while ((fi = strtok(tokstr, ","))) {
+
+	fprintf(stderr, "fi = \"%s\"\n", fi);
+	tokstr = 0;
+
+	int ascent = 0, height = 0;
+
+	// We have to query the font twice, because ascent and height
+	// are not returned properly when querying with a rotated matrix
+
+	FcPattern *pattern = FcPatternCreate();
+	FcPatternAddString(pattern, FC_FAMILY, (FcChar8 *)fi);
+	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ROMAN);
+	FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_DEMIBOLD);
+	FcPatternAddInteger(pattern, FC_PIXEL_SIZE, CONFIG_FRAME_FONT_SIZE);
+	FcConfigSubstitute(FcConfigGetCurrent(), pattern, FcMatchPattern);
+
+	FcResult result = FcResultMatch;
+	FcPattern *match = FcFontMatch(FcConfigGetCurrent(), pattern, &result);
+
+	if (!match || result != FcResultMatch) {
+	    FcPatternDestroy(pattern);
+	    if (match) FcPatternDestroy(match);
+	    continue;
+	}
+
+	XftFont *refFont = XftFontOpenPattern(wm->display(), match);
+	if (!refFont) {
+	    FcPatternDestroy(pattern);
+	    FcPatternDestroy(match);
+	    continue;
+	}
+
+	ascent = refFont->ascent;
+	height = refFont->height;
+	fprintf(stderr, "tab font ascent=%d, height=%d\n", ascent, height);
+	
+	XftFontClose(wm->display(), refFont);
+	FcPatternDestroy(match);
+	    
+	FcMatrix matrix;
+	FcMatrixInit(&matrix);
+	FcMatrixRotate(&matrix, 0, 1);
+	FcPatternAddMatrix(pattern, FC_MATRIX, &matrix);
+
+	result = FcResultMatch;
+	match = FcFontMatch(FcConfigGetCurrent(), pattern, &result);
+
+	FcPatternDestroy(pattern);
+
+	if (!match || result != FcResultMatch) {
+	    if (match) FcPatternDestroy(match);
+	    continue;
+	}
+
+	m_tabFont = XftFontOpenPattern(wm->display(), match);
+	fprintf(stderr, "tab font ascent = %d\n", m_tabFont->ascent);
+	if (!m_tabFont) {
+	    FcPatternDestroy(match);
+	} else {
+	    m_tabFont->ascent = ascent;
+	    m_tabFont->height = height;
+	    break;
+	}
+    }
+
+    free(ffi);
+    if (!m_tabFont) {
+	wm->fatal("couldn't load default rotated Xft font, bailing out");
+    }
+#endif
+
     for (int i = 0; i < wm->screensTotal(); i++)
     {
 	m_tabWidth[i] = -1;
@@ -141,6 +233,7 @@ void Border::initialiseStatics(WindowManager *wm)
 	m_borderPixel[i] = wm->allocateColour
 	  (i, CONFIG_BORDERS, "border");
 
+#ifndef CONFIG_USE_XFT
 	if (!(m_tabFont[i] = XRotLoadFont(wm->display(), i,
 					  CONFIG_NICE_FONT, 90.0)))
 	{
@@ -152,6 +245,18 @@ void Border::initialiseStatics(WindowManager *wm)
 	}
 
 	m_tabWidth[i] = m_tabFont[i]->height + 4;
+#else
+	XftColorAllocName
+	    (wm->display(),
+	     XDefaultVisual(wm->display(), i),
+	     XDefaultColormap(wm->display(), i),
+	     CONFIG_TAB_FOREGROUND,
+	     &m_xftColour[i]);
+
+	fprintf(stderr, "tab font height = %d\n", (int)m_tabFont->height);
+	m_tabWidth[i] = m_tabFont->height + 4;
+#endif
+
 	if (m_tabWidth[i] < TAB_TOP_HEIGHT * 2 + 8) {
 	    m_tabWidth[i] = TAB_TOP_HEIGHT * 2 + 8;
 	}
@@ -310,9 +415,21 @@ void Border::drawLabel()
 {
     if (m_label) {
 	XClearWindow(display(), m_tab);
+#ifdef CONFIG_USE_XFT
+//	fprintf(stderr, "coords: %d,%d\n", (int)(2 + m_tabFont->ascent),
+//		(int)(m_tabHeight - 1));
+	XftDrawStringUtf8(m_xftDraw,
+			  &m_xftColour[screen()],
+			  m_tabFont,
+			  2 + m_tabFont->ascent,
+			  m_tabHeight - 1,
+			  (FcChar8 *)m_label,
+			  strlen(m_label));
+#else
 	XRotDrawString(display(), screen(), m_tabFont[screen()], m_tab,
 		       m_drawGC[screen()], 2 +m_tabFont[screen()]->max_ascent,
 		       m_tabHeight - 1, m_label, strlen(m_label));
+#endif
     }
 }
 
@@ -328,6 +445,19 @@ Boolean Border::isFixedSize(void)
     return m_client->isFixedSize();
 }
 
+int Border::getRotatedTextWidth(char *text)
+{
+#ifdef CONFIG_USE_XFT
+    XGlyphInfo extents;
+    XftTextExtentsUtf8(display(), m_tabFont, (FcChar8 *)text, strlen(text),
+		       &extents);
+//    fprintf(stderr, "extents width=%d height=%d\n", (int)extents.width,
+//	    (int)extents.height);
+    return extents.height;
+#else
+    return XRotTextWidth(m_tabFont[screen()], text, strlen(text));
+#endif
+}
 
 void Border::fixTabHeight(int maxHeight)
 {
@@ -336,38 +466,37 @@ void Border::fixTabHeight(int maxHeight)
 
     // At least we need the button and its box.
     if (maxHeight < m_tabWidth[screen()] + 2) maxHeight = 
-      m_tabWidth[screen()] + 2;
+	m_tabWidth[screen()] + 2;
+
+//    fprintf(stderr, "client label: \"%s\"\n", m_client->label());
 
     if (m_label) free(m_label);
     m_label = NewString(m_client->label());
     
     if (m_label) {
-	m_tabHeight =
-	    XRotTextWidth(m_tabFont[screen()], m_label, strlen(m_label)) + 6 + m_tabWidth[screen()];
+	m_tabHeight = getRotatedTextWidth(m_label) + 6 + m_tabWidth[screen()];
     }
+
+//    fprintf(stderr, "my label: \"%s\"\n", m_label);
 
     if (m_tabHeight <= maxHeight) return;
 
-//!!!
-//    if (m_label) free(m_label);
-//    m_label = m_client->iconName() ?
-//	NewString(m_client->iconName()) : NewString("incognito");
     if (!m_label) {
 	m_label = m_client->iconName() ?
 	    NewString(m_client->iconName()) : NewString("incognito");
     }
 
     int len = strlen(m_label);
-    m_tabHeight = XRotTextWidth(m_tabFont[screen()], m_label, len) + 6 + m_tabWidth[screen()];
+    m_tabHeight = getRotatedTextWidth(m_label) + 6 + m_tabWidth[screen()];
     if (m_tabHeight <= maxHeight) return;
 
     char *newLabel = (char *)malloc(len + 3);
 
     do {
+	// (incorrect for utf8)
 	strncpy(newLabel, m_label, len - 1);
 	strcpy(newLabel + len - 1, "...");
-	m_tabHeight = XRotTextWidth(m_tabFont[screen()], newLabel,
-				    strlen(newLabel)) + 6 + m_tabWidth[screen()];
+	m_tabHeight = getRotatedTextWidth(newLabel) + 6 + m_tabWidth[screen()];
 	--len;
 
     } while (m_tabHeight > maxHeight && len > 2);
@@ -380,6 +509,8 @@ void Border::fixTabHeight(int maxHeight)
 	free(m_label);
 	m_label = NewString("");
     }
+
+//    fprintf(stderr, "my shorter label: \"%s\"\n", m_label);
 }
 
 
@@ -864,6 +995,12 @@ void Border::configure(int x, int y, int w, int h,
 		XChangeWindowAttributes(display(), m_feedback, CWSaveUnder, &wa);
 	    }
 	}
+
+#ifdef CONFIG_USE_XFT
+	m_xftDraw = XftDrawCreate(display(), m_tab,
+				  XDefaultVisual(display(), screen()),
+				  XDefaultColormap(display(), screen()));
+#endif
     }
 
     XWindowChanges wc;

@@ -50,6 +50,14 @@ typedef char Boolean;
 
 #include "Config.h"
 
+#ifdef CONFIG_USE_XFT
+#include <ft2build.h>
+#include FT_FREETYPE_H 
+#include FT_OUTLINE_H
+#include FT_GLYPH_H
+#include <X11/Xft/Xft.h>
+#endif
+
 #if CONFIG_USE_SESSION_MANAGER != False
 #include <X11/SM/SMlib.h>
 #endif

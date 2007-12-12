@@ -1,3 +1,5 @@
+#ifndef CONFIG_USE_XFT
+
 /* ************************************************************************ */
 
 
@@ -7,7 +9,6 @@
 
 
 /* ************************************************************************ */
-
 
 #ifndef _XVERTEXT_INCLUDED_ 
 #define _XVERTEXT_INCLUDED_
@@ -100,3 +101,5 @@ extern int		 xv_errno;
 extern int		 xv_errno;
 
 #endif 
+
+#endif
