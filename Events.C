@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Manager.h"
 #include "Client.h"
@@ -156,14 +157,19 @@ void WindowManager::nextEvent(XEvent *e)
 	t.tv_sec = t.tv_usec = 0;
 
 #if CONFIG_USE_SESSION_MANAGER != False
-	if (m_smFD >= 0) FD_SET(m_smFD, &rfds);
+	if (m_smFD >= 0) {
+            FD_SET(m_smFD, &rfds);
+        }
 #endif
+
+        int nfds = fd + 1;
+        if (m_smFD > fd) nfds = m_smFD + 1;
 
 #ifdef hpux
 #define select(a,b,c,d,e) select((a),(int *)(b),(c),(d),(e))
 #endif
 
-	if (select(fd + 1, &rfds, NULL, NULL, &t) > 0) {
+	if (select(nfds, &rfds, NULL, NULL, &t) > 0) {
 
 	    //!!! This two-select structure is getting disgusting;
 	    // a marginal improvement would be to put this body in
@@ -175,6 +181,7 @@ void WindowManager::nextEvent(XEvent *e)
 		Bool rep;
                 if (IceProcessMessages(m_smIceConnection, NULL, &rep)
                     == IceProcessMessagesIOError) {
+                    fprintf(stderr, "wmx: Error processing ICE message: closing session manager connection\n");
                     SmcCloseConnection(m_smConnection, 0, NULL);
 		    m_smIceConnection = NULL;
 		    m_smConnection = NULL;
@@ -196,10 +203,12 @@ void WindowManager::nextEvent(XEvent *e)
 	t.tv_sec = 0; t.tv_usec = 20000;
 
 #if CONFIG_USE_SESSION_MANAGER != False
-	if (m_smFD >= 0) FD_SET(m_smFD, &rfds);
+	if (m_smFD >= 0) {
+            FD_SET(m_smFD, &rfds);
+        }
 #endif
 
-	if ((r = select(fd + 1, &rfds, NULL, NULL,
+	if ((r = select(nfds, &rfds, NULL, NULL,
 			(m_channelChangeTime > 0 || m_focusChanging) ? &t :
 			(struct timeval *)NULL)) > 0) {
 
@@ -208,6 +217,7 @@ void WindowManager::nextEvent(XEvent *e)
 		Bool rep;
                 if (IceProcessMessages(m_smIceConnection, NULL, &rep)
                     == IceProcessMessagesIOError) {
+                    fprintf(stderr, "wmx: Error processing ICE message: closing session manager connection [2]\n");
                     SmcCloseConnection(m_smConnection, 0, NULL);
 		    m_smIceConnection = NULL;
 		    m_smConnection = NULL;
@@ -436,7 +446,8 @@ void Client::eventConfigureRequest(XConfigureRequestEvent *e)
 	    }
 	} else {
 	    mapRaised();
-	    if (CONFIG_CLICK_TO_FOCUS) activate();
+	    if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick())
+                 activate();
 	}
     }
 }
@@ -448,7 +459,7 @@ void WindowManager::eventMapRequest(XMapRequestEvent *e)
 
     // JG
     if (!c) {
-	// fprintf(stderr, "wm2: start managing window %lx\n", e->window);
+	    fprintf(stderr, "wmx: start managing window %lx\n", e->window);
 	c = windowToClient(e->window, True);
 	if (c) {
 	    c->eventMapRequest(e);
@@ -457,6 +468,8 @@ void WindowManager::eventMapRequest(XMapRequestEvent *e)
     } else {
 	c->eventMapRequest(e);
     }
+    
+    updateStackingOrder();
 
     // some stuff for multi-screen fuckups here, omitted
 
@@ -473,6 +486,7 @@ void Client::eventMapRequest(XMapRequestEvent *)
 
     case WithdrawnState:
 	if (parent() == root()) {
+		fprintf(stderr, "about to manage client from Client::eventMapRequest\n");
 	    manage(False);
 	    return;
 	}
@@ -486,7 +500,7 @@ void Client::eventMapRequest(XMapRequestEvent *)
 	}
 	mapRaised();
 	setState(NormalState);
-	if (CONFIG_CLICK_TO_FOCUS) activate();
+	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
 	break;
 
     case NormalState:
@@ -494,7 +508,7 @@ void Client::eventMapRequest(XMapRequestEvent *)
 	    XMapWindow(display(), m_window);
 	}
 	mapRaised();
-	if (CONFIG_CLICK_TO_FOCUS) activate();
+	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
 	break;
 
     case IconicState:
@@ -540,13 +554,14 @@ void Client::eventUnmap(XUnmapEvent *e)
     // transient window.
     if (transientFor()) {
 
-#if CONFIG_GNOME_COMPLIANCE != False
 	// gotta take it off the m_ordered list 
+	// (if we don't do this, sometimes we see transitent windows when we aren't
+	// meant to - for an example, open netscape's find window and click close.
+	// If this line isn't here, the window will stay, but be blank.
 	m_windowManager->removeFromOrderedList(this);
-#endif
 
 	Client* c = windowManager()->windowToClient(transientFor());
-	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS) {
+	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS && !c->isFocusOnClick()) {
 	    c->activate();
 	    if (CONFIG_AUTO_RAISE) {
 		c->windowManager()->considerFocusChange(this, c->m_window, windowManager()->timestamp(False));
@@ -613,7 +628,8 @@ void WindowManager::eventDestroy(XDestroyWindowEvent *e)
 	c->release();
 
 	ignoreBadWindowErrors = True;
-	XSync(display(), False);
+	XSync(display(), False
+                );
 	ignoreBadWindowErrors = False;
     }
 }
@@ -621,62 +637,87 @@ void WindowManager::eventDestroy(XDestroyWindowEvent *e)
 
 void WindowManager::eventClient(XClientMessageEvent *e)
 {
-    Client *c = windowToClient(e->window);
-
-    if (e->message_type == Atoms::wm_changeState) {
-	if (c && e->format == 32 && e->data.l[0] == IconicState && c != 0) {
-	    if (c->isNormal()) c->hide();
-	    return;
-	}
-    }
-
-#if CONFIG_GNOME_COMPLIANCE != False
-    // now we have to figure out what messages gnome is sending us 
-    char *atomName = XGetAtomName(display(), e->message_type);
-    
-    if (strncmp(atomName, "_WIN_WORKSPACE", 13) == 0) {
+    if (e->message_type == Atoms::netwm_desktop) {
 
 	int channel = (int)e->data.l[0] + 1;
 
-	// gnome is not up-to-date and asked us to flip to a 
+	// netwm is not up-to-date and asked us to flip to a 
 	// non-existing channel
 	if (channel > m_channels) {
-	    
-	    gnomeUpdateChannelList();
+	    netwmUpdateChannelList();
 	    return;
 	}
+                
+        gotoChannel(channel, 0);
 
-	// it seems like there should be a better way of doing this...
-	while (m_currentChannel != channel) {
-	    if (m_currentChannel < channel) {
-		flipChannel(False, False, True, 0);
-	    } else {
-		flipChannel(False, True, True, 0);
-	    }
-	    XSync(display(), False);
+	return;
+    }
+    
+    Client *c = windowToClient(e->window);
+    if (c)
+        c->eventClient(e);
+    else
+	    fprintf(stderr, "wmx: Received client message for unknown client with window %lx!\n", e->window);
+}
+
+void Client::eventClient(XClientMessageEvent *e)
+{
+    //!!! review this
+
+    char *atomName0 = XGetAtomName(display(), e->message_type);
+    
+    fprintf(stderr, "wmx: received XClientMessageEvent with name \"%s\" for client \"%s\"", 
+            atomName0, name());
+        
+    XFree(atomName0);
+    
+    fprintf(stderr, ", type 0x%lx, " "window 0x%lx\n", e->message_type, e->window);
+
+
+    if (e->message_type == Atoms::netwm_activeWindow) {
+        if (m_channel != windowManager()->channel()) {
+            fprintf(stderr, "going to channel %d\n", (int)m_channel);
+            windowManager()->gotoChannel(m_channel, 0);
+        }
+        if (isHidden()) unhide(True);
+        else {
+            if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+            else mapRaised();
+            ensureVisible();
+        }
+        return;
+    }
+
+    if (e->message_type == Atoms::wm_changeState) {
+	if (e->format == 32 && e->data.l[0] == IconicState) {
+	    if (isNormal()) hide();
+	    return;
 	}
-
-	XFree(atomName);
-
-	gnomeUpdateChannelList();
-
+    } else if (e->message_type == Atoms::netwm_winLayer) {
+        setLayer(e->data.l[0]);
+        return;
+    } else if (e->message_type == Atoms::netwm_winState) {
+        // Although e->data.l[0] contains a mask of which values to change,
+        // We ignore it, prefering to simply compare data.l[1] with our
+        // internal state.  This helps to ensure consistency.
+        updateFromNetwmProperty(Atoms::netwm_winState, e->data.l[1]);
+        return;  
+    } else if (e->message_type == Atoms::netwm_winHints) {  
+        updateFromNetwmProperty(Atoms::netwm_winHints, e->data.l[1]);
+        return;  
+    } else if (e->message_type == 0xed) {  // What is this for?
+	XUnmapWindow(display(), window());
 	return;
     }
-
-    if (strncmp(atomName, "_WIN_AREA", 9) == 0) {
-	// we don't support _WIN_AREA 
-	XFree(atomName);
-	return;
-    }
+    
+    char *atomName = XGetAtomName(display(), e->message_type);
+    
+    fprintf(stderr, "wmx: unexpected XClientMessageEvent with name \"%s\" received", 
+            atomName);
+        
     XFree(atomName);
-#endif
-
-    if (e->message_type == 0xed) {
-	XUnmapWindow(display(), e->window);
-	return;
-    }
-
-    fprintf(stderr, "wmx: unexpected XClientMessageEvent, type 0x%lx, "
+    
+    fprintf(stderr, ", type 0x%lx, "
 	    "window 0x%lx\n", e->message_type, e->window);
 }
 
@@ -805,9 +846,9 @@ void Client::eventEnter(XCrossingEvent *e)
 
 	if (activeClient()->coordsInHole(e->x - x, e->y - y)) return;
     }
-
+/*********************************/
     if (e->type == EnterNotify) {
-	if (!isActive() && !CONFIG_CLICK_TO_FOCUS) {
+	if (!isActive() && !CONFIG_CLICK_TO_FOCUS && !isFocusOnClick()) {
 	    activate();
 	    if (CONFIG_AUTO_RAISE) {
 		windowManager()->considerFocusChange(this, m_window, e->time);

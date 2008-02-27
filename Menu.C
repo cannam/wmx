@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Menu.h"
 #include "Manager.h"
@@ -14,9 +15,7 @@ XftFont      *Menu::m_font;
 XftColor     *Menu::m_xftColour;
 XftDraw     **Menu::m_xftDraw;
 #else
-#if I18N
 XFontSet      Menu::m_fontset;
-#endif
 XFontStruct **Menu::m_font;
 #endif
 unsigned long Menu::m_foreground;
@@ -101,7 +100,6 @@ Menu::Menu(WindowManager *manager, XEvent *e)
 	      (i, CONFIG_MENU_BORDERS, "menu border");
 
 #ifndef CONFIG_USE_XFT
-#if I18N
 	    char **ml;
 	    int mc;
 	    char *ds;
@@ -119,13 +117,6 @@ Menu::Menu(WindowManager *manager, XEvent *e)
 		m_font[i] = NULL;
 	    }
 #define XDrawString(t,u,v,w,x,y,z) XmbDrawString(t,u,m_fontset,v,w,x,y,z)
-#else
-	    m_font[i] = XLoadQueryFont(display(), CONFIG_NICE_MENU_FONT);
-	    if (!m_font[i])
-	    {
-		m_font[i] = XLoadQueryFont(display(), CONFIG_NASTY_FONT);
-	    }
-#endif
 	    if (!m_font[i]) m_windowManager->fatal("couldn't load menu font\n");
 #endif
 	    
@@ -195,11 +186,7 @@ int Menu::getTextWidth(char *text, unsigned int len)
     XftTextExtentsUtf8(display(), m_font, (FcChar8 *)text, len, &extents);
     return extents.width;
 #else
-#if I18N
     return XmbTextEscapement(m_fontset, text, len);
-#else 
-    return XTextWidth(m_font[screen()], text, len);
-#endif
 #endif
 }
 
@@ -213,11 +200,7 @@ void Menu::cleanup(WindowManager *const wm)
 #ifdef CONFIG_USE_XFT
 	    XftDrawDestroy(m_xftDraw[i]);
 #else
-#if I18N
 	    XFreeFontSet(wm->display(), m_fontset);
-#else
-	    XFreeFont(wm->display(), m_font[i]);
-#endif
 #endif
 	    XFreeGC(wm->display(), m_menuGC[i]);
 	}
@@ -576,6 +559,8 @@ int Menu::getSelection()
 ClientMenu::ClientMenu(WindowManager *manager, XEvent *e)
     : Menu(manager, e), m_allowExit(False)
 {
+    //!!! this is effectively calling a pure virtual from a constructor,
+    // which is a bit gross
     int selecting = getSelection();
 
     if (selecting == m_nItems-1 && m_allowExit) { // getItems sets m_allowExit
@@ -624,12 +609,13 @@ char **ClientMenu::getItems(int *niR, int *nhR)
     XButtonEvent *xbev = (XButtonEvent *)m_event; // KeyEvent is similar enough
 
     for (i = 0; i < m_windowManager->hiddenClients().count(); ++i) {
-	if (
-	    m_windowManager->hiddenClients().item(i)->root() ==
-	    m_windowManager->root() &&
-	    m_windowManager->hiddenClients().item(i)->channel() ==
-	    m_windowManager->channel()) {
-	    m_clients.append(m_windowManager->hiddenClients().item(i));
+        Client *client = m_windowManager->hiddenClients().item(i);
+	if (client->root() == m_windowManager->root() &&
+	    client->channel() == m_windowManager->channel() &&
+            client->type() != DockClient) {
+            fprintf(stderr, "wmx: Menu: hidden client %d is \"%s\"\n",
+                    i, client->name());
+	    m_clients.append(client);
 	}
     }
 
@@ -638,12 +624,14 @@ char **ClientMenu::getItems(int *niR, int *nhR)
 
     if (CONFIG_EVERYTHING_ON_ROOT_MENU) {
 	for (i = 0; i < m_windowManager->clients().count(); ++i) {
-	    if (m_windowManager->clients().item(i)->isNormal() &&
-		m_windowManager->clients().item(i)->root() ==
-		m_windowManager->root() &&
-		m_windowManager->clients().item(i)->channel() ==
-		m_windowManager->channel()) {
-		m_clients.append(m_windowManager->clients().item(i));
+            Client *client = m_windowManager->clients().item(i);
+	    if (client->isNormal() &&
+		client->root() == m_windowManager->root() &&
+		client->channel() == m_windowManager->channel() &&
+                client->type() != DockClient) {
+		fprintf(stderr, "wmx: Menu: client %d is \"%s\"\n",
+			i, client->name());
+		m_clients.append(client);
 	    }
 	}
     }

@@ -61,7 +61,7 @@ void List::append(const T &item) { \
 void List::remove(long index) { \
     assert(index >= 0 && index < m_count); \
     m_items[index].T::~T(); \
-    memcpy(m_items+index, m_items+index+1, (m_count-index-1) * sizeof(T)); \
+    memmove(m_items+index, m_items+index+1, (m_count-index-1) * sizeof(T)); \
     if (m_count == 1) { \
 	free((void *)m_items); m_items = 0; \
     } else { \

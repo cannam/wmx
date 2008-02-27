@@ -24,6 +24,8 @@ struct DynamicConfigImpl
     int  feeddelay;
     char disable;	// 0 = New Window option, 1 = no New
     char rightBt;	// 0 = disable, 1 = circulate, 2 = lower, 4 = height
+    char passfocusclick;// 0 = no, 1 = yes
+    char tabmargin;
     char tabfg[COLOR_LEN];     // black
     char tabbg[COLOR_LEN];     // gray80
     char framebg[COLOR_LEN];   // gray95
@@ -63,6 +65,8 @@ DynamicConfig::DynamicConfig() : m_impl(new DynamicConfigImpl)
     m_impl->feeddelay = 300;
     m_impl->disable = 0;        // 0 = allow New window, 1 = don't
     m_impl->rightBt = 1;	// 0 = disable, 1 = circulate, 2 = lower
+    m_impl->passfocusclick = 1;
+    m_impl->tabmargin = 2;
     strcpy(m_impl->tabfg, "black");
     strcpy(m_impl->tabbg, "gray80");
     strcpy(m_impl->framebg, "gray95");
@@ -87,6 +91,8 @@ char DynamicConfig::disableNew() { return m_impl->disable & 1; }
 char DynamicConfig::rightCirculate() { return m_impl->rightBt & 1; }
 char DynamicConfig::rightLower() { return m_impl->rightBt & 2; }
 char DynamicConfig::rightToggleHeight() { return m_impl->rightBt & 4; }
+char DynamicConfig::passFocusClick() { return m_impl->passfocusclick; }
+int  DynamicConfig::tabMargin() { return m_impl->tabmargin; }
 char *DynamicConfig::tabForeground() { return m_impl->tabfg; }
 char *DynamicConfig::tabBackground() { return m_impl->tabbg; }
 char *DynamicConfig::frameBackground() { return m_impl->framebg; }
@@ -137,6 +143,10 @@ void DynamicConfig::update(char *string)
 		if (OPTION(",")) m_impl->feeddelay = strtol(s, &s, 10);
 	    } else if (OPTION("off")) m_impl->feedback = 0;
 
+	if (OPTION("passclick:"))
+	    if (OPTION("on")) m_impl->passfocusclick = 1;
+	    else if (OPTION("off")) m_impl->passfocusclick = 0;
+
 	if (OPTION("focus:"))
 	    if (OPTION("click")) m_impl->focus = 3;
 	    else if (OPTION("raise")) m_impl->focus = 2;
@@ -151,6 +161,9 @@ void DynamicConfig::update(char *string)
 	    else if (OPTION("lower")) m_impl->rightBt = 2;
 	    else if (OPTION("toggleheight")) m_impl->rightBt = 4;
 	
+        if (OPTION("tabmargin:"))
+            m_impl->tabmargin = strtol(s, &s, 10);
+  
 	if (OPTION("tabfg:")) {
 	    strncpy(m_impl->tabfg, s, COLOR_LEN);
 	    m_impl->tabfg[COLOR_LEN-1] = '\0';	// prevent unterminated string

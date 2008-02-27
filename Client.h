@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #ifndef _CLIENT_H_
 #define _CLIENT_H_
@@ -5,8 +6,7 @@
 #include "General.h"
 #include "Manager.h"
 #include "Border.h"
-
-
+ 
 class Client {
 public:
     Client(WindowManager *const, Window, Boolean);
@@ -46,33 +46,49 @@ public:
     Client *revertTo() { return m_revert; }
     void setRevertTo(Client *c) { m_revert = c; }
 
-    Boolean isHidden()     { return (m_state == IconicState);    }
-    Boolean isWithdrawn()  { return (m_state == WithdrawnState); }
-    Boolean isNormal()     { return (m_state == NormalState);    }
-    Boolean isKilled()     { return (m_window == None);          }
-    Boolean isTransient()  { return ((m_transient != None)||(m_shaped)); }
-    Boolean isSticky()    { return m_sticky; }
-    Window  transientFor() { return m_transient; }
+    Boolean isHidden()      { return (m_state == IconicState);    }
+    Boolean isWithdrawn()   { return (m_state == WithdrawnState); }
+    Boolean isNormal()      { return (m_state == NormalState);    }
+    Boolean isKilled()      { return (m_window == None);          }
+    Boolean isTransient()   { return ((m_transient != None) || (m_shaped)); }
+    Boolean isSticky()      { return m_sticky; }
+    Boolean skipsFocus()    { return m_skipFocus || isNonFocusable(); } //!!!merge
+    Boolean isFocusOnClick(){ return m_focusOnClick; }
+    Boolean isMovable()     { return m_movable; }
+    Window  transientFor()  { return m_transient; }
 #if CONFIG_USE_WINDOW_GROUPS
-    Window  groupParent() { return m_groupParent; }
+    Window  groupParent()   { return m_groupParent; }
     Boolean isGroupParent() { return m_window == m_groupParent; }
 #endif
-    Boolean isFixedSize()  { return m_fixedSize; }
-    Boolean isShaped()     { return m_shaped; }
+    Boolean isFixedSize()   { return m_fixedSize; }
+    Boolean isShaped()      { return m_shaped; }
 
-    const char *label()    { return m_label;    }
-    const char *name()     { return m_name;     }
-    const char *iconName() { return m_iconName; }
+    // Client is borderless (like things on desktop or at 'dock' layer
+    // or above.
+    Boolean isBorderless()  { return ((layer() < NORMAL_LAYER) ||
+                                      (layer() > TOOLBAR_LAYER)); }
+    
+    // Client should not receive focus (panel, desktop etc.)
+    Boolean isNonFocusable(){ return ((layer() < NORMAL_LAYER) ||
+                                      (layer() > DIALOG_LAYER)); }
+
+    const char *label()     { return m_label;    }
+    const char *name()      { return m_name;     }
+    const char *iconName()  { return m_iconName; }
+
+    int layer()             { return m_layer; }
+  
+    ClientType type()       { return m_type; }
 
     int channel() { return m_channel;  }
     void flipChannel(Boolean leaving, int newChannel);
     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
-    void setChannel(int channel) { m_channel = channel;
-#if CONFIG_GNOME_COMPLIANCE != False
-                                   gnomeSetChannel();
-#endif
-}
-    void setSticky(Boolean sticky) { m_sticky = sticky; }
+    void setChannel(int channel) { m_channel = channel; netwmUpdateChannel(); }
+    void setSticky(Boolean sticky);
+    void setSkipFocus(Boolean);
+    void setFocusOnClick(Boolean);
+    void setMovable(Boolean);
+    void setLayer(int newLayer);
 
     void sendMessage(Atom, long);
     void sendConfigureNotify();
@@ -111,11 +127,12 @@ public:
     void eventEnter(XCrossingEvent *);
     void eventFocusIn(XFocusInEvent *);
     void eventExposure(XExposeEvent *);
+    void eventClient(XClientMessageEvent *);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    void gnomeSetChannel();
+    void printClientData();
+    
+    void netwmUpdateChannel();
     Window window()        { return m_window; }
-#endif
 
 protected:      // cravenly submitting to gcc's warnings
     ~Client();
@@ -144,6 +161,10 @@ private:
     int m_channel;
     Boolean m_unmappedForChannel;
     Boolean m_sticky;
+    Boolean m_skipFocus;
+    Boolean m_focusOnClick;
+    int m_layer;
+    ClientType m_type;
 
 //#if CONFIG_MAD_FEEDBACK != 0
     Boolean m_levelRaised;
@@ -152,6 +173,7 @@ private:
 
     XSizeHints m_sizeHints;
     Boolean m_fixedSize;
+    Boolean m_movable;
     int m_minWidth;
     int m_minHeight;
     void fixResizeDimensions(int &, int &, int &, int &);
@@ -183,17 +205,24 @@ private:
 
     WindowManager *const m_windowManager;
 
-    char *getProperty(Atom);
+    char *getProperty(Atom name);
+    char *getProperty(Atom name, Atom requiredType, int &length);
 
     // accessors 
     Boolean getState(int *);
     void setState(int);
+    void setNetwmProperty(Atom, unsigned char, Boolean);
 
+    void updateFromNetwmProperty(Atom, unsigned char);
+    
     // internal instantiation requests
     Boolean setLabel(void);	// returns True if changed
     void getColormaps(void);
     void getProtocols(void);
     void getTransient(void);
+    void getClientType(void);
+    void getChannel(void);
+    void getLayer(void);
 
     void decorate(Boolean active);
 };

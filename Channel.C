@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Manager.h"
 #include "Client.h"
@@ -112,8 +113,10 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 
 	ClientList considering;
 
-	for (i = (int)m_orderedClients.count()-1; i >= 0; --i) {
-	    considering.append(m_orderedClients.item(i));
+        for(int layer = 0; layer < MAX_LAYER; ++layer) {
+	    for (i = (int)m_orderedClients[layer].count()-1; i >= 0; --i) {
+		considering.append(m_orderedClients[layer].item(i));
+	    }
 	}
 
 	for (i = 0; i < (int)considering.count(); ++i) {
@@ -136,9 +139,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
     m_channelChangeTime = timestamp(True) +
 	(quickFlip ? CONFIG_QUICK_FLIP_DELAY : CONFIG_FLIP_DELAY);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    gnomeUpdateChannelList();
-#endif
+    netwmUpdateChannelList();
 }
 
 
@@ -153,8 +154,10 @@ void WindowManager::instateChannel()
 
     ClientList considering;
 
-    for (i = m_orderedClients.count()-1; i >= 0; --i) {
-	considering.append(m_orderedClients.item(i));
+    for(int layer = 0; layer < 7; ++layer) {
+        for (i = m_orderedClients[layer].count()-1; i >= 0; --i) {
+	    considering.append(m_orderedClients[layer].item(i));
+        }
     }
 
     for (i = 0; i < considering.count(); ++i) {
@@ -175,15 +178,15 @@ void WindowManager::checkChannel(int ch)
 {
     if (m_channels <= 2 || ch < m_channels - 1) return;
 
-    for (int i = m_orderedClients.count()-1; i >= 0; --i) {
-	if (m_orderedClients.item(i)->channel() == ch) return;
+    for(int layer = 0; layer < 7; ++layer) {
+        for (int i = m_orderedClients[layer].count()-1; i >= 0; --i) {
+	    if (m_orderedClients[layer].item(i)->channel() == ch) return;
+        }
     }
 
     --m_channels;
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    gnomeUpdateChannelList();
-#endif
+    netwmUpdateChannelList();
 
     if (m_currentChannel > m_channels) m_currentChannel = m_channels;
 
@@ -194,10 +197,7 @@ void WindowManager::checkChannel(int ch)
 void WindowManager::createNewChannel()
 {
     ++m_channels;
-#if CONFIG_GNOME_COMPLIANCE != False
-    gnomeUpdateChannelList();
-#endif
-
+    netwmUpdateChannelList();
 }
 
 void WindowManager::gotoChannel(int channel, Client *push)
@@ -205,7 +205,7 @@ void WindowManager::gotoChannel(int channel, Client *push)
     if (channel == m_currentChannel) {
 	flipChannel(True, False, False, 0);
 	return;
-   }
+    }
 
     if (channel > 0 && channel <= m_channels) {
 
@@ -217,5 +217,14 @@ void WindowManager::gotoChannel(int channel, Client *push)
 	    }
 	    XSync(display(), False);
 	}
+    }
+}
+
+void
+WindowManager::ensureChannelExists(int channel)
+{
+    if (m_channels <= channel) {
+        m_channels = channel + 1;
+        netwmUpdateChannelList();
     }
 }

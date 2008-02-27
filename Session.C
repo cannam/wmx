@@ -1,12 +1,8 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Manager.h"
 
-// This is largely thieved from icewm, by Marko Macek.  (If you want a
-// window manager that looks more conventional but works very smoothly
-// and isn't too heavy on resources, icewm is the best I've seen.)
-
-// Haven't actually got around to making this save anything worthwhile
-// yet, of course...
+// Thanks to icewm, by Marko Macek.
 
 #if CONFIG_USE_SESSION_MANAGER != False
 
@@ -23,6 +19,7 @@ void WindowManager::smWatchFD(IceConn c, IcePointer wmp,
         }
     } else {
         if (IceConnectionNumber(c) == wm->m_smFD) {
+            fprintf(stderr, "wmx: ICE connection closing\n");
             wm->m_smFD = -1;
 	}
     }
@@ -30,35 +27,16 @@ void WindowManager::smWatchFD(IceConn c, IcePointer wmp,
 
 void WindowManager::smSaveYourself(SmcConn c, SmPointer, int, Bool, int, Bool)
 {
-    SmcRequestSaveYourselfPhase2(c, &smSaveYourself2, NULL);
-}
-
-void WindowManager::smSaveYourself2(SmcConn c, SmPointer)
-{
-    //...
-
-    // Here we'd like to save information about which client is on
-    // which channel and at which coordinates -- that's easy enough,
-    // it's applying the data when we restart that's the tricky bit.
-
-    // To associate location data with particular clients, we need to
-    // have retrieved the necessary session-management identifier
-    // from each client (presumably on client initialisation); see
-    // the R6 ICCCM for details of the relevant atoms
-
-    // Do nothing, for now
-
     SmcSaveYourselfDone(c, True);
 }
 
 void WindowManager::smShutdownCancelled(SmcConn c, SmPointer)
 {
-    //...
+    SmcSaveYourselfDone(c, True);
 }
 
 void WindowManager::smSaveComplete(SmcConn c, SmPointer)
 {
-    //...
 }
 
 void WindowManager::smDie(SmcConn c, SmPointer wmp)
@@ -68,14 +46,12 @@ void WindowManager::smDie(SmcConn c, SmPointer wmp)
     SmcCloseConnection(c, 0, NULL);
     if (c == wm->m_smConnection) {
 	wm->m_smConnection = NULL;
-	wm->m_smIceConnection = NULL; //???
+	wm->m_smIceConnection = NULL;
     }
 }
 
 void WindowManager::initialiseSession(char *sessionProg, char *oldSessionId)
 {
-    // Largely thieved from icewm -- shout to the Marko Macek Massive!
-
     if (getenv("SESSION_MANAGER") == 0) {
 	fprintf(stderr, "wmx: no SESSION_MANAGER in environment, ignoring\n");
         return;
@@ -86,6 +62,9 @@ void WindowManager::initialiseSession(char *sessionProg, char *oldSessionId)
         return;
     }
 
+    fprintf(stderr, "wmx: initialising session manager: prog is \"%s\"\n",
+            sessionProg ? sessionProg : "(none)");
+	
     if (sessionProg) m_sessionProgram = NewString(sessionProg);
     else m_sessionProgram = NewString("wmx");
 
@@ -137,7 +116,7 @@ void WindowManager::setSessionProperties()
     { (char *)SmRestartCommand, (char *)SmLISTofARRAY8, 3,
       (SmPropValue *)&restartVal };
     SmProp cloneProp =
-    { (char *)SmCloneCommand, (char *)SmLISTofARRAY8, 2,
+    { (char *)SmCloneCommand, (char *)SmLISTofARRAY8, 1,
       (SmPropValue *)&restartVal };
 
     SmProp *props[] = {
@@ -148,7 +127,7 @@ void WindowManager::setSessionProperties()
     };
 
     char *user = getenv("USER");
-    const char *clientId = "-clientId";
+    const char *clientId = "--sm-client-id";
 
     programVal.length = strlen(m_sessionProgram);
     programVal.value = m_sessionProgram;

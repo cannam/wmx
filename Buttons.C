@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Manager.h"
 #include "Client.h"
@@ -17,46 +18,76 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     setScreenFromPointer();
     Client *c = windowToClient(e->window);
 
+    // We shouldn't be getting button events for non-focusable clients,
+    // but we'd better check just in case.
+    if (CONFIG_PASS_FOCUS_CLICK || c->isNonFocusable())
+        XAllowEvents(display(), ReplayPointer, e->time);            
+    else
+        XAllowEvents(display(), SyncPointer, e->time);
+ 
+    bool furniture = (c && ((c->type() == DesktopClient) ||
+                            (c->type() == DockClient)));
+
+    fprintf(stderr, "wmx: furniture? %s\n", furniture ? "yes" : "no");
+
 #if CONFIG_GNOME_BUTTON_COMPLIANCE == False
-    if (e->button == CONFIG_CIRCULATE_BUTTON && m_channelChangeTime == 0) {
-	if (DynamicConfig::config.rightCirculate())
-	    circulate(e->window == e->root);
-	else if (DynamicConfig::config.rightLower())
- 	{
-	    if (e->window != e->root && c) c->lower();
- 	}
- 	else if (DynamicConfig::config.rightToggleHeight())
- 	{
-  	    if (e->window != e->root && c) {
- 		if (c->isFullHeight()) {
- 		    c->unmaximise(Vertical);
- 		} else {
- 		    c->maximise(Vertical);
- 		}
- 	    }
- 	}
-	return;
+    if (!furniture) {
+        if (e->button == CONFIG_CIRCULATE_BUTTON && m_channelChangeTime == 0) {
+            if (DynamicConfig::config.rightCirculate())
+                circulate(e->window == e->root);
+            else if (DynamicConfig::config.rightLower())
+            {
+                if (e->window != e->root && c) c->lower();
+            }
+            else if (DynamicConfig::config.rightToggleHeight())
+            {
+                if (e->window != e->root && c) {
+                    if (c->isFullHeight()) {
+                        c->unmaximise(Vertical);
+                    } else {
+                        c->maximise(Vertical);
+                    }
+                }
+            }
+            return;
+        }
     }
 #endif
  
-    if (e->button == CONFIG_NEXTCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
-        // wheel "up" - increase channel
-        flipChannel(False, False, True, c);
-        return ;
-    } else if (e->button == CONFIG_PREVCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
-        // wheel "down" - decrease channel
-        flipChannel(False, True, True, c);
-        return ;
+    if (!furniture) {
+        if (e->button == CONFIG_NEXTCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
+            // wheel "up" - increase channel
+            flipChannel(False, False, True, c);
+            return ;
+        } else if (e->button == CONFIG_PREVCHANNEL_BUTTON && CONFIG_CHANNEL_SURF) {
+            // wheel "down" - decrease channel
+            flipChannel(False, True, True, c);
+            return ;
+        }
     }
     
-    if (e->window == e->root) {
+    bool effectiveRoot = false;
+    if (e->window == e->root) effectiveRoot = true;
+    else if (c && c->type() == DesktopClient) {
+        if (e->button == CONFIG_CLIENTMENU_BUTTON) {
+            if (e->state & m_altModMask) {
+                effectiveRoot = true;
+            } 
+        } else {
+            effectiveRoot = true;
+        }
+    }
+
+    fprintf(stderr, "wmx: effective root? %s\n", effectiveRoot ? "yes" : "no");
+
+    if (effectiveRoot) {
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE != False
         if ((e->button == CONFIG_CLIENTMENU_BUTTON || e->button == CONFIG_CIRCULATE_BUTTON)
             && m_channelChangeTime == 0) {
 
 	    XUngrabPointer(m_display, CurrentTime);
-	    XSendEvent(m_display, gnome_win, False, SubstructureNotifyMask, ev);
+	    XSendEvent(m_display, m_netwmCheckWin, False, SubstructureNotifyMask, ev);
 	    return;
 	} 
         
@@ -91,7 +122,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 	    CommandMenu menu(this, (XEvent *)e);
 	}
         
-    } else if (c) {
+    } else if (c && !furniture) {
 
 	if (e->button == CONFIG_COMMANDMENU_BUTTON && CONFIG_CHANNEL_SURF) {
 #if CONFIG_USE_CHANNEL_MENU	
@@ -108,8 +139,9 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
  	}
 
 	c->eventButton(e);
-	return;
-    }
+
+        return;
+    } 
 }
 
 
@@ -144,7 +176,8 @@ void WindowManager::circulate(Boolean activeFirst)
 	for (j = i + direction;
              (!m_clients.item(j)->isNormal() ||
                m_clients.item(j)->isTransient() ||
-               m_clients.item(j)->channel() != channel());
+               m_clients.item(j)->channel() != channel() ||
+               m_clients.item(j)->skipsFocus());
              j += direction) {
 
 	    if (direction > 0 && j >= m_clients.count() - 1) j = -1;
@@ -168,6 +201,9 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
 	Client *c = windowToClient(ev->window);
 
+        fprintf(stderr, "eventKeyPress, client %p (%s)\n",
+                c, c ? c->name() : "(none)");
+        
         if (key == CONFIG_ALT_KEY) {
             m_altPressed = True;
             m_altStateRetained = False;
@@ -214,7 +250,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
            if(pid == 0)
            {
                execl(CONFIG_SUNPOWER_EXEC,CONFIG_SUNPOWER_EXEC,
-                     CONFIG_SUNPOWER_OPTIONS);
+                     CONFIG_SUNPOWER_OPTIONS, NULL);
            }
 
        } else if (key == SunXK_PowerSwitchShift) {
@@ -222,7 +258,7 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
            if(pid == 0)
            {
                execl(CONFIG_SUNPOWER_EXEC,CONFIG_SUNPOWER_EXEC,
-                     CONFIG_SUNPOWER_SHIFTOPTIONS);
+                     CONFIG_SUNPOWER_SHIFTOPTIONS, NULL);
            }
        } else
 #endif // CONFIG_WANT_SUNPOWERKEY
@@ -323,6 +359,12 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 			break;
 		    }
 
+#ifdef CONFIG_DEBUG_KEY
+                case CONFIG_DEBUG_KEY:
+                    printClientList();
+                    break;
+#endif
+
 #if CONFIG_GROUPS != False
 		case XK_0:
 		case XK_1:
@@ -421,7 +463,7 @@ void WindowManager::windowGrouping(XKeyEvent *ev, KeySym key, Client *c) {
 	    int temp = 0;
 
 	    for (int i = 0; i < count; i++) {
-		if (m_orderedClients.item(i) == 
+		if (m_orderedClients[2].item(i) == 
 		    grouping.item(group)->item(count - 1 - i)) {
 		    temp++;
 		}
@@ -456,14 +498,14 @@ void Client::activateAndWarp()
     activate();
 }
 
-
 void Client::eventButton(XButtonEvent *e)
 {
     if (e->type != ButtonPress) return;
 
     Boolean wasTop = windowManager()->isTop(this);
 
-    mapRaised();
+    if(!wasTop)
+        mapRaised();
 
     if (e->button == CONFIG_CLIENTMENU_BUTTON) {
 	if (m_border->hasWindow(e->window)) {
@@ -552,6 +594,9 @@ void Client::move(XButtonEvent *e)
     Boolean done = False;
     ShowGeometry geometry(m_windowManager, (XEvent *)e);
 
+    if(!isMovable())
+        return;
+        
     if (m_windowManager->attemptGrab
 	(root(), None, DragMask, e->time) != GrabSuccess) {
 	return;
@@ -649,7 +694,8 @@ void Client::move(XButtonEvent *e)
 	m_y = y + yi;
     }
 
-    if (CONFIG_CLICK_TO_FOCUS) activate();
+    if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) 
+        activate();
     m_border->moveTo(m_x, m_y);
     sendConfigureNotify();
 }
@@ -692,6 +738,16 @@ void Client::resize(XButtonEvent *e, Boolean horizontal, Boolean vertical)
 	return;
     }
 
+    // the resize increments may have changed since the window was
+    // created -- re-read those ones but leave the rest unchanged in
+    // case we adjusted them on construction
+    XSizeHints currentHints;
+    long s = 0;
+    if (XGetWMNormalHints(display(), m_window, &currentHints, &s) == 0) {
+        m_sizeHints.width_inc = currentHints.width_inc;
+        m_sizeHints.height_inc = currentHints.height_inc;
+    }
+    
     if (vertical && horizontal)
 	m_windowManager->installCursor(WindowManager::DownrightCursor);
     else if (vertical)

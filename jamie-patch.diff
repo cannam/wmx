@@ -1,0 +1,2417 @@
+diff -aur wmx-6pre6/Border.C new_wmx/Border.C
+--- wmx-6pre6/Border.C	Wed May 17 11:43:24 2000
++++ new_wmx/Border.C	Sat Nov 11 20:55:50 2000
+@@ -69,7 +69,6 @@
+     m_parent = root();
+     if (m_tabFont == 0) initialiseStatics(c->windowManager());
+ 
+-    shaped = c->isShaped();
+ 	
+ //#if CONFIG_MAD_FEEDBACK != 0
+     m_feedback = 0;
+@@ -83,12 +82,15 @@
+     if (m_parent != root()) {
+ 	if (!m_parent) fprintf(stderr,"wmx: zero parent in Border::~Border\n");
+ 	else {
+-	    XDestroyWindow(display(), m_tab);
+-	    XDestroyWindow(display(), m_button);
++            if(!m_client->isBorderless()) {
++	        XDestroyWindow(display(), m_tab);
++	        XDestroyWindow(display(), m_button);
++            }
+ 	    XDestroyWindow(display(), m_parent);
+ 
+ 	    // bad window if its parent has already gone:
+-	    XDestroyWindow(display(), m_resize);
++            if(!m_client->isBorderless())
++	        XDestroyWindow(display(), m_resize);
+ 	}
+     }
+ 
+@@ -149,7 +151,7 @@
+ 	    }
+ 	}
+ 
+-	m_tabWidth[i] = m_tabFont[i]->height + 4;
++	m_tabWidth[i] = m_tabFont[i]->height + (CONFIG_TAB_MARGIN * 2);
+ 	if (m_tabWidth[i] < TAB_TOP_HEIGHT * 2 + 8) {
+ 	    m_tabWidth[i] = TAB_TOP_HEIGHT * 2 + 8;
+ 	}
+@@ -248,8 +250,8 @@
+ 
+ Boolean Border::hasWindow(Window w)
+ {
+-    return (w != root() && (w == m_parent || w == m_tab ||
+-			    w == m_button || w == m_resize));
++    return (w != root() && (w == m_parent || (!m_client->isBorderless() && (w == m_tab ||
++			     w == m_button || w == m_resize))));
+ }
+ 
+ 
+@@ -303,13 +305,27 @@
+     drawLabel();
+ }
+ 
++int Border::yIndent() {
++    if (m_client->isBorderless()) 
++        return 0;
++    
++    return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
++}
++    
++int Border::xIndent() {
++    if (m_client->isBorderless()) 
++        return 0;
++    
++    return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
++        m_tabWidth[screen()] + FRAME_WIDTH + 1;    
++}
+ 
+ void Border::drawLabel()
+ {
+     if (m_label) {
+ 	XClearWindow(display(), m_tab);
+ 	XRotDrawString(display(), screen(), m_tabFont[screen()], m_tab,
+-		       m_drawGC[screen()], 2 +m_tabFont[screen()]->max_ascent,
++		       m_drawGC[screen()], CONFIG_TAB_MARGIN +m_tabFont[screen()]->max_ascent,
+ 		       m_tabHeight - 1, m_label, strlen(m_label));
+     }
+ }
+@@ -400,15 +416,17 @@
+ 
+ //      count me among the clueless... i have no idea why
+ //      this code is not needed.... (henri, 1.9.99)
+-
+-/*	recs =  XShapeGetRectangles(display(), m_child, ShapeClip, &count, &ordering);
++//	This code is needed to mak the black border on the frame of a shaped
++//	window appear (Jamie, 19.6.00)
++/**/
++	recs =  XShapeGetRectangles(display(), m_child, ShapeClip, &count, &ordering);
+ 	XShapeCombineRectangles
+ 	    (display(), m_parent, ShapeClip, xIndent(), yIndent(),
+ 	     recs, count, ShapeSet, ordering);
+ 
+ 	XFree(recs);
+- */
+-
++/**/
++	
+     } else {
+ 	BorderRectangle r(xIndent() - 1, yIndent() - 1, w + 2, h + 2);
+ 	
+@@ -427,47 +445,56 @@
+ 
+ void Border::setTransientFrameVisibility(Boolean visible, int w, int h)
+ {
+-
+-
+-    if (m_client->isShaped()) {
+-	// don't do anything. these guys are shaped, 
+-	//they should take care of showing that they have focus
++    if (m_client->isBorderless())
+ 	return;
+-
+-    } else {
+-
+-	int i;
+-	BorderRectangleList rl;
++   
++    int i;
++    BorderRectangleList rl;
+ 	
+-	rl.append(0, 0, w + 1, yIndent() - 1);
+-	for (i = 1; i < yIndent(); ++i) {
+-	    rl.append(w + 1, i - 1, i + 1, 1);
+-	}
+-	rl.append(0, yIndent() - 1, xIndent() - 1, h - yIndent() + 2);
+-	for (i = 1; i < yIndent(); ++i) {
+-	    rl.append(i - 1, h, 1, i + 2);
+-	}
++    rl.append(0, 0, w + 1, yIndent() - 1);
++    for (i = 1; i < yIndent(); ++i) {
++        rl.append(w + 1, i - 1, i + 1, 1);
++    }
++    rl.append(0, yIndent() - 1, xIndent() - 1, h - yIndent() + 2);
++    for (i = 1; i < yIndent(); ++i) {
++        rl.append(i - 1, h, 1, i + 2);
++    }
+ 	
+-	XShapeCombineRectangles
+-	    (display(), m_parent, ShapeBounding,
+-	     0, 0, rl.xrectangles(), rl.count(),
+-	     visible ? ShapeUnion : ShapeSubtract, YXSorted);
+-	
+-	rl.remove_all();
+-	
+-	rl.append(1, 1, w, yIndent() - 2);
+-	for (i = 2; i < yIndent(); ++i) {
+-	    rl.append(w + 1, i - 1, i, 1);
+-	}
+-	rl.append(1, yIndent() - 1, xIndent() - 2, h - yIndent() + 1);
+-	for (i = 2; i < yIndent(); ++i) {
+-	    rl.append(i - 1, h, 1, i + 1);
+-	}
++    XShapeCombineRectangles
++        (display(), m_parent, ShapeBounding,
++         0, 0, rl.xrectangles(), rl.count(),
++         visible ? ShapeUnion : ShapeSubtract, YXSorted);
+ 	
+-	XShapeCombineRectangles
+-	    (display(), m_parent, ShapeClip,
+-	     0, 0, rl.xrectangles(), rl.count(),
+-	     visible ? ShapeUnion : ShapeSubtract, YXSorted);
++    rl.remove_all();
++	
++    rl.append(1, 1, w, yIndent() - 2);
++    for (i = 2; i < yIndent(); ++i) {
++        rl.append(w + 1, i - 1, i, 1);
++    }
++    rl.append(1, yIndent() - 1, xIndent() - 2, h - yIndent() + 1);
++    for (i = 2; i < yIndent(); ++i) {
++        rl.append(i - 1, h, 1, i + 1);
++    }
++
++    XShapeCombineRectangles
++        (display(), m_parent, ShapeClip,
++         0, 0, rl.xrectangles(), rl.count(),
++         visible ? ShapeUnion : ShapeSubtract, YXSorted);
++    // If the client is shaped, we have to show the inside of the window
++    // frame.
++    if(m_client->isShaped()) {
++   
++        XShapeCombineRectangles
++            (display(), m_parent, ShapeBounding, 0, 0,
++             BorderRectangle(xIndent() - 1, yIndent() - 1, 1, h + 2)
++                      .xrectangle(), 1,
++             visible ? ShapeUnion : ShapeSubtract, YXSorted);
++
++        XShapeCombineRectangles
++            (display(), m_parent, ShapeBounding, 0, 0,
++             BorderRectangle(xIndent() - 1, yIndent() - 1, w + 2, 1)
++                      .xrectangle(), 1,
++             visible ? ShapeUnion : ShapeSubtract, YXSorted);
+     }
+ }   
+ 
+@@ -483,6 +510,9 @@
+ 	return;
+     }
+ 
++    if(m_client->isBorderless())
++        return;
++    
+     // Bounding rectangles -- clipping will be the same except for
+     // child window border
+ 
+@@ -532,7 +562,7 @@
+     int i;
+     BorderRectangleList rl;
+ 
+-    if (isTransient()) {
++    if (isTransient() || m_client->isBorderless() ) {
+ 	return;
+     }
+ 
+@@ -592,7 +622,7 @@
+     int i;
+     int shorter, longer, operation;
+ 
+-    if (isTransient()) {
++    if (isTransient() || m_client->isBorderless()) {
+ 	return;
+     }
+ 
+@@ -717,36 +747,40 @@
+ 
+ void Border::setFrameVisibility(Boolean visible, int w, int h)
+ {
+-    BorderRectangleList rl;
+-
+     if (CONFIG_PROD_SHAPE) {
+-	shapeParent(w, h);
+-	shapeTab(w, h);
++        shapeParent(w, h);
++        shapeTab(w, h);
+     }
+ 
+     if (isTransient()) {
+-	setTransientFrameVisibility(visible, w, h);
+-	return;
++        setTransientFrameVisibility(visible, w, h);
++        return;
+     }
+-
++        
++    if(m_client->isBorderless()) {
++        return; 
++    }
++    
++    BorderRectangleList rl;
+     // Bounding rectangles
+ 
+     rl.append(m_tabWidth[screen()] + w + 1, 0, FRAME_WIDTH + 1, FRAME_WIDTH);
+ 
+     rl.append(m_tabWidth[screen()] + 2, TAB_TOP_HEIGHT + 2, w,
+-	      FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
++              FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
+ 
+     // for button
+     int ww = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
+     rl.append((m_tabWidth[screen()] + 2 - ww) / 2, (m_tabWidth[screen()]+2 - ww) / 2, ww, ww);
+ 
+     rl.append(m_tabWidth[screen()] + 2, FRAME_WIDTH,
+-	      FRAME_WIDTH - 2, m_tabHeight + m_tabWidth[screen()] - FRAME_WIDTH - 2);
++              FRAME_WIDTH - 2, 
++              m_tabHeight + m_tabWidth[screen()] - FRAME_WIDTH - 2);
+ 
+     // swap last two if sorted wrong
+     if (rl.item(rl.count()-2).y > rl.item(rl.count()-1).y) {
+-	rl.append(rl.item(rl.count()-2));
+-	rl.remove(rl.count()-3);
++        rl.append(rl.item(rl.count()-2));
++        rl.remove(rl.count()-3);
+     }
+ 
+     int final = rl.count();
+@@ -757,8 +791,8 @@
+     rl.item(final).height = h - rl.item(final).height + 2;
+ 
+     XShapeCombineRectangles(display(), m_parent, ShapeBounding,
+-			    0, 0, rl.xrectangles(), rl.count(),
+-			    visible ? ShapeUnion : ShapeSubtract, YXSorted);
++                            0, 0, rl.xrectangles(), rl.count(),
++                            visible ? ShapeUnion : ShapeSubtract, YXSorted);
+     rl.remove_all();
+ 
+     // Clip rectangles
+@@ -766,32 +800,31 @@
+     rl.append(m_tabWidth[screen()] + w + 1, 1, FRAME_WIDTH, FRAME_WIDTH - 1);
+ 
+     rl.append(m_tabWidth[screen()] + 2, TAB_TOP_HEIGHT + 2, w,
+-	      FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
++              FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
+ 
+     // for button
+     ww = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 6;
+     rl.append((m_tabWidth[screen()] + 2 - ww) / 2, (m_tabWidth[screen()]+2 - ww) / 2, ww, ww);
+-
+     rl.append(m_tabWidth[screen()] + 2, FRAME_WIDTH,
+-	      FRAME_WIDTH - 2, h - FRAME_WIDTH);
++              FRAME_WIDTH - 2, h - FRAME_WIDTH);
+ 
+     // swap last two if sorted wrong
+     if (rl.item(rl.count()-2).y > rl.item(rl.count()-1).y) {
+-	rl.append(rl.item(rl.count()-2));
+-	rl.remove(rl.count()-3);
++        rl.append(rl.item(rl.count()-2));
++        rl.remove(rl.count()-3);
+     }
+ 
+     rl.append(m_tabWidth[screen()] + 2, h, FRAME_WIDTH - 2, FRAME_WIDTH + 1);
+ 
+     XShapeCombineRectangles(display(), m_parent, ShapeClip,
+-			    0, 0, rl.xrectangles(), rl.count(),
++                            0, 0, rl.xrectangles(), rl.count(),
+ 			    visible ? ShapeUnion : ShapeSubtract, YXSorted);
+     rl.remove_all();
+ 
+     if (visible && !isFixedSize()) {
+-	XMapRaised(display(), m_resize);
++        XMapRaised(display(), m_resize);
+     } else {
+-	XUnmapWindow(display(), m_resize);
++        XUnmapWindow(display(), m_resize);
+     }
+ }
+ 
+@@ -801,59 +834,65 @@
+ 		       Boolean force) // must reshape everything
+ {
+     if (!m_parent || m_parent == root()) {
+-
++        
+ 	// create windows, then shape them afterwards
+ 
+ 	m_parent = XCreateSimpleWindow
+ 	    (display(), root(), 1, 1, 1, 1, 0,
+ 	     m_borderPixel[screen()], m_frameBackgroundPixel[screen()]);
+ 
+-	m_tab = XCreateSimpleWindow
+-	    (display(), m_parent, 1, 1, 1, 1, 0,
+-	     m_borderPixel[screen()], m_backgroundPixel[screen()]);
+-
+-	m_button = XCreateSimpleWindow
+-	    (display(), m_parent, 1, 1, 1, 1, 0,
+-	     m_borderPixel[screen()], m_buttonBackgroundPixel[screen()]);
+-
+-	m_resize = XCreateWindow
+-	    (display(), m_parent, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
+-	     CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
+-
+-//#if CONFIG_MAD_FEEDBACK != 0
+-	if (CONFIG_MAD_FEEDBACK) {
+-	    m_feedback = XCreateSimpleWindow
+-		(display(), root(), 0, 0, 1, 1, 1,
+-		 m_borderPixel[screen()], m_backgroundPixel[screen()]);
+-	}
+-//#endif
+-
+-	shapeResize();
++        if(!m_client->isBorderless()) {
++	    m_tab = XCreateSimpleWindow
++	        (display(), m_parent, 1, 1, 1, 1, 0,
++	        m_borderPixel[screen()], m_backgroundPixel[screen()]);
++
++	    m_button = XCreateSimpleWindow
++	        (display(), m_parent, 1, 1, 1, 1, 0,
++	         m_borderPixel[screen()], m_buttonBackgroundPixel[screen()]);
++
++	    m_resize = XCreateWindow
++	        (display(), m_parent, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
++	        CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
++
++	    if (CONFIG_MAD_FEEDBACK) {
++	        m_feedback = XCreateSimpleWindow
++		    (display(), root(), 0, 0, 1, 1, 1,
++		    m_borderPixel[screen()], m_backgroundPixel[screen()]);
++	    }
++            shapeResize();
++        }        
++	    
+ 
+ 	XSelectInput(display(), m_parent,
+-		     SubstructureRedirectMask | SubstructureNotifyMask |
++                     SubstructureRedirectMask | SubstructureNotifyMask |
+ 		     ButtonPressMask | ButtonReleaseMask);
++            
++        if(!m_client->isBorderless()) {
++	    if (!isTransient()) {
++	        XSelectInput(display(), m_tab,
++			    ExposureMask | ButtonPressMask | ButtonReleaseMask |
++			    EnterWindowMask);
++	    }
+ 
+-	if (!isTransient()) {
+-	    XSelectInput(display(), m_tab,
+-			 ExposureMask | ButtonPressMask | ButtonReleaseMask |
+-			 EnterWindowMask);
+-	}
+-
+-	XSelectInput(display(), m_button, ButtonPressMask | ButtonReleaseMask);
+-	XSelectInput(display(), m_resize, ButtonPressMask | ButtonReleaseMask);
+-	mask |= CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
++	    XSelectInput(display(), m_button, ButtonPressMask | ButtonReleaseMask);
++	    XSelectInput(display(), m_resize, ButtonPressMask | ButtonReleaseMask);
++        }
++        
++        mask |= CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+ 
+ 	XSetWindowAttributes wa;
+-	wa.background_pixmap = m_backgroundPixmap;
++	
++        wa.background_pixmap = m_backgroundPixmap;
+ 
+ 	if (m_backgroundPixmap) {
+ 	    XChangeWindowAttributes(display(), m_parent, CWBackPixmap, &wa);
+-	    XChangeWindowAttributes(display(), m_tab,    CWBackPixmap, &wa);
+-	    XChangeWindowAttributes(display(), m_button, CWBackPixmap, &wa);
++            if(!m_client->isBorderless()) {
++	        XChangeWindowAttributes(display(), m_tab,    CWBackPixmap, &wa);
++	        XChangeWindowAttributes(display(), m_button, CWBackPixmap, &wa);
++            }
+ 	}
+ 
+-	if (CONFIG_MAD_FEEDBACK) {
++	if (CONFIG_MAD_FEEDBACK && !m_client->isBorderless()) {
+ 	    wa.save_under =
+ 		(DoesSaveUnders(ScreenOfDisplay(display(), 0)) ? True : False);
+ 	    if (m_backgroundPixmap) {
+@@ -868,13 +907,15 @@
+     XWindowChanges wc;
+     wc.x = x - xIndent();
+     wc.y = y - yIndent();
+-    wc.width  = w + xIndent() + 1;
+-    wc.height = h + yIndent() + 1;
++    wc.width  = w + xIndent() + (m_client->isBorderless()?0:1);
++    wc.height = h + yIndent() + (m_client->isBorderless()?0:1);
+     wc.border_width = 0;
+     wc.sibling = None;
+     wc.stack_mode = detail;
+     XConfigureWindow(display(), m_parent, mask, &wc);
+ 
++    
++    if(!m_client->isBorderless()) {
+     unsigned long rmask = 0L;
+     if (mask & CWWidth)  rmask |= CWX;
+     if (mask & CWHeight) rmask |= CWY;
+@@ -882,40 +923,44 @@
+     wc.y = h - FRAME_WIDTH*2 + yIndent();
+     XConfigureWindow(display(), m_resize, rmask, &wc);
+     
+-    if (force ||
+-	(m_prevW < 0 || m_prevH < 0) ||
+-	((mask & (CWWidth | CWHeight)) && (w != m_prevW || h != m_prevH))) {
+-
+-	int prevTabHeight = m_tabHeight;
+-	if (isTransient()) m_tabHeight = 10; // arbitrary
+-	else fixTabHeight(h);
+-
+-	shapeParent(w, h);
+-	setFrameVisibility(m_client->isActive(), w, h);
+-
+-	if (force || w != m_prevW ||
+-	    prevTabHeight != m_tabHeight || m_prevW < 0 || m_prevH < 0) {
+-
+-	    wc.x = 0;
+-	    wc.y = 0;
+-	    wc.width = w + xIndent();
+-	    wc.height = m_tabHeight + 2 + m_tabWidth[screen()];
+-	    XConfigureWindow(display(), m_tab, mask, &wc);
+-	    shapeTab(w, h);
+-	}
+-
+-	m_prevW = w;
+-	m_prevH = h;
++        if (force ||
++            (m_prevW < 0 || m_prevH < 0) || 
++            ((mask & (CWWidth | CWHeight)) && (w != m_prevW || h != m_prevH))) {
++
++            int prevTabHeight = m_tabHeight;
++            if (isTransient()) m_tabHeight = 10; // arbitrary
++            else fixTabHeight(h);
++
++            shapeParent(w, h);
++            setFrameVisibility(m_client->isActive(), w, h);
++
++            if (force || w != m_prevW ||    
++                prevTabHeight != m_tabHeight || m_prevW < 0 || m_prevH < 0) {
++            
++                wc.x = 0;
++                wc.y = 0;
++                wc.width = w + xIndent();
++                wc.height = m_tabHeight + 2 + m_tabWidth[screen()];
++                XConfigureWindow(display(), m_tab, mask, &wc);
++                shapeTab(w, h);
++            }
+ 
++            m_prevW = w;
++            m_prevH = h;
++            
++        } else {
++            resizeTab(h);
++        }
++        wc.x = TAB_TOP_HEIGHT + 2;
++        wc.y = wc.x;
++        wc.width = wc.height = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
+     } else {
+-
+-	resizeTab(h);
++        shapeParent(w, h);
++    }
++        
++    if(!m_client->isBorderless()) {
++        XConfigureWindow(display(), m_button, mask, &wc);
+     }
+-
+-    wc.x = TAB_TOP_HEIGHT + 2;
+-    wc.y = wc.x;
+-    wc.width = wc.height = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
+-    XConfigureWindow(display(), m_button, mask, &wc);
+ }
+ 
+ 
+@@ -935,15 +980,19 @@
+     } else {
+ 	XMapWindow(display(), m_parent);
+ 
+-	if (!isTransient()) {
++	if (!isTransient() && !m_client->isBorderless()) {
+ 	    XMapWindow(display(), m_tab);
+ 	    XMapWindow(display(), m_button);
+ 	}
+ 
+-	if (!isFixedSize()) XMapWindow(display(), m_resize);
++	if (!isFixedSize() && !m_client->isBorderless()) 
++            XMapWindow(display(), m_resize);
+     }
+ }
+ 
++/*
++
++No longer needed now we're using the layer system.
+ 
+ void Border::mapRaised()
+ {
+@@ -952,12 +1001,13 @@
+     } else {
+ 	XMapRaised(display(), m_parent);
+ 
+-	if (!isTransient()) {
++	if (!isTransient() && !m_client->isBorderless()) {
+ 	    XMapWindow(display(), m_tab);
+ 	    XMapRaised(display(), m_button);
+ 	}
+ 
+-	if (!isFixedSize()) XMapRaised(display(), m_resize);
++	if (!isFixedSize() && !m_client->isBorderless())
++            XMapRaised(display(), m_resize);
+     }
+ }
+ 
+@@ -966,7 +1016,7 @@
+ {
+     XLowerWindow(display(), m_parent);
+ }
+-
++*/
+ 
+ void Border::unmap()
+ {
+@@ -975,7 +1025,7 @@
+     } else {
+ 	XUnmapWindow(display(), m_parent);
+ 
+-	if (!isTransient()) {
++	if (!isTransient() && !m_client->isBorderless()) {
+ 	    XUnmapWindow(display(), m_tab);
+ 	    XUnmapWindow(display(), m_button);
+ //	    XUnmapWindow(display(), m_resize); // no, will unmap with parent
+@@ -999,7 +1049,7 @@
+ void Border::toggleFeedback(int x, int y, int w, int h)
+ {
+     m_fedback = !m_fedback;
+-    if (!m_feedback || !CONFIG_MAD_FEEDBACK) return;
++    if (!m_feedback || !CONFIG_MAD_FEEDBACK || m_client->isBorderless()) return;
+ 
+     if (m_fedback) {
+ 
+@@ -1051,6 +1101,3 @@
+ {
+     if (m_fedback) toggleFeedback(0, 0, 0, 0);
+ }
+-
+-
+-
+diff -aur wmx-6pre6/Border.h new_wmx/Border.h
+--- wmx-6pre6/Border.h	Thu May 11 12:32:23 2000
++++ new_wmx/Border.h	Sat Nov 11 20:55:50 2000
+@@ -24,8 +24,8 @@
+ 
+     void map();
+     void unmap();
+-    void lower();
+-    void mapRaised();
++    //void lower();
++    //void mapRaised();
+     void decorate(Boolean active, int w, int h);
+     void reparent();
+     void configure(int x, int y, int w, int h, unsigned long mask, int detail,
+@@ -45,7 +45,7 @@
+     Boolean isFixedSize();	// calls into Client
+     Window parent() { return m_parent; }
+     Boolean hasWindow(Window);
+-      
++    
+     Display *display();
+     int screen();
+     Window root();
+@@ -53,15 +53,8 @@
+     void expose(XExposeEvent *);
+     void eventButton(XButtonEvent *); // in Buttons.C
+ 
+-    int yIndent() {
+-      if (shaped) return 0;
+-      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
+-    }
+-    int xIndent() {
+-      if (shaped) return 0;
+-      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
+-        m_tabWidth[screen()] + FRAME_WIDTH + 1;
+-    }
++    int yIndent();
++    int xIndent();
+ 
+     Boolean coordsInHole(int, int); // in Events.C of all places
+     static Pixmap backgroundPixmap(WindowManager *);
+@@ -69,8 +62,6 @@
+     
+ private:
+     Client *m_client;
+-
+-    int shaped;
+ 
+     Window m_parent;
+     Window m_tab;
+diff -aur wmx-6pre6/Buttons.C new_wmx/Buttons.C
+--- wmx-6pre6/Buttons.C	Fri May 12 08:40:19 2000
++++ new_wmx/Buttons.C	Sat Nov 11 20:55:50 2000
+@@ -17,7 +17,14 @@
+     setScreenFromPointer();
+     Client *c = windowToClient(e->window);
+ 
+-#if CONFIG_GNOME_BUTTON_COMPLIANCE == False
++    // We shouldn't be getting button events for non-focusable clients,
++    // but we'd better check just in case.
++    if(CONFIG_PASS_FOCUS_CLICK || c->isNonFocusable())
++        XAllowEvents(display(), ReplayPointer, e->time);            
++    else
++        XAllowEvents(display(), SyncPointer, e->time);
++
++#if CONFIG_GNOME_BUTTON_COMPLIANCE == False       
+     if (e->button == Button3 && m_channelChangeTime == 0) {
+ 	if (dConfig.rightCirculate())
+ 	    circulate(e->window == e->root);
+@@ -98,8 +105,9 @@
+  	}
+ 
+ 	c->eventButton(e);
+-	return;
+-    }
++
++        return;
++    } 
+ }
+ 
+ 
+@@ -134,7 +142,8 @@
+ 	for (j = i + direction;
+              (!m_clients.item(j)->isNormal() ||
+                m_clients.item(j)->isTransient() ||
+-               m_clients.item(j)->channel() != channel());
++               m_clients.item(j)->channel() != channel() ||
++               m_clients.item(j)->skipsFocus());
+              j += direction) {
+ 
+ 	    if (direction > 0 && j >= m_clients.count() - 1) j = -1;
+@@ -411,7 +420,7 @@
+ 	    int temp = 0;
+ 
+ 	    for (int i = 0; i < count; i++) {
+-		if (m_orderedClients.item(i) == 
++		if (m_orderedClients[2].item(i) == 
+ 		    grouping.item(group)->item(count - 1 - i)) {
+ 		    temp++;
+ 		}
+@@ -446,14 +455,14 @@
+     activate();
+ }
+ 
+-
+ void Client::eventButton(XButtonEvent *e)
+ {
+     if (e->type != ButtonPress) return;
+ 
+     Boolean wasTop = windowManager()->isTop(this);
+ 
+-    mapRaised();
++    if(!wasTop)
++        mapRaised();
+ 
+     if (e->button == Button1) {
+ 	if (m_border->hasWindow(e->window)) {
+@@ -464,8 +473,10 @@
+ 
+     if (CONFIG_RAISELOWER_ON_CLICK && wasTop && !doSomething)
+ 	lower();
+-
+-    if (!isNormal() || isActive() || e->send_event) return;
++    
++    if (!isNormal() || isActive() || e->send_event)
++        return;
++    
+     activate();
+ }
+ 
+@@ -538,6 +549,9 @@
+     Boolean done = False;
+     ShowGeometry geometry(m_windowManager, (XEvent *)e);
+ 
++    if(!isMovable())
++        return;
++        
+     if (m_windowManager->attemptGrab
+ 	(root(), None, DragMask, e->time) != GrabSuccess) {
+ 	return;
+@@ -635,7 +649,8 @@
+ 	m_y = y + yi;
+     }
+ 
+-    if (CONFIG_CLICK_TO_FOCUS) activate();
++    if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) 
++        activate();
+     m_border->moveTo(m_x, m_y);
+     sendConfigureNotify();
+ }
+diff -aur wmx-6pre6/Channel.C new_wmx/Channel.C
+--- wmx-6pre6/Channel.C	Wed May 24 16:46:14 2000
++++ new_wmx/Channel.C	Mon Nov 13 21:32:44 2000
+@@ -25,28 +25,28 @@
+ 
+     for(sc = 0; sc < screensTotal(); sc++)
+     {
+-	if (!m_channelWindow[sc]) {
++        if (!m_channelWindow[sc]) {
+ 
+-	XColor nearest, ideal;
++            XColor nearest, ideal;
+ 
+-	    if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
++            if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
+ 			      CONFIG_CHANNEL_NUMBER, &nearest, &ideal)) {
+ 	    
+-		if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
+-				  "black", &nearest, &ideal)) {
++                if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
++                                      "black", &nearest, &ideal)) {
+ 		
+-		fatal("Couldn't allocate green or black");
+-	    }
+-	}
+-
+-	XSetWindowAttributes wa;
+-	wa.background_pixel = nearest.pixel;
+-	wa.override_redirect = True;
++                    fatal("Couldn't allocate green or black");
++                }
++            }
++
++	    XSetWindowAttributes wa;
++	    wa.background_pixel = nearest.pixel;
++	    wa.override_redirect = True;
+ 	
+-	    m_channelWindow[sc] = XCreateWindow
+-	      (display(), mroot(sc), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
+-	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
+-    }
++            m_channelWindow[sc] = XCreateWindow
++           (display(), mroot(sc), 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
++            CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
++        }
+     }
+ 
+ 
+@@ -110,10 +110,12 @@
+     if (!statusOnly) {
+ 
+ 	ClientList considering;
+-
+-	for (i = m_orderedClients.count()-1; i >= 0; --i) {
+-	    considering.append(m_orderedClients.item(i));
+-	}
++        
++        for(int layer = 0; layer < MAX_LAYER; ++layer) {
++	    for (i = m_orderedClients[layer].count()-1; i >= 0; --i) {
++	        considering.append(m_orderedClients[layer].item(i));
++	    }
++        }
+ 
+ 	for (i = 0; i < considering.count(); ++i) {
+ 	    if (considering.item(i) == push || considering.item(i)->isSticky()
+@@ -135,9 +137,7 @@
+     m_channelChangeTime = timestamp(True) +
+ 	(quickFlip ? CONFIG_QUICK_FLIP_DELAY : CONFIG_FLIP_DELAY);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     gnomeUpdateChannelList();
+-#endif
+ }
+ 
+ 
+@@ -152,8 +152,10 @@
+ 
+     ClientList considering;
+ 
+-    for (i = m_orderedClients.count()-1; i >= 0; --i) {
+-	considering.append(m_orderedClients.item(i));
++    for(int layer = 0; layer < 7; ++layer) {
++        for (i = m_orderedClients[layer].count()-1; i >= 0; --i) {
++	    considering.append(m_orderedClients[layer].item(i));
++        }
+     }
+ 
+     for (i = 0; i < considering.count(); ++i) {
+@@ -174,15 +176,15 @@
+ {
+     if (m_channels <= 2 || ch < m_channels - 1) return;
+ 
+-    for (int i = m_orderedClients.count()-1; i >= 0; --i) {
+-	if (m_orderedClients.item(i)->channel() == ch) return;
++    for(int layer = 0; layer < 7; ++layer) {
++        for (int i = m_orderedClients[layer].count()-1; i >= 0; --i) {
++	    if (m_orderedClients[layer].item(i)->channel() == ch) return;
++        }
+     }
+ 
+     --m_channels;
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     gnomeUpdateChannelList();
+-#endif
+ 
+     if (m_currentChannel > m_channels) m_currentChannel = m_channels;
+ 
+@@ -193,10 +195,7 @@
+ void WindowManager::createNewChannel()
+ {
+     ++m_channels;
+-#if CONFIG_GNOME_COMPLIANCE != False
+     gnomeUpdateChannelList();
+-#endif
+-
+ }
+ 
+ void WindowManager::gotoChannel(int channel, Client *push)
+@@ -204,7 +203,7 @@
+     if (channel == m_currentChannel) {
+ 	flipChannel(True, False, False, 0);
+ 	return;
+-   }
++    }
+ 
+     if (channel > 0 && channel <= m_channels) {
+ 
+diff -aur wmx-6pre6/Client.C new_wmx/Client.C
+--- wmx-6pre6/Client.C	Fri May 12 08:40:20 2000
++++ new_wmx/Client.C	Mon Nov 13 21:17:17 2000
+@@ -9,10 +9,8 @@
+ #include <X11/Xmu/Atoms.h>
+ #endif
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+ // needed this to be able to use CARD32
+ #include <X11/Xmd.h>
+-#endif
+ 
+ const char *const Client::m_defaultLabel = "incognito";
+ 
+@@ -36,7 +34,11 @@
+     m_colormapWindows(NULL),
+     m_windowColormaps(NULL),
+     m_windowManager(wm),
+-    m_shaped(shaped)
++    m_shaped(shaped),
++    m_movable(True),
++    m_layer(4),
++    m_skipFocus(False),
++    m_focusOnClick(False)
+ {
+ 
+     XWindowAttributes attr;
+@@ -60,10 +62,27 @@
+     m_channel = wm->channel();
+     m_unmappedForChannel = False;
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+-    gnomeSetChannel();
+-#endif
++    
++    Atom returnType;
++    int returnFormat;
++    unsigned long count;
++    unsigned long bytes_remain;
++    unsigned char *prop;
++
++    if (XGetWindowProperty(display(), m_window, Atoms::gnome_winLayer, 0, 1,
++                           False, XA_CARDINAL, &returnType, &returnFormat,
++                           &count, &bytes_remain, &prop) == Success) {
++        if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
++            m_layer=((long*)prop)[0];    
++            if(m_layer<0)
++                m_layer=0;
++            else if(m_layer>MAX_LAYER)
++                m_layer=MAX_LAYER;
++        }
++        XFree(prop);
++    }   
+ 
++    gnomeSetChannel();
+ 
+ //#if CONFIG_MAD_FEEDBACK != 0
+     m_speculating = m_levelRaised = False;
+@@ -84,6 +103,7 @@
+     return ((m_window == w) || m_border->hasWindow(w));
+ }
+ 
++
+ Window Client::root()
+ {
+     return m_wroot;
+@@ -113,7 +133,7 @@
+     m_window = None;
+ 
+     if (isActive()) {
+-	if (CONFIG_CLICK_TO_FOCUS) {
++	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) {
+ 	    if (m_revert) {
+ 		windowManager()->setActiveClient(m_revert);
+ 		m_revert->activate();
+@@ -193,6 +213,8 @@
+ 		 PropertyChangeMask | FocusChangeMask | KeyPressMask |
+ 		 KeyReleaseMask); //!!!
+ 
++  
++   
+     if (CONFIG_USE_KEYBOARD) {
+ 
+ 	int i;
+@@ -358,10 +380,11 @@
+     if (!getState(&state)) {
+ 	state = hints ? hints->initial_state : NormalState;
+     }
+-
++    
+     shouldHide = (state == IconicState);
+     if (hints) XFree(hints);
+ 
++    
+     if (XGetWMNormalHints(d, m_window, &m_sizeHints, &mSize) == 0 ||
+ 	m_sizeHints.flags == 0) {
+ 	m_sizeHints.flags = PSize;
+@@ -379,7 +402,7 @@
+ 	if ((m_sizeHints.flags & PPosition) && shouldHide) reshape = False;
+ 	if ((m_transient != None)) reshape = False;
+     }
+-
++    
+     if ((m_sizeHints.flags & PBaseSize)) {
+ 	m_minWidth  = m_sizeHints.base_width;
+ 	m_minHeight = m_sizeHints.base_height;
+@@ -441,7 +464,7 @@
+     m_border->reparent();
+ 
+     // (support for shaped windows absent)
+-
++    
+     XAddToSaveSet(d, m_window);
+     m_managed = True;
+ 
+@@ -451,9 +474,9 @@
+ 	m_border->map();
+ 	setState(NormalState);
+ 
+-	if (CONFIG_CLICK_TO_FOCUS ||
++	if ((CONFIG_CLICK_TO_FOCUS || isFocusOnClick() ||
+ 	    (m_transient != None && activeClient() &&
+-	    activeClient()->m_window == m_transient)) {
++	    activeClient()->m_window == m_transient))) {
+ 	    activate();
+ 	    mapRaised();
+ 	} else {
+@@ -464,13 +487,38 @@
+     if (activeClient() && !isActive()) {
+ 	activeClient()->installColormap();
+     }
+-
++    
+     if (CONFIG_AUTO_RAISE) {
+ 	m_windowManager->stopConsideringFocus();
+ 	focusIfAppropriate(False);
+     }
+-
++    
++    Atom returnType;
++    int returnFormat;
++    unsigned long count;
++    unsigned long bytes_remain;
++    unsigned char *prop;
++    
++    if (XGetWindowProperty(display(), m_window, Atoms::gnome_winState, 0, 1,
++                           False, XA_CARDINAL, &returnType, &returnFormat,
++                           &count, &bytes_remain, &prop) == Success) {
++        if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
++            updateFromGnomeProperty(Atoms::gnome_winState, prop[0]);
++        }
++        XFree(prop);
++    }
++    
++    if (XGetWindowProperty(display(), m_window, Atoms::gnome_winHints, 0, 1,
++                           False, XA_CARDINAL, &returnType, &returnFormat,
++                           &count, &bytes_remain, &prop) == Success) {
++        if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
++            updateFromGnomeProperty(Atoms::gnome_winHints, prop[0]);
++        }
++        XFree(prop);
++    }
++   
+     m_windowManager->hoistToTop(this);
++        
+     sendConfigureNotify(); // due to Martin Andrews
+ }
+ 
+@@ -502,6 +550,9 @@
+ //    fprintf(stderr, "Client::activate (this = %p, window = %x, parent = %x)\n",
+ //	    this, m_window, parent());
+ 
++    if(isNonFocusable())
++        return;
++    
+     if (parent() == root()) {
+ 	fprintf(stderr, "wmx: warning: bad parent in Client::activate\n");
+ 	return;
+@@ -520,7 +571,7 @@
+ 	activeClient()->deactivate();
+ 	// & some other-screen business
+     }
+-
++    
+     XUngrabButton(display(), AnyButton, AnyModifier, parent());
+ 
+     XSetInputFocus(display(), m_window, RevertToPointerRoot,
+@@ -553,12 +604,79 @@
+     }
+ 
+     XGrabButton(display(), AnyButton, AnyModifier, parent(), False,
+-		ButtonPressMask | ButtonReleaseMask,
+-		GrabModeAsync, GrabModeSync, None, None);
++	        ButtonPressMask | ButtonReleaseMask,
++		GrabModeSync, GrabModeSync, None, None);
+ 
+     decorate(False);
+ }
+ 
++void Client::setSticky(Boolean sticky) 
++{    
++    m_sticky = sticky;
++    setGnomeProperty(Atoms::gnome_winState, WIN_STATE_STICKY, sticky);
++}
++
++void Client::setMovable(Boolean movable) 
++{ 
++    setGnomeProperty(Atoms::gnome_winState, WIN_STATE_FIXED_POSITION, !movable);      
++    m_movable = movable;
++}
++
++void Client::setSkipFocus(Boolean skipFocus) 
++{ 
++    setGnomeProperty(Atoms::gnome_winHints, WIN_HINTS_SKIP_FOCUS, skipFocus);      
++    m_skipFocus = skipFocus;
++    fprintf(stderr, "Setting \"%s\" to %sskip focus\n", name(), skipFocus?"":"not ");
++}
++
++void Client::setFocusOnClick(Boolean focusOnClick) 
++{ 
++    setGnomeProperty(Atoms::gnome_winHints, WIN_HINTS_FOCUS_ON_CLICK, focusOnClick);      
++    m_focusOnClick = focusOnClick;
++}
++
++void Client::setGnomeProperty(Atom property, unsigned char state, Boolean to) {
++    Atom returnType;
++    int returnFormat;
++    unsigned long count;
++    unsigned long bytes_remain;
++    unsigned char *prop;
++    if(XGetWindowProperty(display(), window(), property, 0, 1,    
++                          False, XA_CARDINAL, &returnType, &returnFormat,
++                          &count, &bytes_remain, &prop) == Success) {
++        if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
++            unsigned char oldProp = *prop;
++            if(to)
++                *prop |= state;
++            else
++                *prop &= !state;
++            
++            if(*prop != oldProp) // Why bother if it's still the same?
++                XChangeProperty(display(), window(), property, 
++                                XA_CARDINAL, 32, PropModeReplace, prop, count);
++        }
++        XFree(prop);
++    }
++}
++
++void Client::setLayer(int newLayer) {
++    if(newLayer<0)
++        newLayer=0;
++    else if(newLayer>MAX_LAYER)
++        newLayer=MAX_LAYER;
++
++    if(newLayer==m_layer) {
++        return;
++    }
++    
++    windowManager()->removeFromOrderedList(this);
++    m_layer=newLayer;
++    windowManager()->hoistToTop(this);  // Puts this client at the top of the
++                                        // list for it's layer.
++    windowManager()->updateStackingOrder();
++    
++    //fprintf(stderr, "wmx: Moving %s to layer %d\n", name(), m_layer);
++}
+ 
+ void Client::sendMessage(Atom a, long l)
+ {
+@@ -938,7 +1056,7 @@
+ 	mapRaised();
+ 
+ 	if (CONFIG_AUTO_RAISE) focusIfAppropriate(False);
+-	else if (CONFIG_CLICK_TO_FOCUS) activate();
++	else if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+     }
+ 
+ #if CONFIG_USE_WINDOW_GROUPS != False
+@@ -971,9 +1089,6 @@
+ 
+ void Client::withdraw(Boolean changeState)
+ {
+-    
+-    
+-
+     m_border->unmap();
+ 
+     gravitate(True);
+@@ -1006,9 +1121,10 @@
+ 
+ void Client::mapRaised()
+ {
+-    if (m_channel == windowManager()->channel()) m_border->mapRaised();
++    if (m_channel == windowManager()->channel()) m_border->map/*Raised*/();
+     windowManager()->hoistToTop(this);
+     windowManager()->raiseTransients(this);
++    windowManager()->updateStackingOrder();
+ }
+ 
+ 
+@@ -1049,8 +1165,9 @@
+ 
+ void Client::lower()
+ {
+-    m_border->lower();
++    //m_border->lower();
+     windowManager()->hoistToBottom(this);
++    windowManager()->updateStackingOrder();
+ }
+ 
+ 
+@@ -1060,6 +1177,7 @@
+ 	lower();
+     } else {
+ 	mapRaised();
++        //windowManager()->updateStackingOrder();
+     }
+ }
+ 
+@@ -1140,6 +1258,12 @@
+ 
+     XResizeWindow(display(), m_window, m_w, m_h);
+     sendConfigureNotify();
++    if(max==Vertical || max==Maximum)
++        setGnomeProperty(Atoms::gnome_winState, WIN_STATE_MAXIMIZED_VERT,
++                         m_isFullHeight);
++    if(max==Horizontal || max==Maximum)
++        setGnomeProperty(Atoms::gnome_winState,WIN_STATE_MAXIMIZED_HORIZ, 
++                         m_isFullWidth);
+ }
+ 
+ 
+@@ -1182,6 +1306,12 @@
+     
+     XResizeWindow(display(), m_window, m_w, m_h);
+     sendConfigureNotify();
++    if(max==Vertical || max==Maximum)
++        setGnomeProperty(Atoms::gnome_winState, WIN_STATE_MAXIMIZED_VERT, 
++                         m_isFullHeight);
++    if(max==Horizontal || max==Maximum)
++        setGnomeProperty(Atoms::gnome_winState, WIN_STATE_MAXIMIZED_HORIZ,
++                         m_isFullWidth);
+ }
+ 
+ 
+@@ -1240,7 +1370,7 @@
+ 	XMapWindow(display(), m_window);
+ 	setState(NormalState);
+ 	mapRaised();
+-	if (CONFIG_CLICK_TO_FOCUS) activate();
++	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+     }
+ }
+ 
+@@ -1290,20 +1420,92 @@
+     }
+ }
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+-void Client::gnomeSetChannel() {
++void Client::updateFromGnomeProperty(Atom property, unsigned char state) {
++    enum {Vertical, Maximum, Horizontal};
++    
++    if(property == Atoms::gnome_winState) {
++        
++        if(state & WIN_STATE_STICKY) {
++            if(!isSticky()) 
++                setSticky(True);
++        } else {
++            if(isSticky()) 
++                setSticky(False);
++        }
++  
++        if(state & WIN_STATE_MAXIMIZED_VERT) {
++            // Does thie mean 'This is my maximum size' or 'maximise me'?
++            // I'm presuming the latter - from the spec:
++            // "the bits set mean that state/property is *desired* by the client"
++            if(!m_isFullHeight)
++                maximise(Vertical);
++        } else {
++            if(m_isFullHeight);
++                unmaximise(Vertical);
++        }
++        
++        if(state & WIN_STATE_MAXIMIZED_HORIZ) {
++            // Does thie mean 'This is my maximum size' or 'maximise me'?
++            // I'm presuming the latter - see above.
++            if(!m_isFullWidth)
++                maximise(Horizontal);
++        } else {
++            if(m_isFullWidth)
++                unmaximise(Horizontal);
++        }
++    
++        if(state & WIN_STATE_FIXED_POSITION) {
++            if(isMovable())
++                setMovable(False);
++        } else {
++                if(!isMovable())
++            setMovable(True);
++        }
++                
++        /* We ignore:
++            WIN_STATE_MINIMIZED       // Reserved - definition is unclear
++            WIN_STATE_HIDDEN          // not on taskbar but window visible
++            WIN_STATE_SHADED          // shaded (MacOS / Afterstep style)
++            WIN_STATE_HID_WORKSPACE   // not on current desktop
++            WIN_STATE_HID_TRANSIENT   // owner of transient is hidden
++            WIN_STATE_ARRANGE_IGNORE  // ignore for auto arranging
++        */
++        
++    } else if(property == Atoms::gnome_winHints) {
++        
++        if(state & WIN_HINTS_SKIP_FOCUS) {
++            if(!skipsFocus())
++                setSkipFocus(True);
++        } else {
++            if(skipsFocus())
++                setSkipFocus(False);
++        }
++        
++        if(state & WIN_HINTS_FOCUS_ON_CLICK) {
++            if(!isFocusOnClick())
++                setFocusOnClick(True);
++        } else {
++            if(isFocusOnClick())
++                setFocusOnClick(False);
++        }
++        
++        /* We ignore:
++            WIN_HINTS_SKIP_WINLIST    // do not show in window list
++            WIN_HINTS_SKIP_TASKBAR    // do not show on taskbar
++            WIN_HINTS_GROUP_TRANSIENT // Reserved - definition is unclear
++            WIN_HINTS_FOCUS_ON_CLICK  // app only accepts focus if clicked
++        */
++    } else {
++        fprintf(stderr, "wmx: Client::updateFromGnomeProperty called with unknown property!");
++    }
++}
+ 
+-    Atom                atom_set;
++void Client::gnomeSetChannel() {
+     CARD32              val;
+-   
+-    // which is the current channel (or workspace)
+-    atom_set = XInternAtom(display(), "_WIN_WORKSPACE", False);
+ 
+     // gnome numbers then 0... not 1...
+     val =(CARD32)(channel() - 1);
+ 
+-    XChangeProperty(display(), window(), atom_set, XA_CARDINAL, 32, 
++    XChangeProperty(display(), window(), Atoms::gnome_workspace, XA_CARDINAL, 32, 
+ 		    PropModeReplace, (unsigned char *)&val, 1);
+-
+ }
+-#endif
+diff -aur wmx-6pre6/Client.h new_wmx/Client.h
+--- wmx-6pre6/Client.h	Fri May 12 08:40:20 2000
++++ new_wmx/Client.h	Sat Nov 11 20:55:50 2000
+@@ -5,8 +5,7 @@
+ #include "General.h"
+ #include "Manager.h"
+ #include "Border.h"
+-
+-
++ 
+ class Client {
+ public:
+     Client(WindowManager *const, Window, Boolean);
+@@ -43,36 +42,50 @@
+     void manage(Boolean mapped);
+     Boolean hasWindow(Window);
+ 
+-    Client *revertTo() { return m_revert; }
++    Client *revertTo()      { return m_revert; }
+     void setRevertTo(Client *c) { m_revert = c; }
+ 
+-    Boolean isHidden()     { return (m_state == IconicState);    }
+-    Boolean isWithdrawn()  { return (m_state == WithdrawnState); }
+-    Boolean isNormal()     { return (m_state == NormalState);    }
+-    Boolean isKilled()     { return (m_window == None);          }
+-    Boolean isTransient()  { return ((m_transient != None)||(m_shaped)); }
+-    Boolean isSticky()    { return m_sticky; }
+-    Window  transientFor() { return m_transient; }
++    Boolean isHidden()      { return (m_state == IconicState);    }
++    Boolean isWithdrawn()   { return (m_state == WithdrawnState); }
++    Boolean isNormal()      { return (m_state == NormalState);    }
++    Boolean isKilled()      { return (m_window == None);          }
++    Boolean isTransient()   { return ((m_transient != None)||(m_shaped)); }
++    Boolean isSticky()      { return m_sticky; }
++    Boolean skipsFocus()    { return m_skipFocus; }
++    Boolean isFocusOnClick(){ return m_focusOnClick; }
++    Boolean isMovable()     { return m_movable; }
++    Window  transientFor()  { return m_transient; }
+ #ifdef CONFIG_USE_WINDOW_GROUPS
+-    Window  groupParent() { return m_groupParent; }
++    Window  groupParent()   { return m_groupParent; }
+     Boolean isGroupParent() { return m_window == m_groupParent; }
+ #endif
+-    Boolean isFixedSize()  { return m_fixedSize; }
+-    Boolean isShaped()     { return m_shaped; }
++    Boolean isFixedSize()   { return m_fixedSize; }
++    Boolean isShaped()      { return m_shaped; }
++    
++    // Client is borderless (like things on desktop or at 'dock' layer or above.
++    // If I was desiging X (or the GNOME hints), there'd be a specific property
++    // for this, but it seems that there's not.
++    Boolean isBorderless()  { return (layer()  < 4)||(layer() > 6); }
++    
++    // Client should not receive focus (like GNOME panel, desktop icons etc.)
++    Boolean isNonFocusable(){ return (layer()  < 4)||(layer() > 6); }
++
++    const char *label()     { return m_label;    }
++    const char *name()      { return m_name;     }
++    const char *iconName()  { return m_iconName; }
++    
++    const int& layer()      { return m_layer; }
+ 
+-    const char *label()    { return m_label;    }
+-    const char *name()     { return m_name;     }
+-    const char *iconName() { return m_iconName; }
+-
+-    int channel() { return m_channel;  }
++    const int& channel()    { return m_channel;  }
+     void flipChannel(Boolean leaving, int newChannel);
+     Boolean isNormalButElsewhere() { return isNormal()||m_unmappedForChannel; }
+-    void setChannel(int channel) { m_channel = channel;
+-#if CONFIG_GNOME_COMPLIANCE != False
+-                                   gnomeSetChannel();
+-#endif
+-}
+-    void setSticky(Boolean sticky) { m_sticky = sticky; }
++    void setChannel(int channel) { m_channel = channel, gnomeSetChannel(); }
++
++    void setSticky(Boolean);
++    void setSkipFocus(Boolean);
++    void setFocusOnClick(Boolean);
++    void setMovable(Boolean);
++    void setLayer(int newLayer);
+ 
+     void sendMessage(Atom, long);
+     void sendConfigureNotify();
+@@ -111,11 +124,10 @@
+     void eventEnter(XCrossingEvent *);
+     void eventFocusIn(XFocusInEvent *);
+     void eventExposure(XExposeEvent *);
+-
+-#if CONFIG_GNOME_COMPLIANCE != False
++    void eventClient(XClientMessageEvent *);
++    
+     void gnomeSetChannel();
+     Window window()        { return m_window; }
+-#endif
+ 
+ protected:      // cravenly submitting to gcc's warnings
+     ~Client();
+@@ -144,6 +156,10 @@
+     int m_channel;
+     Boolean m_unmappedForChannel;
+     Boolean m_sticky;
++    Boolean m_skipFocus;
++    Boolean m_focusOnClick;
++    int m_layer;
++    
+ 
+ //#if CONFIG_MAD_FEEDBACK != 0
+     Boolean m_levelRaised;
+@@ -152,6 +168,7 @@
+ 
+     XSizeHints m_sizeHints;
+     Boolean m_fixedSize;
++    Boolean m_movable;
+     int m_minWidth;
+     int m_minHeight;
+     void fixResizeDimensions(int &, int &, int &, int &);
+@@ -190,7 +207,9 @@
+     // accessors 
+     Boolean getState(int *);
+     void setState(int);
+-
++    void setGnomeProperty(Atom, unsigned char, Boolean);
++    void updateFromGnomeProperty(Atom, unsigned char);
++    
+     // internal instantiation requests
+     Boolean setLabel(void);	// returns True if changed
+     void getColormaps(void);
+diff -aur wmx-6pre6/Config.C new_wmx/Config.C
+--- wmx-6pre6/Config.C	Thu Mar  2 13:56:35 2000
++++ new_wmx/Config.C	Sat Nov 11 20:55:50 2000
+@@ -21,6 +21,8 @@
+     int  feeddelay;
+     char disable;	// 0 = New Window option, 1 = no New
+     char rightBt;	// 0 = disable, 1 = circulate, 2 = lower, 4 = height
++    char passfocusclick; // 0 = no, 1 = yes
++    char tabmargin;
+ };  
+ 
+ DynamicConfig::DynamicConfig() : m_impl(new DynamicConfigImpl)
+@@ -57,7 +59,8 @@
+     m_impl->feeddelay = 300;
+     m_impl->disable = 0;        // 0 = allow New window, 1 = don't
+     m_impl->rightBt = 1;	// 0 = disable, 1 = circulate, 2 = lower
+-
++    m_impl->passfocusclick = 1;
++    m_impl->tabmargin = 2;
+     scan(1);
+ }
+ 
+@@ -78,6 +81,8 @@
+ char DynamicConfig::rightCirculate() { return m_impl->rightBt & 1; }
+ char DynamicConfig::rightLower() { return m_impl->rightBt & 2; }
+ char DynamicConfig::rightToggleHeight() { return m_impl->rightBt & 4; }
++char DynamicConfig::passFocusClick() { return m_impl->passfocusclick; }
++int  DynamicConfig::tabMargin() { return m_impl->tabmargin; }
+ 
+ void DynamicConfig::scan(char startup)
+ {
+@@ -125,6 +130,10 @@
+ 		if (OPTION(",")) m_impl->feeddelay = strtol(s, &s, 10);
+ 	    } else if (OPTION("off")) m_impl->feedback = 0;
+ 
++	if (OPTION("passclick:"))
++	    if (OPTION("on")) m_impl->passfocusclick = 1;
++	    else if (OPTION("off")) m_impl->passfocusclick = 0;
++
+ 	if (OPTION("focus:"))
+ 	    if (OPTION("click")) m_impl->focus = 3;
+ 	    else if (OPTION("raise")) m_impl->focus = 2;
+@@ -132,17 +141,22 @@
+ 		m_impl->focus = 4;
+ 		if (OPTION(",")) m_impl->raisedelay = strtol(s, &s, 10);
+ 	    } else if (OPTION("follow")) m_impl->focus = 0;
++            
++        if (OPTION("tabmargin:"))
++            m_impl->tabmargin = strtol(s, &s, 10);
+ 
+ 	if (OPTION("right:"))
+ 	    if (OPTION("off")) m_impl->rightBt = 0;
+ 	    else if (OPTION("circulate")) m_impl->rightBt = 1;
+ 	    else if (OPTION("lower")) m_impl->rightBt = 2;
+ 	    else if (OPTION("toggleheight")) m_impl->rightBt = 4;
+-	
++
++	/* Why is this the case?	
+ 	if (*s != '\0') {
+ 	    fprintf(stderr, "\nwmx: Dynamic configuration error: "
+ 		    "`%s' @ position %d", s, string - s);
+ 	}
++	*/
+ 
+     } while (s = strtok(NULL, "/"));
+ 
+diff -aur wmx-6pre6/Config.h new_wmx/Config.h
+--- wmx-6pre6/Config.h	Wed May 24 16:48:59 2000
++++ new_wmx/Config.h	Sat Nov 11 20:55:50 2000
+@@ -51,6 +51,8 @@
+     char rightCirculate();
+     char rightLower();
+     char rightToggleHeight();
++    char passFocusClick();
++    int  tabMargin();
+ 
+     static DynamicConfig dynamicConfig;
+ 
+@@ -106,6 +108,7 @@
+ #define CONFIG_CLICK_TO_FOCUS     (dConfig.clickFocus())
+ #define CONFIG_RAISE_ON_FOCUS     (dConfig.raiseFocus())
+ #define CONFIG_AUTO_RAISE         (dConfig.autoRaiseFocus())
++#define CONFIG_PASS_FOCUS_CLICK   (dConfig.passFocusClick())
+ 
+ // Delays when using AUTO_RAISE focus method
+ // 
+@@ -268,6 +271,12 @@
+ #define CONFIG_NASTY_FONT	  "fixed"
+ #endif
+ 
++// CONFIG_TAB_MARGIN defines the size of the gap on the left and right of the
++// taxt in the tab.
++
++#define CONFIG_TAB_MARGIN   (dConfig.tabMargin())
++
++
+ // If USE_PLAIN_X_CURSORS is True, wmx will use cursors from the
+ // standard X cursor font; otherwise it will install its own.  You may
+ // wish to set this if your X client and server are on different
+@@ -362,19 +371,6 @@
+ #define CONFIG_GROUP_ADD          ControlMask  
+ #define CONFIG_GROUP_REMOVE_ALL   ShiftMask
+ 
+-// This is a first crack at GNOME compliance. So far it only
+-// deals w/ the gnome-pager. For best results restart the 
+-// window manager after GNOME starts up (you can do this from
+-// the Control Center by starting another wm then starting
+-// wmx again) otherwise you may end up with a frame around
+-// the GNOME panel. 
+-//
+-// Also watch out that you don't unhide a window on a channel
+-// that you are not currently on, some strange things happen.
+-// (Patch due to Henri Naccache <henri@asu.edu>)
+-
+-#define CONFIG_GNOME_COMPLIANCE   False
+-
+ // This lets you choose whether to keep the regular wmx
+ // mouse button behaviour, or go w/ the GNOME-described one.
+ // If this is True, the left mouse button (button1) lets you 
+@@ -383,7 +379,7 @@
+ // command menu, and the middle mouse button (button2)
+ // acts like the left mouse normally does (list of windows)
+ 
+-#define CONFIG_GNOME_BUTTON_COMPLIANCE   False
++#define CONFIG_GNOME_BUTTON_COMPLIANCE   True
+ 
+ #endif
+ 
+diff -aur wmx-6pre6/Events.C new_wmx/Events.C
+--- wmx-6pre6/Events.C	Thu May 11 15:25:37 2000
++++ new_wmx/Events.C	Sat Nov 11 20:55:51 2000
+@@ -436,7 +436,8 @@
+ 	    }
+ 	} else {
+ 	    mapRaised();
+-	    if (CONFIG_CLICK_TO_FOCUS) activate();
++	    if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick())
++                 activate();
+ 	}
+     }
+ }
+@@ -457,6 +458,8 @@
+     } else {
+ 	c->eventMapRequest(e);
+     }
++    
++    updateStackingOrder();
+ 
+     // some stuff for multi-screen fuckups here, omitted
+ 
+@@ -486,7 +489,7 @@
+ 	}
+ 	mapRaised();
+ 	setState(NormalState);
+-	if (CONFIG_CLICK_TO_FOCUS) activate();
++	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+ 	break;
+ 
+     case NormalState:
+@@ -494,7 +497,7 @@
+ 	    XMapWindow(display(), m_window);
+ 	}
+ 	mapRaised();
+-	if (CONFIG_CLICK_TO_FOCUS) activate();
++	if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+ 	break;
+ 
+     case IconicState:
+@@ -540,13 +543,14 @@
+     // transient window.
+     if (transientFor()) {
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+ 	// gotta take it off the m_ordered list 
++	// (if we don't do this, sometimes we see transitent windows when we aren't
++	// meant to - for an example, open netscape's find window and click close.
++	// If this line isn't here, the window will stay, but be blank.
+ 	m_windowManager->removeFromOrderedList(this);
+-#endif
+ 
+ 	Client* c = windowManager()->windowToClient(transientFor());
+-	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS) {
++	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS && !c->isFocusOnClick()) {
+ 	    c->activate();
+ 	    if (CONFIG_AUTO_RAISE) {
+ 		c->windowManager()->considerFocusChange(this, c->m_window, windowManager()->timestamp(False));
+@@ -613,7 +617,8 @@
+ 	c->release();
+ 
+ 	ignoreBadWindowErrors = True;
+-	XSync(display(), False);
++	XSync(display(), False
++                );
+ 	ignoreBadWindowErrors = False;
+     }
+ }
+@@ -621,62 +626,60 @@
+ 
+ void WindowManager::eventClient(XClientMessageEvent *e)
+ {
+-    Client *c = windowToClient(e->window);
+-
+-    if (e->message_type == Atoms::wm_changeState) {
+-	if (c && e->format == 32 && e->data.l[0] == IconicState && c != 0) {
+-	    if (c->isNormal()) c->hide();
+-	    return;
+-	}
+-    }
+-
+-#if CONFIG_GNOME_COMPLIANCE != False
+-    // now we have to figure out what messages gnome is sending us 
+-    char *atomName = XGetAtomName(display(), e->message_type);
+-    
+-    if (strncmp(atomName, "_WIN_WORKSPACE", 13) == 0) {
++    if (e->message_type == Atoms::gnome_workspace) {
+ 
+ 	int channel = (int)e->data.l[0] + 1;
+ 
+ 	// gnome is not up-to-date and asked us to flip to a 
+ 	// non-existing channel
+ 	if (channel > m_channels) {
+-	    
+ 	    gnomeUpdateChannelList();
+ 	    return;
+ 	}
+-
+-	// it seems like there should be a better way of doing this...
+-	while (m_currentChannel != channel) {
+-	    if (m_currentChannel < channel) {
+-		flipChannel(False, False, True, 0);
+-	    } else {
+-		flipChannel(False, True, True, 0);
+-	    }
+-	    XSync(display(), False);
+-	}
+-
+-	XFree(atomName);
+-
+-	gnomeUpdateChannelList();
++                
++        gotoChannel(channel, 0);
+ 
+ 	return;
+     }
++    
++    Client *c = windowToClient(e->window);
++    if(c)
++        c->eventClient(e);
++    else
++        fprintf(stderr, "wmx: Received client message for unknown client!\n");
++}
+ 
+-    if (strncmp(atomName, "_WIN_AREA", 9) == 0) {
+-	// we don't support _WIN_AREA 
+-	XFree(atomName);
++void Client::eventClient(XClientMessageEvent *e) {
++    if (e->message_type == Atoms::wm_changeState) {
++	if (e->format == 32 && e->data.l[0] == IconicState) {
++	    if (isNormal()) hide();
++	    return;
++	}
++    } else if (e->message_type == Atoms::gnome_winLayer) {
++        setLayer(e->data.l[0]);
++        return;
++    } else if (e->message_type == Atoms::gnome_winState) {
++        // Although e->data.l[0] contains a mask of which values to change,
++        // We ignore it, prefering to simply compare data.l[1] with our
++        // internal state.  This helps to ensure consistency.
++        updateFromGnomeProperty(Atoms::gnome_winState, e->data.l[1]);
++        return;  
++    } else if (e->message_type == Atoms::gnome_winHints) {  
++        updateFromGnomeProperty(Atoms::gnome_winHints, e->data.l[1]);
++        return;  
++    } else if (e->message_type == 0xed) {  // What is this for?
++	XUnmapWindow(display(), window());
+ 	return;
+     }
++    
++    char *atomName = XGetAtomName(display(), e->message_type);
++    
++    fprintf(stderr, "wmx: unexpected XClientMessageEvent with name \"%s\" received", 
++            atomName);
++        
+     XFree(atomName);
+-#endif
+-
+-    if (e->message_type == 0xed) {
+-	XUnmapWindow(display(), e->window);
+-	return;
+-    }
+-
+-    fprintf(stderr, "wmx: unexpected XClientMessageEvent, type 0x%lx, "
++    
++    fprintf(stderr, ", type 0x%lx, "
+ 	    "window 0x%lx\n", e->message_type, e->window);
+ }
+ 
+@@ -805,9 +808,9 @@
+ 
+ 	if (activeClient()->coordsInHole(e->x - x, e->y - y)) return;
+     }
+-
++/*********************************/
+     if (e->type == EnterNotify) {
+-	if (!isActive() && !CONFIG_CLICK_TO_FOCUS) {
++	if (!isActive() && !CONFIG_CLICK_TO_FOCUS && !isFocusOnClick()) {
+ 	    activate();
+ 	    if (CONFIG_AUTO_RAISE) {
+ 		windowManager()->considerFocusChange(this, m_window, e->time);
+diff -aur wmx-6pre6/General.h new_wmx/General.h
+--- wmx-6pre6/General.h	Thu May 11 11:37:35 2000
++++ new_wmx/General.h	Sat Nov 11 20:55:51 2000
+@@ -32,6 +32,8 @@
+ // True and False are defined in Xlib.h
+ typedef char Boolean;
+ 
++#include "Config.h"
++
+ #define NewString(x) (strcpy((char *)malloc(strlen(x)+1),(x)))
+ 
+ #ifndef SIGNAL_CALLBACK_TYPE
+@@ -48,11 +50,22 @@
+     (void)sigaction((x), &sAct, NULL); \
+   } while (0)
+ 
+-#include "Config.h"
+-
+-#if CONFIG_USE_SESSION_MANAGER != False
+-#include <X11/SM/SMlib.h>
+-#endif
++#define WIN_STATE_STICKY          (1<<0) /*everyone knows sticky*/
++#define WIN_STATE_MINIMIZED       (1<<1) /*Reserved - definition is unclear*/
++#define WIN_STATE_MAXIMIZED_VERT  (1<<2) /*window in maximized V state*/
++#define WIN_STATE_MAXIMIZED_HORIZ (1<<3) /*window in maximized H state*/
++#define WIN_STATE_HIDDEN          (1<<4) /*not on taskbar but window visible*/
++#define WIN_STATE_SHADED          (1<<5) /*shaded (MacOS / Afterstep style)*/
++#define WIN_STATE_HID_WORKSPACE   (1<<6) /*not on current desktop*/
++#define WIN_STATE_HID_TRANSIENT   (1<<7) /*owner of transient is hidden*/
++#define WIN_STATE_FIXED_POSITION  (1<<8) /*window is fixed in position even*/
++#define WIN_STATE_ARRANGE_IGNORE  (1<<9) /*ignore for auto arranging*/
++
++#define WIN_HINTS_SKIP_FOCUS      (1<<0) /*"alt-tab" skips this win*/
++#define WIN_HINTS_SKIP_WINLIST    (1<<1) /*do not show in window list*/
++#define WIN_HINTS_SKIP_TASKBAR    (1<<2) /*do not show on taskbar*/
++#define WIN_HINTS_GROUP_TRANSIENT (1<<3) /*Reserved - definition is unclear*/
++#define WIN_HINTS_FOCUS_ON_CLICK  (1<<4) /*app only accepts focus if clicked*/
+ 
+ class Atoms {
+ public:
+@@ -64,7 +77,6 @@
+     static Atom wm_colormaps;
+     static Atom wmx_running;
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     static Atom gnome_supportingWmCheck;
+     static Atom gnome_protocols;
+     static Atom gnome_clienList;
+@@ -73,8 +85,9 @@
+     static Atom gnome_workspaceNames;
+     static Atom gnome_winLayer;
+     static Atom gnome_winDesktopButtonProxy;
+-#endif
+ 
++    static Atom gnome_winHints;
++    static Atom gnome_winState;
+ };
+ 
+ extern Boolean ignoreBadWindowErrors; // tidiness hack
+Only in new_wmx: Makefile
+diff -aur wmx-6pre6/Manager.C new_wmx/Manager.C
+--- wmx-6pre6/Manager.C	Wed May 24 16:57:13 2000
++++ new_wmx/Manager.C	Mon Nov 13 21:43:57 2000
+@@ -24,7 +24,6 @@
+ Atom    Atoms::wm_colormaps;
+ Atom    Atoms::wmx_running;
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+ Atom    Atoms::gnome_supportingWmCheck;
+ Atom    Atoms::gnome_protocols;
+ Atom    Atoms::gnome_clienList;
+@@ -33,7 +32,8 @@
+ Atom    Atoms::gnome_workspaceNames;
+ Atom    Atoms::gnome_winLayer;
+ Atom    Atoms::gnome_winDesktopButtonProxy;
+-#endif
++Atom    Atoms::gnome_winState;
++Atom    Atoms::gnome_winHints;
+ 
+ int     WindowManager::m_signalled = False;
+ int     WindowManager::m_restart   = False;
+@@ -118,7 +118,11 @@
+     } else {
+ 	if (CONFIG_CLICK_TO_FOCUS) {
+ 	    if (CONFIG_RAISE_ON_FOCUS) {
+-		fprintf(stderr, "     Click to focus.");
++                if (CONFIG_PASS_FOCUS_CLICK) {
++		    fprintf(stderr, "     Click to focus, focus clicks passed on to client.");
++                } else {
++                    fprintf(stderr, "     Click to focus, focus clicks not passed on to clients.");
++                }
+ 	    } else {
+ 		fatal("can't have click-to-focus without raise-on-focus");
+ 	    }
+@@ -132,9 +136,9 @@
+     }
+ 
+     if (CONFIG_EVERYTHING_ON_ROOT_MENU) {
+-	fprintf(stderr, "  All clients on menu.");
++	fprintf(stderr, "\n     All clients on menu.");
+     } else {
+-	fprintf(stderr, "  Hidden clients only on menu.");
++	fprintf(stderr, "\n     Hidden clients only on menu.");
+     }
+ 
+     if (CONFIG_USE_SESSION_MANAGER) {
+@@ -189,12 +193,7 @@
+     fprintf(stderr, "\n     Operating system locale is \"%s\".",
+ 	    ret_setlocale ? ret_setlocale : "(NULL)");
+ #endif
+-
+-    if (CONFIG_GNOME_COMPLIANCE) {
+-        fprintf(stderr, "\n     Partial GNOME compliance.");
+-    } else {
+-        fprintf(stderr, "\n     Not GNOME compliant.");
+-    }
++    fprintf(stderr, "\n     GNOME compliant.");
+ 
+     fprintf(stderr, "\n     Command menu taken from ");
+     if (wmxdir == NULL) {
+@@ -252,7 +251,6 @@
+     Atoms::wm_colormaps  = XInternAtom(m_display, "WM_COLORMAP_WINDOWS", False);
+     Atoms::wmx_running   = XInternAtom(m_display, "_WMX_RUNNING",        False);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     Atoms::gnome_supportingWmCheck = XInternAtom(m_display, "_WIN_SUPPORTING_WM_CHECK", False);
+     Atoms::gnome_protocols         = XInternAtom(m_display, "_WIN_PROTOCOLS",           False);
+     Atoms::gnome_clienList         = XInternAtom(m_display, "_WIN_CLIENT_LIST",         False);
+@@ -262,7 +260,8 @@
+     Atoms::gnome_winLayer          = XInternAtom(m_display, "_WIN_LAYER",               False);
+     Atoms::gnome_winDesktopButtonProxy 
+ 	                           = XInternAtom(m_display, "_WIN_DESKTOP_BUTTON_PROXY",False);
+-#endif
++    Atoms::gnome_winHints          = XInternAtom(m_display, "_WIN_HINTS",     False);
++    Atoms::gnome_winState          = XInternAtom(m_display, "_WIN_STATE",     False);    
+ 
+     int dummy;
+     if (!XShapeQueryExtension(m_display, &m_shapeEvent, &dummy))
+@@ -283,9 +282,7 @@
+     initialiseSession(argv[0], oldSessionId);
+ #endif
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     gnomeInitialiseCompliance();
+-#endif
+ 
+ #if CONFIG_GROUPS != False
+     for (int i = 0; i < 10; i++) {
+@@ -295,6 +292,7 @@
+ 
+     clearFocus();
+     scanInitialWindows();
++    updateStackingOrder();
+     loop();
+     if(m_restart == True){
+ 	fprintf(stderr,"restarting wmx from SIGHUP\n");
+@@ -583,7 +581,6 @@
+ 	    XGetWindowAttributes(m_display, wins[i], &attr);
+ //	    if (attr.override_redirect || wins[i] == m_menuWindow) continue;
+ 	    if (attr.override_redirect) continue;
+-
+ 	    (void)windowToClient(wins[i], True);
+ 	}
+ 
+@@ -605,36 +602,8 @@
+ 
+     if (!create) return 0;
+     else {
+-
+-        Client *newC = 0;
+-
+-#if CONFIG_GNOME_COMPLIANCE != False
+-        
+-        // i would like to catch layer info here.
+-        // if it's layer 0, then don't map it....
+-        Atom returnType;
+-        int returnFormat;
+-        unsigned long count;
+-        unsigned long bytes_remain;
+-        unsigned char *prop;
+-
+-        int m_layer = 256;
+-
+-        if (XGetWindowProperty(m_display, w, Atoms::gnome_winLayer, 0, 1,
+-                               False, XA_CARDINAL, &returnType, &returnFormat,
+-                               &count, &bytes_remain, &prop) == Success) {
+-        
+-            if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
+-                m_layer = ((long *)prop)[0];
+-                //fprintf(stderr, "0x%X:layer == %d\n", w, m_layer);
+-                XFree(prop);
+-                XMapWindow(m_display, w);
+-                return 0;
+-            }
+         
+-            XFree(prop);
+-        }
+-#endif
++        Client *newC = 0;
+     
+         int bounding_shape = -1;
+         int clip_shape = -1;
+@@ -645,38 +614,24 @@
+         unsigned int w_clip = 0;
+         unsigned int h_clip = 0;
+         int x_clip = 0;
+-        int y_clip = 0;
+-
++        int y_clip = 0; 
++        
+         int shapeq = XShapeQueryExtents(m_display, w, &bounding_shape, 
+                                         &x_bounding, &y_bounding, 
+                                         &w_bounding, &h_bounding, &clip_shape,
+                                         &x_clip, &y_clip, &w_clip, &h_clip);
+ 
+-        if (bounding_shape == 1) {
+-            //	fprintf(stderr, "0x%X: shapeq = %d, bounding_shape = %d x=%d y=%d w=%d h=%d clip_shape=%d x=%d y=%d w=%d h=%d\n",w, shapeq, bounding_shape, x_bounding, y_bounding, w_bounding, h_bounding,clip_shape,  x_clip, y_clip, w_clip, h_clip);
+-	
+-            //            int count = 0;
+-            //            int ordering = 0;
+-            
+-            //            XRectangle* recs =
+-            //                XShapeGetRectangles(m_display, w, ShapeBounding,
+-            //                                    &count, &ordering);
+-            //	fprintf(stderr, "rectangles: count= %d\n", count);
+-
+-            //            XFree(recs);
+-
+-            XMapWindow(m_display, w);
+-
+-            newC = new Client(this, w, true);
+-        } else {
+-            newC = new Client(this, w, false);
+-        }
++        newC = new Client(this, w, bounding_shape==1);
++        m_clients.append(newC);
++        
++        //fprintf(stderr, "wmx: Constructing new client on layer %d\n",
++        //        newC->layer());
+ 
+-	m_clients.append(newC);
+ 	if (m_currentChannel == m_channels) {
+ 	    createNewChannel();
+ 	}
+-	return newC;
++	
++        return newC;
+     }
+ }
+ 
+@@ -751,9 +706,7 @@
+ 
+     m_hiddenClients.append(c);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     gnomeUpdateWindowList(); 
+-#endif
+ }
+ 
+ 
+@@ -763,7 +716,6 @@
+ 	if (m_hiddenClients.item(i) == c) {
+ 	    m_hiddenClients.remove(i);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+ 	    if (c->channel() != m_currentChannel) {
+ 
+ 		while (c->channel() != m_currentChannel) {
+@@ -777,7 +729,6 @@
+ 	    } else {
+ 		gnomeUpdateWindowList(); 
+ 	    }
+-#endif
+ 	    return;
+ 	}
+     }
+@@ -787,21 +738,20 @@
+ void WindowManager::hoistToTop(Client *c)
+ {
+     int i;
++    int layer=c->layer();
+ 
+-    for (i = 0; i < m_orderedClients.count(); ++i) {
+-	if (m_orderedClients.item(i) == c) {
+-	    m_orderedClients.move_to_start(i);
++    for (i = 0; i < m_orderedClients[layer].count(); ++i) {
++	if (m_orderedClients[layer].item(i) == c) {
++	    m_orderedClients[layer].move_to_start(i);
+ 	    break;
+ 	}
+     }
+ 
+-    if (i >= m_orderedClients.count()) {
+-	m_orderedClients.append(c);
+-	m_orderedClients.move_to_start(m_orderedClients.count()-1);
++    if (i >= m_orderedClients[layer].count()) {
++	m_orderedClients[layer].append(c);
++	m_orderedClients[layer].move_to_start(m_orderedClients[layer].count()-1);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+         gnomeUpdateWindowList(); 
+-#endif
+ 
+     }
+ }
+@@ -810,29 +760,31 @@
+ void WindowManager::hoistToBottom(Client *c)
+ {
+     int i;
++    int layer=c->layer();
+ 
+-    for (i = 0; i < m_orderedClients.count(); ++i) {
+-	if (m_orderedClients.item(i) == c) {
+-	    m_orderedClients.move_to_end(i);
++    for (i = 0; i < m_orderedClients[layer].count(); ++i) {
++	if (m_orderedClients[layer].item(i) == c) {
++	    m_orderedClients[layer].move_to_end(i);
+ 	    break;
+ 	}
+     }
+ 
+-    if (i >= m_orderedClients.count()) {
+-	m_orderedClients.append(c);
+-//	m_orderedClients.move_to_end(m_orderedClients.count()-1);
++    if (i >= m_orderedClients[layer].count()) {
++	m_orderedClients[layer].append(c);
++//	m_orderedClients[layer].move_to_end(m_orderedClients[layer].count()-1);
+     }
++
+ }
+ 
+ 
+ void WindowManager::removeFromOrderedList(Client *c)
+ {
+-    for (int i = 0; i < m_orderedClients.count(); ++i) {
+-	if (m_orderedClients.item(i) == c) {
+-	    m_orderedClients.remove(i);
+-#if CONFIG_GNOME_COMPLIANCE != False
++    int layer=c->layer();
++
++    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
++	if (m_orderedClients[layer].item(i) == c) {
++	    m_orderedClients[layer].remove(i);
+ 	    gnomeUpdateWindowList(); 
+-#endif
+ 	    return;
+ 	}
+     }
+@@ -841,13 +793,14 @@
+ 
+ Boolean WindowManager::isTop(Client *c)
+ {
+-    return (m_orderedClients.item(0) == c) ? True : False;
++    return (m_orderedClients[c->layer()].item(0) == c) ? True : False;
+ }
+ 
+ void WindowManager::withdrawGroup(Window groupParent, Client *omit, Boolean changeState)
+ {
+-    for (int i = 0; i < m_orderedClients.count(); ++i) {
+-	Client *ic = m_orderedClients.item(i);
++    for (int layer=MAX_LAYER; layer >= 0; --layer)
++    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
++	Client *ic = m_orderedClients[layer].item(i);
+ 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+ 	    ic != omit) {
+ 	    ic->withdraw(changeState);
+@@ -856,9 +809,10 @@
+ }
+ 
+ void WindowManager::hideGroup(Window groupParent, Client *omit)
+-{
+-    for (int i = 0; i < m_orderedClients.count(); ++i) {
+-	Client *ic = m_orderedClients.item(i);
++{    
++    for (int layer=MAX_LAYER; layer >= 0; --layer)
++    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
++	Client *ic = m_orderedClients[layer].item(i);
+ 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+ 	    ic != omit) {
+ 	    ic->hide();
+@@ -868,8 +822,9 @@
+ 
+ void WindowManager::unhideGroup(Window groupParent, Client *omit, Boolean map)
+ {
+-    for (int i = 0; i < m_orderedClients.count(); ++i) {
+-	Client *ic = m_orderedClients.item(i);
++    for (int layer=MAX_LAYER; layer >= 0; --layer)
++    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
++	Client *ic = m_orderedClients[layer].item(i);
+ 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+ 	    ic != omit) {
+ 	    ic->unhide(map);
+@@ -879,8 +834,9 @@
+ 
+ void WindowManager::killGroup(Window groupParent, Client *omit)
+ {
+-    for (int i = 0; i < m_orderedClients.count(); ++i) {
+-	Client *ic = m_orderedClients.item(i);
++    for (int layer=MAX_LAYER; layer >= 0; --layer)
++    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
++	Client *ic = m_orderedClients[layer].item(i);
+ 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
+ 	    ic != omit) {
+ 	    ic->kill();
+@@ -977,9 +933,6 @@
+     wait((int *) 0);
+ }
+ 
+-
+-#if CONFIG_GNOME_COMPLIANCE != False
+-
+ void WindowManager::gnomeInitialiseCompliance()
+ {
+     // NOTE that this has been altered to coexist with the
+@@ -990,7 +943,7 @@
+     // http://www.gnome.org/devel/gnomewm
+ 
+     // some day we will be more compliant
+-    Atom list[5];
++    Atom list[7];
+     
+     // this part is to tell GNOME we are compliant. The window 
+     // is needed to tell GNOME that wmx has exited (i think). 
+@@ -1027,44 +980,85 @@
+     list[2] = Atoms::gnome_workspaceCount;
+     list[3] = Atoms::gnome_workspaceNames;
+     list[4] = Atoms::gnome_winLayer;
++    list[5] = Atoms::gnome_winHints;
++    list[6] = Atoms::gnome_winState;
+     
+     XChangeProperty
+         (m_display, m_root[0], Atoms::gnome_protocols, XA_ATOM, 32,
+-         PropModeReplace, (unsigned char *)list, 5);
++         PropModeReplace, (unsigned char *)list, 7);
+ 
+     gnomeUpdateChannelList();
+ }
+ 
+-void WindowManager::gnomeUpdateWindowList()
+-{
+-    Atom atom_set;
+-    long num;
+-    int  i;
+-    int  realNum;
+-
+-    int hiddenCount = m_hiddenClients.count();
+-    int orderedCount = m_orderedClients.count();
+-
+-    Window *windows = new Window[hiddenCount + orderedCount];
+-    int j = 0;
+-
+-    for (i = 0; i < hiddenCount; i++) {
+-        if (!m_hiddenClients.item(i)->isKilled()) {
+-            windows[j++] = m_hiddenClients.item(i)->window();
++void WindowManager::updateStackingOrder() {
++    int orderedCount = 0;
++    for(int i = MAX_LAYER; i>=0; --i)
++        orderedCount+=m_orderedClients[i].count();
++    
++    Window* windows = new Window[orderedCount];
++    Window* windowIter = windows;
++    
++    for(int layer = MAX_LAYER; layer >= 0; --layer) {
++        int top = m_orderedClients[layer].count();
++        for (int i = 0; i < top; ++i) {
++            Client *c = m_orderedClients[layer].item(i);
++	    if (!c->isKilled() && (c->channel()==channel()  || c->isSticky()) && !c->isHidden()) {
++                *(windowIter++)=c->parent();
++	    }
+         }
+     }
+-
+-    for (i = 0; i < orderedCount; i++) {
+-	if (!m_orderedClients.item(i)->isKilled()) {
+-            windows[j++] = m_orderedClients.item(i)->window();
+-	}
++    
++#if 0   
++    /******************************/
++    /*****  TAKE THIS OUT!!!  *****/
++ 
++    {
++        int count = 0;
++        for(Window* i=windows; i<windowIter; ++i) {
++            for(Window* j=windows; j<windowIter; ++j) {
++                if(i!=j && *i==*j) {
++                    count++;
++                }
++            }
++        }
++        if(count!=0)
++            fprintf(stderr, "wmx: %d duplicate windows in stacking list\n", count);
+     }
++    
++    /*****  TAKE THIS OUT!!!  *****/    
++    /******************************/
++#endif
++    
++    XRestackWindows(display(), windows, windowIter-windows);
++    
++    delete[] windows;
++}
+ 
++void WindowManager::gnomeUpdateWindowList()
++{
++
++    int orderedCount = 0;
++    for(int i = MAX_LAYER; i>=0; --i)
++        orderedCount+=m_orderedClients[i].count();
++    
++    Window* windows = new Window[orderedCount*4];
++    int windowCount = 0;
++    
++    for(int layer = MAX_LAYER; layer >= 0; --layer) {
++        int top = m_orderedClients[layer].count();
++        for (int i = 0; i < top; ++i) {
++            Client *c = m_orderedClients[layer].item(i);
++	    if (!c->isKilled()) {
++                windows[windowCount++] = c->window();
++	    }
++        }
++    }
++    
+     XChangeProperty
+         (m_display, m_root[0], Atoms::gnome_clienList, XA_CARDINAL, 32, 
+-         PropModeReplace, (unsigned char*)windows, j);
++         PropModeReplace, (unsigned char*)windows, windowCount);
+ 
+-    delete windows;
++    delete[] windows;   
+ }
+ 
+ void WindowManager::gnomeUpdateChannelList()
+@@ -1081,11 +1075,11 @@
+          PropModeReplace, (unsigned char *)&val, 1);
+ 
+     // set the names of the channels
+-    names = (char **)malloc(sizeof(char *) * m_channels);
+-
++    names = new char*[m_channels];
++    
+     for (i = 0; i < m_channels; i++) {
+         snprintf(s, sizeof(s), "Channel %i", i + 1);
+-        names[i] = (char *)malloc(strlen(s) + 1);
++        names[i] = new char [strlen(s) + 1];
+         strcpy(names[i], s);
+     }
+     
+@@ -1097,8 +1091,9 @@
+ 	XFree(textProp.value);
+     }
+     
+-    for (i = 0; i < m_channels; i++) free(names[i]);
+-    free(names);
++    for (i = 0; i < m_channels; i++) delete[] names[i];
++
++    delete[] names;
+ 
+     gnomeUpdateCurrentChannel();
+ }   
+@@ -1115,7 +1110,4 @@
+          PropModeReplace, (unsigned char *)&val, 1);
+ 
+     gnomeUpdateWindowList();
+-}   
+-
+-#endif
+-
++}  
+diff -aur wmx-6pre6/Manager.h new_wmx/Manager.h
+--- wmx-6pre6/Manager.h	Wed May 24 16:46:14 2000
++++ new_wmx/Manager.h	Sat Nov 11 20:55:51 2000
+@@ -5,6 +5,8 @@
+ #include "General.h"
+ #include "listmacro.h"
+ 
++#define MAX_LAYER 13
++
+ class Client;
+ declarePList(ClientList, Client);
+ 
+@@ -84,6 +86,10 @@
+     void hoistToBottom(Client *);
+     void removeFromOrderedList(Client *);
+     Boolean isTop(Client *);
++    
++    // Instruct the X-Server to reorder the windows to match our ordering.
++    // Takes account of layering.
++    void updateStackingOrder();    
+ 
+     // for exposures during client grab, and window map/unmap/destroy
+     // during menu display:
+@@ -93,11 +99,9 @@
+     void windowGrouping(XKeyEvent *ev, KeySym key, Client *c);
+ #endif
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     void gnomeUpdateWindowList();
+     void gnomeUpdateChannelList();
+     void gnomeUpdateCurrentChannel();
+-#endif
+ 
+ private:
+     int loop();
+@@ -123,7 +127,10 @@
+ 
+     ClientList m_clients;
+     ClientList m_hiddenClients;
+-    ClientList m_orderedClients;
++	
++    ClientList m_orderedClients[MAX_LAYER+1]; 
++                                    // One list for each gnome/MWM layer
++                                    // Layer 4 is the 'normal' layer.
+     Client *m_activeClient;
+ 
+ #if CONFIG_GROUPS != False
+@@ -208,11 +215,8 @@
+     // Stupid little helper function
+     static int numdigits(int);
+ 
+-#if CONFIG_GNOME_COMPLIANCE != False
+     void gnomeInitialiseCompliance();
+     Window gnome_win;
+-
+-#endif
+ 
+     int m_altModMask;
+ };
+diff -aur wmx-6pre6/README new_wmx/README
+--- wmx-6pre6/README	Fri May 12 08:40:20 2000
++++ new_wmx/README	Sat Nov 11 20:55:51 2000
+@@ -219,8 +219,11 @@
+ to set option a to value b, option c to value d, e to f and so on.
+ The available options are currently "menu" (full or part), "new" (on
+ or off), "keyboard" (on or off), "feedback" (on or off), and "focus"
+-(click, raise, delay-raise or follow).  "focus:delay-raise" may be
+-optionally followed by a comma and then a delay time in ms.
++(click, raise, delay-raise or follow).  If click focus is used, 
++a "passclick" option can be set (on or off) to regulate whether 
++the focus-giving click is also sent to the newly raised client. 
++"focus:delay-raise" may be optionally followed by a comma and then a 
++delay time in ms.
+ 
+ For example,
+ 
+Only in new_wmx: config.cache
+Only in new_wmx: config.log
+Only in new_wmx: config.status
+Only in new_wmx: wmx
+Only in new_wmx: wmx.old

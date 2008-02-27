@@ -1,0 +1,63 @@
+Attached is a patch I worked up at the start of the summer - apologies for
+not posting it earlier.  I started when I installed GNOME 1.2 and windows
+appeared twice in the task list, and my work snowballed.  The patch gives
+something not quite entirely unlike full GNOME compliance* [making wmx one
+of the select few almost GNOME compliant window managers].  See the features
+list below.  It should apply cleanly to a wmx-6pre6 source 'tree', and I
+think it's quite stable (I've used it for four months now, and I can't
+remember a crash :-).  It updates the README to include instructions for the
+new configuration options, but not any of the other documents.
+
+Jamie.
+
+*see below for missing GNOMEy features.
+
+-----
+
+Note: I wrote most of the patch four months ago, so forgive me if I've
+missed something I've done from the list.
+
+New Features:
+Now manages all windows, even e.g. desktop icons, but doesn't put a border
+around them, and won't give them focus (required for GNOME compliance).
+Puts borders around shaped windows that are not marked as borderless.  I
+like the feature - at last I can move xeyes around :-) [Don't worry, it puts
+transient-style window frames around shaped windows, so you can't see them
+if your mouse isn't hovering over the window].
+Margin around the text in the window tabs is now configurable (through the
+symbolic scheme - see the README).
+Added a configuration option enabling the click which gives focus when
+click-to-focus is turned on to be passed through to the newly focused
+window.
+
+
+New GNOME/MWM Compliancy Features:
+Support for GNOME's layers.
+Stickiness works with GNOME (i.e. wmx and GNOME can now agree on which
+windows are sticky).
+Stopped windows appearing twice in GNOME 1.2's task list (the reason this
+was happening, if I remember correctly, was because hidden windows were
+being 'told to GNOME' twice when an update was made).
+Honour a window's 'skip focus' (i.e. alt-tab won't hit it) property.
+
+Other Changes:
+Changed a couple of 'delete's to 'delete[]'s (tsk, tsk :-)
+Removed an error printing routine from the dynamic configuration reader (I
+can't see why it was needed - indeed, I think it was actually stopping
+correct loading in some cases by aborting if the configuration was not given
+in a set order).
+
+Missing Things for full GNOME compliance:
+Tell if a window should be borderless properly (at the moment, it's
+implicitly based on the window's layer).
+Tell if a window should be able to receive full focus properly (again, based
+on layer).
+Read the 'usable screen' dimensions from somewhere (to avoid maximising over
+panels etc.).
+Session management (I haven't even /touched/ this :-)
+
+Things that 'would be nice':
+A (compile-time?) option to make the window-choosing menu a GTK one to fit
+in with GNOME.
+
+

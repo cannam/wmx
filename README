@@ -227,8 +227,11 @@ found).  This target should be a string of the form a:b/c:d/e:f etc,
 to set option a to value b, option c to value d, e to f and so on.
 The available options are currently "menu" (full or part), "new" (on
 or off), "keyboard" (on or off), "feedback" (on or off), and "focus"
-(click, raise, delay-raise or follow).  "focus:delay-raise" may be
-optionally followed by a comma and then a delay time in ms.
+(click, raise, delay-raise or follow).  If click focus is used, 
+a "passclick" option can be set (on or off) to regulate whether 
+the focus-giving click is also sent to the newly raised client. 
+"focus:delay-raise" may be optionally followed by a comma and then a 
+delay time in ms.
 
 For example,
 

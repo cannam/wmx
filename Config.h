@@ -29,7 +29,8 @@
 // This isn't one of the sections.  This is the structure for Stefan
 // `Sec' Zehl's runtime configuration hack -- see Config.C.  It's a
 // bit incomplete, but works, mostly.  Anything in this file that's
-// #defined to dConfig.something() will take its default from Config.C
+// #defined to DynamicConfig::config.something() will take its default
+// from Config.C
 
 struct DynamicConfigImpl;
 class DynamicConfig
@@ -51,6 +52,8 @@ public:
     char rightCirculate();
     char rightLower();
     char rightToggleHeight();
+    char passFocusClick();
+    int  tabMargin();
     char *tabForeground();
     char *tabBackground();
     char *frameBackground();
@@ -108,6 +111,8 @@ private:
 #define CONFIG_RAISE_ON_FOCUS     (DynamicConfig::config.raiseFocus())
 #define CONFIG_AUTO_RAISE         (DynamicConfig::config.autoRaiseFocus())
 
+#define CONFIG_PASS_FOCUS_CLICK   (DynamicConfig::config.passFocusClick())
+
 // Delays when using AUTO_RAISE focus method
 // 
 // In theory these only apply when using AUTO_RAISE, not when just
@@ -155,13 +160,10 @@ private:
 #define CONFIG_USE_WINDOW_GROUPS	True
 
 // If USE_SESSION_MANAGER is True, and you have an Xsmc session
-// manager running, some relevant information on which client lives on
-// which desktop, etc., should be saved between sessions.  This is not
-// yet implemented, so in fact wmx should just print out a startup
-// message and then ignore it.  Want to finish the implementation?
-// You're welcome.
+// manager running, wmx will respond to session manager callbacks and
+// notify the session manager of its restart command.
 
-#define CONFIG_USE_SESSION_MANAGER	False
+#define CONFIG_USE_SESSION_MANAGER	True
 
 // Specify the maximum length of an entry in the client menu or the command
 // menu. Set this to zero if you want no limitation
@@ -200,6 +202,9 @@ private:
 #define CONFIG_MAXIMISE_KEY       XK_Home
 #define CONFIG_UNMAXIMISE_KEY     XK_End
 #define CONFIG_SAME_KEY_MAX_UNMAX False
+
+// With modifier, print a list of client data to stdout
+#define CONFIG_DEBUG_KEY          XK_Print
 
 // The next two may clash badly with Emacs, if you use Alt as the
 // modifier.  The commented variants might work better for some.
@@ -274,36 +279,22 @@ private:
 
 #else
 
-// Define I18N to enable I18N patch by Kazushi (Jam) Marukawa
-// 
-// Ability to display I18N characters.  Defines I18N as "1" to display
-// them and execute wmx with LANG environment variable set "ja_JP".
-// You need I18N ability of OS and X11 library also to do.  If you
-// don't know about them, read the message wmx with I18N displays
-// about result of setlocale().  It must be "ja" or your locale but
-// not "C".  If you get "C", there are problems.  Try to add
-// "-DX_LOCALE" as CFLAGS.  It might be help.  If you got "C" after
-// all, probably you should compile your X11 library with -DX_LOCALE.
-// I did it for my NetBSD box. :-)
-
-#define I18N 1
-
 // Fonts used all over the place.  NICE_FONT is for the frames, and
 // NICE_MENU_FONT for the menus.  NASTY_FONT is what you'll get if it
-// can't find one of the NICE ones.  If you have I18N, these are font
-// lists rather than just simple fonts
+// can't find one of the NICE ones.  These are font lists, rather than
+// single fonts
 
-#if I18N
 #define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*,-*-*-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*,-*-*-medium-r-*-*-14-*-75-75-*-*-*-*"
 #define CONFIG_NASTY_FONT	  "fixed,-*-*-*-*-*-*-14-*-75-75-*-*-*-*"
-#else
-#define CONFIG_NICE_FONT	  "-*-lucida-bold-r-*-*-14-*-75-75-*-*-*-*"
-#define CONFIG_NICE_MENU_FONT	  "-*-lucida-medium-r-*-*-14-*-75-75-*-*-*-*"
-#define CONFIG_NASTY_FONT	  "fixed"
-#endif
 
 #endif
+
+// CONFIG_TAB_MARGIN defines the size of the gap on the left and right of the
+// taxt in the tab.
+
+#define CONFIG_TAB_MARGIN   (DynamicConfig::config.tabMargin())
+
 
 // If USE_PLAIN_X_CURSORS is True, wmx will use cursors from the
 // standard X cursor font; otherwise it will install its own.  You may
@@ -398,19 +389,6 @@ private:
 #define CONFIG_GROUPS             True
 #define CONFIG_GROUP_ADD          ControlMask  
 #define CONFIG_GROUP_REMOVE_ALL   ShiftMask
-
-// This is a first crack at GNOME compliance. So far it only
-// deals w/ the gnome-pager. For best results restart the 
-// window manager after GNOME starts up (you can do this from
-// the Control Center by starting another wm then starting
-// wmx again) otherwise you may end up with a frame around
-// the GNOME panel. 
-//
-// Also watch out that you don't unhide a window on a channel
-// that you are not currently on, some strange things happen.
-// (Patch due to Henri Naccache <henri@asu.edu>)
-
-#define CONFIG_GNOME_COMPLIANCE   False
 
 // This lets you choose whether to keep the regular wmx
 // mouse button behaviour, or go w/ the GNOME-described one.

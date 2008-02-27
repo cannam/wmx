@@ -77,7 +77,6 @@ Border::Border(Client *const c, Window child) :
     m_parent = root();
     if (m_tabFont == 0) initialiseStatics(c->windowManager());
 
-    shaped = c->isShaped();
 	
 //#if CONFIG_MAD_FEEDBACK != 0
     m_feedback = 0;
@@ -91,10 +90,14 @@ Border::~Border()
     if (m_parent != root()) {
 	if (!m_parent) fprintf(stderr,"wmx: zero parent in Border::~Border\n");
 	else {
-	    XDestroyWindow(display(), m_tab);
-	    XDestroyWindow(display(), m_button);
+            if (!m_client->isBorderless()) {
+	        XDestroyWindow(display(), m_tab);
+ 	        XDestroyWindow(display(), m_button);
+            }
 	    XDestroyWindow(display(), m_parent);
-	    XDestroyWindow(display(), m_resize);
+            if (!m_client->isBorderless()) {
+		XDestroyWindow(display(), m_resize);
+	    }
 
 	    if (m_feedback) {
 	        XDestroyWindow(display(), m_feedback);
@@ -244,7 +247,7 @@ void Border::initialiseStatics(WindowManager *wm)
 	    }
 	}
 
-	m_tabWidth[i] = m_tabFont[i]->height + 4;
+	m_tabWidth[i] = m_tabFont[i]->height + (CONFIG_TAB_MARGIN * 2);
 #else
 	XftColorAllocName
 	    (wm->display(),
@@ -254,7 +257,7 @@ void Border::initialiseStatics(WindowManager *wm)
 	     &m_xftColour[i]);
 
 	fprintf(stderr, "tab font height = %d\n", (int)m_tabFont->height);
-	m_tabWidth[i] = m_tabFont->height + 4;
+	m_tabWidth[i] = m_tabFont->height + (CONFIG_TAB_MARGIN * 2);
 #endif
 
 	if (m_tabWidth[i] < TAB_TOP_HEIGHT * 2 + 8) {
@@ -355,8 +358,8 @@ void Border::initialiseStatics(WindowManager *wm)
 
 Boolean Border::hasWindow(Window w)
 {
-    return (w != root() && (w == m_parent || w == m_tab ||
-			    w == m_button || w == m_resize));
+    return (w != root() && (w == m_parent || (!m_client->isBorderless() && (w == m_tab ||
+			     w == m_button || w == m_resize))));
 }
 
 
@@ -411,23 +414,42 @@ void Border::expose(XExposeEvent *e)
 }
 
 
+int Border::yIndent()
+{
+    if (m_client->isBorderless()) 
+        return 0;
+    
+   return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
+}
+    
+int Border::xIndent() 
+{
+    if (m_client->isBorderless()) 
+        return 0;
+    
+    return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
+        m_tabWidth[screen()] + FRAME_WIDTH + 1;    
+}
+
+  
 void Border::drawLabel()
 {
     if (m_label) {
 	XClearWindow(display(), m_tab);
 #ifdef CONFIG_USE_XFT
-//	fprintf(stderr, "coords: %d,%d\n", (int)(2 + m_tabFont->ascent),
-//		(int)(m_tabHeight - 1));
+//	fprintf(stderr, "coords: %d,%d / label: \"%s\"\n", (int)(2 + m_tabFont->ascent),
+//		(int)(m_tabHeight - 1), m_label);
 	XftDrawStringUtf8(m_xftDraw,
 			  &m_xftColour[screen()],
 			  m_tabFont,
-			  2 + m_tabFont->ascent,
+			  CONFIG_TAB_MARGIN + m_tabFont->ascent,
 			  m_tabHeight - 1,
 			  (FcChar8 *)m_label,
 			  strlen(m_label));
 #else
 	XRotDrawString(display(), screen(), m_tabFont[screen()], m_tab,
-		       m_drawGC[screen()], 2 +m_tabFont[screen()]->max_ascent,
+		       m_drawGC[screen()],
+		       CONFIG_TAB_MARGIN + m_tabFont[screen()]->max_ascent,
 		       m_tabHeight - 1, m_label, strlen(m_label));
 #endif
     }
@@ -533,15 +555,17 @@ void Border::shapeTransientParent(int w, int h)
 
 //      count me among the clueless... i have no idea why
 //      this code is not needed.... (henri, 1.9.99)
-
-/*	recs =  XShapeGetRectangles(display(), m_child, ShapeClip, &count, &ordering);
+//	This code is needed to mak the black border on the frame of a shaped
+//	window appear (Jamie, 19.6.00)
+/**/
+	recs =  XShapeGetRectangles(display(), m_child, ShapeClip, &count, &ordering);
 	XShapeCombineRectangles
 	    (display(), m_parent, ShapeClip, xIndent(), yIndent(),
 	     recs, count, ShapeSet, ordering);
 
 	XFree(recs);
- */
-
+/**/
+	
     } else {
 	BorderRectangle r(xIndent() - 1, yIndent() - 1, w + 2, h + 2);
 	
@@ -560,47 +584,56 @@ void Border::shapeTransientParent(int w, int h)
 
 void Border::setTransientFrameVisibility(Boolean visible, int w, int h)
 {
-
-
-    if (m_client->isShaped()) {
-	// don't do anything. these guys are shaped, 
-	//they should take care of showing that they have focus
+    if (m_client->isBorderless())
 	return;
+   
+    int i;
+    BorderRectangleList rl;
+	
+    rl.append(0, 0, w + 1, yIndent() - 1);
+    for (i = 1; i < yIndent(); ++i) {
+        rl.append(w + 1, i - 1, i + 1, 1);
+    }
+    rl.append(0, yIndent() - 1, xIndent() - 1, h - yIndent() + 2);
+    for (i = 1; i < yIndent(); ++i) {
+        rl.append(i - 1, h, 1, i + 2);
+    }
+	
+    XShapeCombineRectangles
+        (display(), m_parent, ShapeBounding,
+         0, 0, rl.xrectangles(), rl.count(),
+         visible ? ShapeUnion : ShapeSubtract, YXSorted);
+	
+    rl.remove_all();
+	
+    rl.append(1, 1, w, yIndent() - 2);
+    for (i = 2; i < yIndent(); ++i) {
+        rl.append(w + 1, i - 1, i, 1);
+    }
+    rl.append(1, yIndent() - 1, xIndent() - 2, h - yIndent() + 1);
+    for (i = 2; i < yIndent(); ++i) {
+        rl.append(i - 1, h, 1, i + 1);
+    }
 
-    } else {
+    XShapeCombineRectangles
+        (display(), m_parent, ShapeClip,
+         0, 0, rl.xrectangles(), rl.count(),
+         visible ? ShapeUnion : ShapeSubtract, YXSorted);
+    // If the client is shaped, we have to show the inside of the window
+    // frame.
+    if(m_client->isShaped()) {
+   
+        XShapeCombineRectangles
+            (display(), m_parent, ShapeBounding, 0, 0,
+             BorderRectangle(xIndent() - 1, yIndent() - 1, 1, h + 2)
+                      .xrectangle(), 1,
+             visible ? ShapeUnion : ShapeSubtract, YXSorted);
 
-	int i;
-	BorderRectangleList rl;
-	
-	rl.append(0, 0, w + 1, yIndent() - 1);
-	for (i = 1; i < yIndent(); ++i) {
-	    rl.append(w + 1, i - 1, i + 1, 1);
-	}
-	rl.append(0, yIndent() - 1, xIndent() - 1, h - yIndent() + 2);
-	for (i = 1; i < yIndent(); ++i) {
-	    rl.append(i - 1, h, 1, i + 2);
-	}
-	
-	XShapeCombineRectangles
-	    (display(), m_parent, ShapeBounding,
-	     0, 0, rl.xrectangles(), rl.count(),
-	     visible ? ShapeUnion : ShapeSubtract, YXSorted);
-	
-	rl.remove_all();
-	
-	rl.append(1, 1, w, yIndent() - 2);
-	for (i = 2; i < yIndent(); ++i) {
-	    rl.append(w + 1, i - 1, i, 1);
-	}
-	rl.append(1, yIndent() - 1, xIndent() - 2, h - yIndent() + 1);
-	for (i = 2; i < yIndent(); ++i) {
-	    rl.append(i - 1, h, 1, i + 1);
-	}
-	
-	XShapeCombineRectangles
-	    (display(), m_parent, ShapeClip,
-	     0, 0, rl.xrectangles(), rl.count(),
-	     visible ? ShapeUnion : ShapeSubtract, YXSorted);
+        XShapeCombineRectangles
+            (display(), m_parent, ShapeBounding, 0, 0,
+             BorderRectangle(xIndent() - 1, yIndent() - 1, w + 2, 1)
+                      .xrectangle(), 1,
+             visible ? ShapeUnion : ShapeSubtract, YXSorted);
     }
 }   
 
@@ -616,6 +649,9 @@ void Border::shapeParent(int w, int h)
 	return;
     }
 
+    if(m_client->isBorderless())
+        return;
+    
     // Bounding rectangles -- clipping will be the same except for
     // child window border
 
@@ -665,7 +701,7 @@ void Border::shapeTab(int w, int h)
     int i;
     BorderRectangleList rl;
 
-    if (isTransient()) {
+    if (isTransient() || m_client->isBorderless() ) {
 	return;
     }
 
@@ -725,7 +761,7 @@ void Border::resizeTab(int h)
     int i;
     int shorter, longer, operation;
 
-    if (isTransient()) {
+    if (isTransient() || m_client->isBorderless()) {
 	return;
     }
 
@@ -850,36 +886,40 @@ void Border::shapeResize()
 
 void Border::setFrameVisibility(Boolean visible, int w, int h)
 {
-    BorderRectangleList rl;
-
     if (CONFIG_PROD_SHAPE) {
-	shapeParent(w, h);
-	shapeTab(w, h);
+        shapeParent(w, h);
+        shapeTab(w, h);
     }
 
     if (isTransient()) {
-	setTransientFrameVisibility(visible, w, h);
-	return;
+        setTransientFrameVisibility(visible, w, h);
+        return;
     }
-
+        
+    if(m_client->isBorderless()) {
+        return; 
+    }
+    
+    BorderRectangleList rl;
     // Bounding rectangles
 
     rl.append(m_tabWidth[screen()] + w + 1, 0, FRAME_WIDTH + 1, FRAME_WIDTH);
 
     rl.append(m_tabWidth[screen()] + 2, TAB_TOP_HEIGHT + 2, w,
-	      FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
+              FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
 
     // for button
     int ww = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
     rl.append((m_tabWidth[screen()] + 2 - ww) / 2, (m_tabWidth[screen()]+2 - ww) / 2, ww, ww);
 
     rl.append(m_tabWidth[screen()] + 2, FRAME_WIDTH,
-	      FRAME_WIDTH - 2, m_tabHeight + m_tabWidth[screen()] - FRAME_WIDTH - 2);
+              FRAME_WIDTH - 2, 
+              m_tabHeight + m_tabWidth[screen()] - FRAME_WIDTH - 2);
 
     // swap last two if sorted wrong
     if (rl.item(rl.count()-2).y > rl.item(rl.count()-1).y) {
-	rl.append(rl.item(rl.count()-2));
-	rl.remove(rl.count()-3);
+        rl.append(rl.item(rl.count()-2));
+        rl.remove(rl.count()-3);
     }
 
     int final = rl.count();
@@ -889,8 +929,8 @@ void Border::setFrameVisibility(Boolean visible, int w, int h)
               h - rl.item(final-1).height + 2);
 
     XShapeCombineRectangles(display(), m_parent, ShapeBounding,
-			    0, 0, rl.xrectangles(), rl.count(),
-			    visible ? ShapeUnion : ShapeSubtract, YXSorted);
+                            0, 0, rl.xrectangles(), rl.count(),
+                            visible ? ShapeUnion : ShapeSubtract, YXSorted);
     rl.remove_all();
 
     // Clip rectangles
@@ -898,32 +938,31 @@ void Border::setFrameVisibility(Boolean visible, int w, int h)
     rl.append(m_tabWidth[screen()] + w + 1, 1, FRAME_WIDTH, FRAME_WIDTH - 1);
 
     rl.append(m_tabWidth[screen()] + 2, TAB_TOP_HEIGHT + 2, w,
-	      FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
+              FRAME_WIDTH - TAB_TOP_HEIGHT - 2);
 
     // for button
     ww = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 6;
     rl.append((m_tabWidth[screen()] + 2 - ww) / 2, (m_tabWidth[screen()]+2 - ww) / 2, ww, ww);
-
     rl.append(m_tabWidth[screen()] + 2, FRAME_WIDTH,
-	      FRAME_WIDTH - 2, h - FRAME_WIDTH);
+              FRAME_WIDTH - 2, h - FRAME_WIDTH);
 
     // swap last two if sorted wrong
     if (rl.item(rl.count()-2).y > rl.item(rl.count()-1).y) {
-	rl.append(rl.item(rl.count()-2));
-	rl.remove(rl.count()-3);
+        rl.append(rl.item(rl.count()-2));
+        rl.remove(rl.count()-3);
     }
 
     rl.append(m_tabWidth[screen()] + 2, h, FRAME_WIDTH - 2, FRAME_WIDTH + 1);
 
     XShapeCombineRectangles(display(), m_parent, ShapeClip,
-			    0, 0, rl.xrectangles(), rl.count(),
+                            0, 0, rl.xrectangles(), rl.count(),
 			    visible ? ShapeUnion : ShapeSubtract, YXSorted);
     rl.remove_all();
 
     if (visible && !isFixedSize()) {
-	XMapRaised(display(), m_resize);
+        XMapRaised(display(), m_resize);
     } else {
-	XUnmapWindow(display(), m_resize);
+        XUnmapWindow(display(), m_resize);
     }
 }
 
@@ -933,59 +972,65 @@ void Border::configure(int x, int y, int w, int h,
 		       Boolean force) // must reshape everything
 {
     if (!m_parent || m_parent == root()) {
-
+        
 	// create windows, then shape them afterwards
 
 	m_parent = XCreateSimpleWindow
 	    (display(), root(), 1, 1, 1, 1, 0,
 	     m_borderPixel[screen()], m_frameBackgroundPixel[screen()]);
 
-	m_tab = XCreateSimpleWindow
-	    (display(), m_parent, 1, 1, 1, 1, 0,
-	     m_borderPixel[screen()], m_backgroundPixel[screen()]);
+        if(!m_client->isBorderless()) {
+	    m_tab = XCreateSimpleWindow
+	        (display(), m_parent, 1, 1, 1, 1, 0,
+	        m_borderPixel[screen()], m_backgroundPixel[screen()]);
 
-	m_button = XCreateSimpleWindow
-	    (display(), m_parent, 1, 1, 1, 1, 0,
-	     m_borderPixel[screen()], m_buttonBackgroundPixel[screen()]);
+	    m_button = XCreateSimpleWindow
+	        (display(), m_parent, 1, 1, 1, 1, 0,
+	         m_borderPixel[screen()], m_buttonBackgroundPixel[screen()]);
 
-	m_resize = XCreateWindow
-	    (display(), m_parent, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
-	     CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
+	    m_resize = XCreateWindow
+	        (display(), m_parent, 1, 1, FRAME_WIDTH*2, FRAME_WIDTH*2, 0,
+	        CopyFromParent, InputOutput, CopyFromParent, 0L, 0);
 
-//#if CONFIG_MAD_FEEDBACK != 0
-	if (CONFIG_MAD_FEEDBACK) {
-	    m_feedback = XCreateSimpleWindow
-		(display(), root(), 0, 0, 1, 1, 1,
-		 m_borderPixel[screen()], m_backgroundPixel[screen()]);
-	}
-//#endif
-
-	shapeResize();
+	    if (CONFIG_MAD_FEEDBACK) {
+	        m_feedback = XCreateSimpleWindow
+		    (display(), root(), 0, 0, 1, 1, 1,
+		    m_borderPixel[screen()], m_backgroundPixel[screen()]);
+	    }
+            shapeResize();
+        }        
+	    
 
 	XSelectInput(display(), m_parent,
-		     SubstructureRedirectMask | SubstructureNotifyMask |
+                     SubstructureRedirectMask | SubstructureNotifyMask |
 		     ButtonPressMask | ButtonReleaseMask);
+            
+        if(!m_client->isBorderless()) {
+	    if (!isTransient()) {
+	        XSelectInput(display(), m_tab,
+			    ExposureMask | ButtonPressMask | ButtonReleaseMask |
+			    EnterWindowMask);
+	    }
 
-	if (!isTransient()) {
-	    XSelectInput(display(), m_tab,
-			 ExposureMask | ButtonPressMask | ButtonReleaseMask |
-			 EnterWindowMask);
-	}
-
-	XSelectInput(display(), m_button, ButtonPressMask | ButtonReleaseMask);
-	XSelectInput(display(), m_resize, ButtonPressMask | ButtonReleaseMask);
-	mask |= CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+	    XSelectInput(display(), m_button, ButtonPressMask | ButtonReleaseMask);
+	    XSelectInput(display(), m_resize, ButtonPressMask | ButtonReleaseMask);
+        }
+        
+        mask |= CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 
 	XSetWindowAttributes wa;
-	wa.background_pixmap = m_backgroundPixmap;
+	
+        wa.background_pixmap = m_backgroundPixmap;
 
 	if (m_backgroundPixmap) {
 	    XChangeWindowAttributes(display(), m_parent, CWBackPixmap, &wa);
-	    XChangeWindowAttributes(display(), m_tab,    CWBackPixmap, &wa);
-	    XChangeWindowAttributes(display(), m_button, CWBackPixmap, &wa);
+            if(!m_client->isBorderless()) {
+	        XChangeWindowAttributes(display(), m_tab,    CWBackPixmap, &wa);
+	        XChangeWindowAttributes(display(), m_button, CWBackPixmap, &wa);
+            }
 	}
 
-	if (CONFIG_MAD_FEEDBACK) {
+	if (CONFIG_MAD_FEEDBACK && !m_client->isBorderless()) {
 	    wa.save_under =
 		(DoesSaveUnders(ScreenOfDisplay(display(), 0)) ? True : False);
 	    if (m_backgroundPixmap) {
@@ -1006,13 +1051,15 @@ void Border::configure(int x, int y, int w, int h,
     XWindowChanges wc;
     wc.x = x - xIndent();
     wc.y = y - yIndent();
-    wc.width  = w + xIndent() + 1;
-    wc.height = h + yIndent() + 1;
+    wc.width  = w + xIndent() + (m_client->isBorderless()?0:1);
+    wc.height = h + yIndent() + (m_client->isBorderless()?0:1);
     wc.border_width = 0;
     wc.sibling = None;
     wc.stack_mode = detail;
     XConfigureWindow(display(), m_parent, mask, &wc);
 
+    
+    if(!m_client->isBorderless()) {
     unsigned long rmask = 0L;
     if (mask & CWWidth)  rmask |= CWX;
     if (mask & CWHeight) rmask |= CWY;
@@ -1020,40 +1067,44 @@ void Border::configure(int x, int y, int w, int h,
     wc.y = h - FRAME_WIDTH*2 + yIndent();
     XConfigureWindow(display(), m_resize, rmask, &wc);
     
-    if (force ||
-	(m_prevW < 0 || m_prevH < 0) ||
-	((mask & (CWWidth | CWHeight)) && (w != m_prevW || h != m_prevH))) {
+        if (force ||
+            (m_prevW < 0 || m_prevH < 0) || 
+            ((mask & (CWWidth | CWHeight)) && (w != m_prevW || h != m_prevH))) {
 
-	int prevTabHeight = m_tabHeight;
-	if (isTransient()) m_tabHeight = 10; // arbitrary
-	else fixTabHeight(h);
+            int prevTabHeight = m_tabHeight;
+            if (isTransient()) m_tabHeight = 10; // arbitrary
+            else fixTabHeight(h);
 
-	shapeParent(w, h);
-	setFrameVisibility(m_client->isActive(), w, h);
+            shapeParent(w, h);
+            setFrameVisibility(m_client->isActive(), w, h);
 
-	if (force || w != m_prevW ||
-	    prevTabHeight != m_tabHeight || m_prevW < 0 || m_prevH < 0) {
+            if (force || w != m_prevW ||    
+                prevTabHeight != m_tabHeight || m_prevW < 0 || m_prevH < 0) {
+            
+                wc.x = 0;
+                wc.y = 0;
+                wc.width = w + xIndent();
+                wc.height = m_tabHeight + 2 + m_tabWidth[screen()];
+                XConfigureWindow(display(), m_tab, mask, &wc);
+                shapeTab(w, h);
+            }
 
-	    wc.x = 0;
-	    wc.y = 0;
-	    wc.width = w + xIndent();
-	    wc.height = m_tabHeight + 2 + m_tabWidth[screen()];
-	    XConfigureWindow(display(), m_tab, mask, &wc);
-	    shapeTab(w, h);
-	}
-
-	m_prevW = w;
-	m_prevH = h;
-
+            m_prevW = w;
+            m_prevH = h;
+            
+        } else {
+            resizeTab(h);
+        }
+        wc.x = TAB_TOP_HEIGHT + 2;
+        wc.y = wc.x;
+        wc.width = wc.height = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
     } else {
-
-	resizeTab(h);
+        shapeParent(w, h);
     }
-
-    wc.x = TAB_TOP_HEIGHT + 2;
-    wc.y = wc.x;
-    wc.width = wc.height = m_tabWidth[screen()] - TAB_TOP_HEIGHT*2 - 4;
-    XConfigureWindow(display(), m_button, mask, &wc);
+        
+    if(!m_client->isBorderless()) {
+        XConfigureWindow(display(), m_button, mask, &wc);
+    }
 }
 
 
@@ -1073,15 +1124,19 @@ void Border::map()
     } else {
 	XMapWindow(display(), m_parent);
 
-	if (!isTransient()) {
+	if (!isTransient() && !m_client->isBorderless()) {
 	    XMapWindow(display(), m_tab);
 	    XMapWindow(display(), m_button);
 	}
 
-	if (!isFixedSize()) XMapWindow(display(), m_resize);
+	if (!isFixedSize() && !m_client->isBorderless()) 
+            XMapWindow(display(), m_resize);
     }
 }
 
+/*
+
+No longer needed now we're using the layer system.
 
 void Border::mapRaised()
 {
@@ -1090,12 +1145,13 @@ void Border::mapRaised()
     } else {
 	XMapRaised(display(), m_parent);
 
-	if (!isTransient()) {
+	if (!isTransient() && !m_client->isBorderless()) {
 	    XMapWindow(display(), m_tab);
 	    XMapRaised(display(), m_button);
 	}
 
-	if (!isFixedSize()) XMapRaised(display(), m_resize);
+	if (!isFixedSize() && !m_client->isBorderless())
+            XMapRaised(display(), m_resize);
     }
 }
 
@@ -1104,7 +1160,7 @@ void Border::lower()
 {
     XLowerWindow(display(), m_parent);
 }
-
+*/
 
 void Border::unmap()
 {
@@ -1113,7 +1169,7 @@ void Border::unmap()
     } else {
 	XUnmapWindow(display(), m_parent);
 
-	if (!isTransient()) {
+	if (!isTransient() && !m_client->isBorderless()) {
 	    XUnmapWindow(display(), m_tab);
 	    XUnmapWindow(display(), m_button);
 //	    XUnmapWindow(display(), m_resize); // no, will unmap with parent
@@ -1137,7 +1193,7 @@ void Border::reparent()
 void Border::toggleFeedback(int x, int y, int w, int h)
 {
     m_fedback = !m_fedback;
-    if (!m_feedback || !CONFIG_MAD_FEEDBACK) return;
+    if (!m_feedback || !CONFIG_MAD_FEEDBACK || m_client->isBorderless()) return;
 
     if (m_fedback) {
 
@@ -1189,6 +1245,3 @@ void Border::removeFeedback()
 {
     if (m_fedback) toggleFeedback(0, 0, 0, 0);
 }
-
-
-

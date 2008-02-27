@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #ifndef _MANAGER_H_
 #define _MANAGER_H_
@@ -76,6 +77,7 @@ public:
     int channels() { return m_channels; }
     void setSignalled() { m_looping = False; } // ...
     void gotoChannel(int channel, Client *push);
+    void ensureChannelExists(int channel);
     
     ClientList &clients() { return m_clients; }
     ClientList &hiddenClients() { return m_hiddenClients; }
@@ -84,6 +86,10 @@ public:
     void hoistToBottom(Client *);
     void removeFromOrderedList(Client *);
     Boolean isTop(Client *);
+    
+    // Instruct the X-Server to reorder the windows to match our ordering.
+    // Takes account of layering.
+    void updateStackingOrder();    
 
     // for exposures during client grab, and window map/unmap/destroy
     // during menu display:
@@ -93,11 +99,14 @@ public:
     void windowGrouping(XKeyEvent *ev, KeySym key, Client *c);
 #endif
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    void gnomeUpdateWindowList();
-    void gnomeUpdateChannelList();
-    void gnomeUpdateCurrentChannel();
-#endif
+    // debug output:
+    void printClientList();
+
+    void netwmUpdateWindowList();
+    void netwmUpdateStackingOrder();
+    void netwmUpdateActiveClient();
+    void netwmUpdateChannelList();
+    void netwmUpdateCurrentChannel();
 
     // Stupid little helper function
     static int numdigits(int);
@@ -126,7 +135,10 @@ private:
 
     ClientList m_clients;
     ClientList m_hiddenClients;
-    ClientList m_orderedClients;
+	
+    ClientList m_orderedClients[MAX_LAYER + 1]; 
+                                    // One list for each netwm/MWM layer
+                                    // Layer 4 (NORMAL_LAYER) is the default.
     Client *m_activeClient;
 
 #if CONFIG_GROUPS != False
@@ -178,7 +190,6 @@ private:
 
     static void smWatchFD(IceConn c, IcePointer, Bool, IcePointer *);
     static void smSaveYourself(SmcConn, SmPointer, int, Bool, int, Bool);
-    static void smSaveYourself2(SmcConn, SmPointer);
     static void smShutdownCancelled(SmcConn, SmPointer);
     static void smSaveComplete(SmcConn, SmPointer);
     static void smDie(SmcConn, SmPointer);
@@ -208,11 +219,8 @@ private:
     Boolean m_altStateRetained;
     void eventKeyPress(XKeyEvent *);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    void gnomeInitialiseCompliance();
-    Window gnome_win;
-
-#endif
+    void netwmInitialiseCompliance();
+    Window m_netwmCheckWin;
 
     int m_altModMask;
 };

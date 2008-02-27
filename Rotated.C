@@ -29,11 +29,6 @@
 
 #ifndef CONFIG_USE_XFT
 
-#if I18N
-#undef NOPIXMAP
-#define NOPIXMAP 1	// anyway, NOPIXMAP
-#endif
-
 /* ---------------------------------------------------------------------- */
 
 
@@ -167,7 +162,6 @@ XRotFontStruct *XRotLoadFont(Display *dpy, int screen,
   XSetBackground(dpy, font_gc, off);
 
   /* load the font ... */
-#if I18N
   char **ml;
   int mc;
   char *ds;
@@ -184,9 +178,6 @@ XRotFontStruct *XRotLoadFont(Display *dpy, int screen,
 #define XTextWidth(x,y,z)     XmbTextEscapement(rotfont->xfontset,y,z)
 #define XDrawString(t,u,v,w,x,y,z) XmbDrawString(t,u,rotfont->xfontset,v,w,x,y,z)
 #define XDrawImageString(t,u,v,w,x,y,z) XmbDrawString(t,u,rotfont->xfontset,v,w,x,y,z)
-#else
-  fontstruct = XLoadQueryFont(dpy, fontname);
-#endif
   if (fontstruct == NULL) {
     xv_errno = XV_NOFONT;
     return NULL;
@@ -220,154 +211,8 @@ XRotFontStruct *XRotLoadFont(Display *dpy, int screen,
   rotfont->height = rotfont->max_ascent+rotfont->max_descent;
 
   /* remember xfontstruct for `normal' text ... */
-#if NOPIXMAP
-#if I18N
   rotfont->xfontset = fontset;
-#endif
   rotfont->xfontstruct = fontstruct;
-#else
-#if I18N
-  PIXMAP implementation cannot treat I18N
-#endif
-  if (dir == 0) rotfont->xfontstruct = fontstruct;
-
-  else {
-    /* font needs rotation ... */
-    /* loop through each character ... */
-    for (ichar = min_char; ichar <= max_char; ichar++) {
-
-      index = ichar-fontstruct->min_char_or_byte2;
- 
-      /* per char dimensions ... */
-      ascent =   rotfont->per_char[ichar-32].ascent = 
-	fontstruct->per_char[index].ascent;
-      descent =  rotfont->per_char[ichar-32].descent = 
-	fontstruct->per_char[index].descent;
-      lbearing = rotfont->per_char[ichar-32].lbearing = 
-	fontstruct->per_char[index].lbearing;
-      rbearing = rotfont->per_char[ichar-32].rbearing = 
-	fontstruct->per_char[index].rbearing;
-      rotfont->per_char[ichar-32].width = 
-	fontstruct->per_char[index].width;
-
-      /* some space chars have zero body, but a bitmap can't have ... */
-      if (!ascent && !descent)   
-	ascent =   rotfont->per_char[ichar-32].ascent =   1;
-      if (!lbearing && !rbearing) 
-	rbearing = rotfont->per_char[ichar-32].rbearing = 1;
-
-      /* glyph width and height when vertical ... */
-      vert_w = rbearing-lbearing;
-      vert_h = ascent+descent;
-
-      /* width in bytes ... */
-      vert_len = (vert_w-1)/8+1;   
- 
-      XSetForeground(dpy, font_gc, off);
-      XFillRectangle(dpy, canvas, font_gc, 0, 0, boxlen, boxlen);
-
-      /* draw the character centre top right on canvas ... */
-      sprintf(text, "%c", ichar);
-      XSetForeground(dpy, font_gc, on);
-      XDrawImageString(dpy, canvas, font_gc, boxlen/2 - lbearing,
-		       boxlen/2 - descent, text, 1);
-
-      /* reserve memory for first XImage ... */
-      vertdata = (unsigned char *) malloc((unsigned)(vert_len*vert_h));
-      if (vertdata == NULL) {
-	xv_errno = XV_NOMEM;
-	return NULL;
-      }
-  
-      /* create the XImage ... */
-      I1 = XCreateImage(dpy, DefaultVisual(dpy, screen), 1, XYBitmap,
-			0, (char *)vertdata, vert_w, vert_h, 8, 0);
-
-      if (I1 == NULL) {
-	xv_errno = XV_NOXIMAGE;
-	return NULL;
-      }
-  
-      I1->byte_order = I1->bitmap_bit_order = MSBFirst;
-   
-      /* extract character from canvas ... */
-      XGetSubImage(dpy, canvas, boxlen/2, boxlen/2-vert_h,
-		   vert_w, vert_h, 1, XYPixmap, I1, 0, 0);
-      I1->format = XYBitmap; 
- 
-      /* width, height of rotated character ... */
-      if (dir == 2) { 
-	bit_w = vert_w;
-	bit_h = vert_h; 
-      } else {
-	bit_w = vert_h;
-	bit_h = vert_w; 
-      }
-
-      /* width in bytes ... */
-      bit_len = (bit_w-1)/8 + 1;
-
-      rotfont->per_char[ichar-32].glyph.bit_w = bit_w;
-      rotfont->per_char[ichar-32].glyph.bit_h = bit_h;
-
-      /* reserve memory for the rotated image ... */
-      bitdata = (unsigned char *)calloc((unsigned)(bit_h*bit_len), 1);
-      if (bitdata == NULL) {
-	xv_errno = XV_NOMEM;
-	return NULL;
-      }
-
-      /* create the image ... */
-      I2 = XCreateImage(dpy, DefaultVisual(dpy, screen), 1, XYBitmap, 0,
-			(char *)bitdata, bit_w, bit_h, 8, 0); 
- 
-      if (I2 == NULL) {
-	xv_errno = XV_NOXIMAGE;
-	return NULL;
-      }
-
-      I2->byte_order = I2->bitmap_bit_order = MSBFirst;
- 
-      /* map vertical data to rotated character ... */
-      for (j = 0; j < bit_h; j++) {
-	for (i = 0; i < bit_w; i++) {
-	  /* map bits ... */
-	  if (dir == 1)
-	    val = vertdata[i*vert_len + (vert_w-j-1)/8] &
-	      (128>>((vert_w-j-1)%8));
-   
-	  else if (dir == 2)
-	    val = vertdata[(vert_h-j-1)*vert_len + (vert_w-i-1)/8] &
-	      (128>>((vert_w-i-1)%8));
-                    
-	  else 
-	    val = vertdata[(vert_h-i-1)*vert_len + j/8] & 
-	      (128>>(j%8));
-        
-	  if (val) 
-	    bitdata[j*bit_len + i/8] = bitdata[j*bit_len + i/8] |
-	      (128>>(i%8));
-	}
-      }
-   
-      /* create this character's bitmap ... */
-      rotfont->per_char[ichar-32].glyph.bm = 
-	XCreatePixmap(dpy, root, bit_w, bit_h, 1);
-     
-      /* put the image into the bitmap ... */
-      XPutImage(dpy, rotfont->per_char[ichar-32].glyph.bm, 
-		font_gc, I2, 0, 0, 0, 0, bit_w, bit_h);
-  
-      /* free the image and data ... */
-      XDestroyImage(I1);
-      XDestroyImage(I2);
-      /*      free((char *)bitdata);  -- XDestroyImage does this
-	      free((char *)vertdata);*/
-    }
-
-    XFreeFont(dpy, fontstruct);
-  }
-#endif
 
   /* free pixmap and GC ... */
   XFreePixmap(dpy, canvas);
@@ -386,23 +231,7 @@ void XRotUnloadFont(Display *dpy, int screen, XRotFontStruct *rotfont)
 {
   int ichar;
 
-#if NOPIXMAP
-#if I18N
   XFreeFontSet(dpy, rotfont->xfontset);
-#else
-  XFreeFont(dpy, rotfont->xfontstruct);
-#endif
-#else
-#if I18N
-  PIXMAP implementation cannot treat I18N
-#endif
-  if (rotfont->dir == 0) XFreeFont(dpy, rotfont->xfontstruct);
-
-  else
-    /* loop through each character, freeing its pixmap ... */
-    for (ichar = rotfont->min_char-32; ichar <= rotfont->max_char-32; ichar++)
-      XFreePixmap(dpy, rotfont->per_char[ichar].glyph.bm);
-#endif
 
   /* rotfont should never be referenced again ... */
   free((char *)rotfont->name);
@@ -421,21 +250,7 @@ int XRotTextWidth(XRotFontStruct *rotfont, char *str, int len)
 
   if (str == NULL) return 0;
 
-#if NOPIXMAP
   width = XTextWidth(rotfont->xfontstruct, str, strlen(str));
-#else
-  if (rotfont->dir == 0)
-    width = XTextWidth(rotfont->xfontstruct, str, strlen(str));
-
-  else
-    for (i = 0; i<len; i++) {
-      ichar = str[i]-32;
-  
-      /* make sure it's a printing character ... */
-      if (ichar >= 0 && ichar<95) 
-	width += rotfont->per_char[ichar].width;
-    }
-#endif
 
   return width;
 }
@@ -469,7 +284,6 @@ void XRotDrawString(Display *dpy, int screen, XRotFontStruct *rotfont,
 
   XCopyGC(dpy, gc, GCForeground|GCBackground, my_gc);
 
-#if NOPIXMAP
   /* a horizontal string is easy ... */
   if (dir == 0) {
     XSetFillStyle(dpy, my_gc, FillSolid);
@@ -632,59 +446,6 @@ void XRotDrawString(Display *dpy, int screen, XRotFontStruct *rotfont,
 		 bit_w, bit_h);
 
   XFreePixmap(dpy, image);
-#else
-  /* a horizontal string is easy ... */
-  if (dir == 0) {
-    XSetFillStyle(dpy, my_gc, FillSolid);
-    XSetFont(dpy, my_gc, rotfont->xfontstruct->fid);
-    XDrawString(dpy, drawable, my_gc, x, y, str, len);
-
-    return;
-  }
-
-  /* vertical or upside down ... */
-
-  XSetFillStyle(dpy, my_gc, FillStippled);
-
-  /* loop through each character in string ... */
-  for (i = 0; i<len; i++) {
-    ichar = str[i]-32;
-
-    /* make sure it's a printing character ... */
-    if (ichar >= 0 && ichar<95) {
-      /* suitable offset ... */
-      if (dir == 1) {
-	xp = x-rotfont->per_char[ichar].ascent;
-	yp = y-rotfont->per_char[ichar].rbearing; 
-      }
-      else if (dir == 2) {
-	xp = x-rotfont->per_char[ichar].rbearing;
-	yp = y-rotfont->per_char[ichar].descent+1; 
-      }
-      else {
-	xp = x-rotfont->per_char[ichar].descent+1;  
-	yp = y+rotfont->per_char[ichar].lbearing; 
-      }
-                   
-      /* draw the glyph ... */
-      XSetStipple(dpy, my_gc, rotfont->per_char[ichar].glyph.bm);
-    
-      XSetTSOrigin(dpy, my_gc, xp, yp);
-      
-      XFillRectangle(dpy, drawable, my_gc, xp, yp,
-		     rotfont->per_char[ichar].glyph.bit_w,
-		     rotfont->per_char[ichar].glyph.bit_h);
-    
-      /* advance position ... */
-      if (dir == 1)
-	y -= rotfont->per_char[ichar].width;
-      else if (dir == 2)
-	x -= rotfont->per_char[ichar].width;
-      else 
-	y += rotfont->per_char[ichar].width;
-    }
-  }
-#endif
 }
 
   

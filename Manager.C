@@ -1,11 +1,10 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Manager.h"
 #include "Menu.h"
 #include "Client.h"
 
-#if I18N
 #include <X11/Xlocale.h>
-#endif
 
 #include <string.h>
 #include <X11/Xproto.h>
@@ -24,16 +23,35 @@ Atom    Atoms::wm_takeFocus;
 Atom    Atoms::wm_colormaps;
 Atom    Atoms::wmx_running;
 
-#if CONFIG_GNOME_COMPLIANCE != False
-Atom    Atoms::gnome_supportingWmCheck;
-Atom    Atoms::gnome_protocols;
-Atom    Atoms::gnome_clienList;
-Atom    Atoms::gnome_workspace;
-Atom    Atoms::gnome_workspaceCount;
-Atom    Atoms::gnome_workspaceNames;
-Atom    Atoms::gnome_winLayer;
-Atom    Atoms::gnome_winDesktopButtonProxy;
-#endif
+Atom    Atoms::netwm_supportingWmCheck;
+Atom    Atoms::netwm_supported;
+Atom    Atoms::netwm_clientList;
+Atom    Atoms::netwm_clientListStacking;
+Atom    Atoms::netwm_desktop;
+Atom    Atoms::netwm_desktopCount;
+Atom    Atoms::netwm_desktopNames;
+Atom    Atoms::netwm_activeWindow;
+Atom    Atoms::netwm_winLayer;
+Atom    Atoms::netwm_winDesktopButtonProxy;
+Atom    Atoms::netwm_winState;
+Atom    Atoms::netwm_winDesktop;
+Atom    Atoms::netwm_winHints;
+Atom    Atoms::netwm_winType;
+
+Atom    Atoms::netwm_winType_desktop;
+Atom    Atoms::netwm_winType_dock;   
+Atom    Atoms::netwm_winType_toolbar;
+Atom    Atoms::netwm_winType_menu;   
+Atom    Atoms::netwm_winType_utility;
+Atom    Atoms::netwm_winType_splash; 
+Atom    Atoms::netwm_winType_dialog; 
+Atom    Atoms::netwm_winType_dropdown;
+Atom    Atoms::netwm_winType_popup;  
+Atom    Atoms::netwm_winType_tooltip;
+Atom    Atoms::netwm_winType_notify; 
+Atom    Atoms::netwm_winType_combo;  
+Atom    Atoms::netwm_winType_dnd;    
+Atom    Atoms::netwm_winType_normal; 
 
 int     WindowManager::m_signalled = False;
 int     WindowManager::m_restart   = False;
@@ -46,8 +64,13 @@ implementPList(ClientList, Client);
 implementPList(ListList, ClientList);
 #endif
 
+implementList(AtomList, Atom);
+
 WindowManager::WindowManager(int argc, char **argv) :
     m_focusChanging(False),
+#ifdef CONFIG_USE_SESSION_MANAGER
+    m_smFD(-1),
+#endif
     m_altPressed(False),
     m_altStateRetained(False),
     m_altModMask(0) // later
@@ -55,7 +78,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *home = getenv("HOME");
     char *wmxdir = getenv("WMXDIR");
     
-    fprintf(stderr, "\nwmx: Copyright (c) 1996-2007 Chris Cannam."
+    fprintf(stderr, "\nwmx: Copyright (c) 1996-2008 Chris Cannam."
 	    "  Not a release\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
@@ -63,14 +86,16 @@ WindowManager::WindowManager(int argc, char **argv) :
  	    "     Original keyboard-menu code Copyright (c) 1998 Nakayama Shintaro\n"
 	    "     Dynamic configuration code Copyright (c) 1998 Stefan `Sec' Zehl\n"
 	    "     Multihead display code Copyright (c) 2000 Sven Oliver `SvOlli' Moll\n"
+	    "     Original NETWM code Copyright (c) 2000 Jamie Montgomery\n"
 	    "     See source distribution for other patch contributors\n"
 #ifdef CONFIG_USE_XFT
 	    "     Copying and redistribution encouraged.  "
-	    "No warranty.\n\n");
+	    "No warranty.\n\n"
 #else
 	    "     %s\n     Copying and redistribution encouraged.  "
-	    "No warranty.\n\n", XV_COPYRIGHT);
+	    "No warranty.\n\n", XV_COPYRIGHT
 #endif
+	    );
 
     int i, j;
 #if CONFIG_USE_SESSION_MANAGER != False
@@ -81,13 +106,13 @@ WindowManager::WindowManager(int argc, char **argv) :
 
 #if CONFIG_USE_SESSION_MANAGER != False
 	// Damn!  This means we have to support a command-line argument
-	if (argc == 3 && !strcmp(argv[1], "-clientId")) {
+	if (argc == 3 && !strcmp(argv[1], "--sm-client-id")) {
 	    oldSessionId = argv[2];
 	} else {
 #endif
 
 	for (i = strlen(argv[0])-1; i > 0 && argv[0][i] != '/'; --i);
-	fprintf(stderr, "\nwmx: Usage: %s [-clientId id]\n",
+	fprintf(stderr, "\nwmx: Usage: %s [--sm-client-id id]\n",
 		argv[0] + (i > 0) + i);
 	exit(2);
 
@@ -96,7 +121,6 @@ WindowManager::WindowManager(int argc, char **argv) :
 #endif
     }
 
-#if I18N
     if (!setlocale(LC_ALL, ""))
  	fprintf(stderr,
 		"Warning: locale not supported by C library, locale unchanged\n");
@@ -110,7 +134,6 @@ WindowManager::WindowManager(int argc, char **argv) :
 		"Warning: X locale modifiers not supported, using default\n");
     char* ret_setlocale = setlocale(LC_ALL, NULL);
  					// re-query in case overwritten
-#endif
     
     if (CONFIG_AUTO_RAISE) {
 	if (CONFIG_CLICK_TO_FOCUS) {
@@ -124,7 +147,11 @@ WindowManager::WindowManager(int argc, char **argv) :
     } else {
 	if (CONFIG_CLICK_TO_FOCUS) {
 	    if (CONFIG_RAISE_ON_FOCUS) {
-		fprintf(stderr, "     Click to focus.");
+                if (CONFIG_PASS_FOCUS_CLICK) {
+		    fprintf(stderr, "     Click to focus, focus clicks passed on to client.");
+                } else {
+                    fprintf(stderr, "     Click to focus, focus clicks not passed on to clients.");
+                }
 	    } else {
 		fatal("can't have click-to-focus without raise-on-focus");
 	    }
@@ -138,9 +165,9 @@ WindowManager::WindowManager(int argc, char **argv) :
     }
 
     if (CONFIG_EVERYTHING_ON_ROOT_MENU) {
-	fprintf(stderr, "  All clients on menu.");
+	fprintf(stderr, "\n     All clients on menu.");
     } else {
-	fprintf(stderr, "  Hidden clients only on menu.");
+	fprintf(stderr, "\n     Hidden clients only on menu.");
     }
 
     if (CONFIG_USE_SESSION_MANAGER) {
@@ -191,16 +218,10 @@ WindowManager::WindowManager(int argc, char **argv) :
 	fprintf(stderr, "  No quick keyboard channel-surf.");
     }
 
-#if I18N
     fprintf(stderr, "\n     Operating system locale is \"%s\".",
 	    ret_setlocale ? ret_setlocale : "(NULL)");
-#endif
 
-    if (CONFIG_GNOME_COMPLIANCE) {
-        fprintf(stderr, "\n     Partial GNOME compliance.");
-    } else {
-        fprintf(stderr, "\n     Not GNOME compliant.");
-    }
+    fprintf(stderr, "\n     NETWM compliant.");
 
     fprintf(stderr, "\n     Command menu taken from ");
     if (wmxdir == NULL) {
@@ -273,18 +294,41 @@ WindowManager::WindowManager(int argc, char **argv) :
     Atoms::wm_colormaps  = XInternAtom(m_display, "WM_COLORMAP_WINDOWS", False);
     Atoms::wmx_running   = XInternAtom(m_display, "_WMX_RUNNING",        False);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    Atoms::gnome_supportingWmCheck = XInternAtom(m_display, "_WIN_SUPPORTING_WM_CHECK", False);
-    Atoms::gnome_protocols         = XInternAtom(m_display, "_WIN_PROTOCOLS",           False);
-    Atoms::gnome_clienList         = XInternAtom(m_display, "_WIN_CLIENT_LIST",         False);
-    Atoms::gnome_workspace         = XInternAtom(m_display, "_WIN_WORKSPACE",           False);
-    Atoms::gnome_workspaceCount    = XInternAtom(m_display, "_WIN_WORKSPACE_COUNT",     False);
-    Atoms::gnome_workspaceNames    = XInternAtom(m_display, "_WIN_WORKSPACE_NAMES",     False);
-    Atoms::gnome_winLayer          = XInternAtom(m_display, "_WIN_LAYER",               False);
-    Atoms::gnome_winDesktopButtonProxy 
+    Atoms::netwm_supportingWmCheck = XInternAtom(m_display, "_NET_SUPPORTING_WM_CHECK", False);
+    Atoms::netwm_supported         = XInternAtom(m_display, "_NET_SUPPORTED",           False);
+    Atoms::netwm_clientList        = XInternAtom(m_display, "_NET_CLIENT_LIST",         False);
+    Atoms::netwm_clientListStacking= XInternAtom(m_display, "_NET_CLIENT_LIST_STACKING",False);
+    Atoms::netwm_desktop           = XInternAtom(m_display, "_NET_CURRENT_DESKTOP",     False);
+    Atoms::netwm_desktopCount      = XInternAtom(m_display, "_NET_NUMBER_OF_DESKTOPS",  False);
+    Atoms::netwm_desktopNames      = XInternAtom(m_display, "_NET_DESKTOP_NAMES",       False);
+    Atoms::netwm_activeWindow      = XInternAtom(m_display, "_NET_ACTIVE_WINDOW",       False);
+    //!!! "replaced with _NET_WM_WINDOW_TYPE functional hint":
+    Atoms::netwm_winLayer          = XInternAtom(m_display, "_WIN_LAYER",               False);
+    //!!! what is this??
+    Atoms::netwm_winDesktopButtonProxy 
 	                           = XInternAtom(m_display, "_WIN_DESKTOP_BUTTON_PROXY",False);
-#endif
+    //!!! "replaced with _NET_WM_WINDOW_TYPE functional hint":
+    Atoms::netwm_winHints          = XInternAtom(m_display, "_WIN_HINTS",               False);
+    Atoms::netwm_winState          = XInternAtom(m_display, "_NET_WM_STATE",            False);    
+    Atoms::netwm_winDesktop        = XInternAtom(m_display, "_NET_WM_DESKTOP",          False);    
 
+    Atoms::netwm_winType           = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE",      False);
+
+    Atoms::netwm_winType_desktop   = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
+    Atoms::netwm_winType_dock      = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_DOCK", False);
+    Atoms::netwm_winType_toolbar   = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
+    Atoms::netwm_winType_menu      = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_MENU", False);
+    Atoms::netwm_winType_utility   = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_UTILITY", False);
+    Atoms::netwm_winType_splash    = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_SPLASH", False);
+    Atoms::netwm_winType_dialog    = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    Atoms::netwm_winType_dropdown  = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_DROPDOWN_MENU", False);
+    Atoms::netwm_winType_popup     = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_POPUP_MENU", False);
+    Atoms::netwm_winType_tooltip   = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_TOOLTIP", False);
+    Atoms::netwm_winType_notify    = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_NOTIFICATION", False);
+    Atoms::netwm_winType_combo     = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_COMBO", False);
+    Atoms::netwm_winType_dnd       = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_DND", False);
+    Atoms::netwm_winType_normal    = XInternAtom(m_display, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+    
     int dummy;
     if (!XShapeQueryExtension(m_display, &m_shapeEvent, &dummy))
 	fatal("no shape extension, can't run without it");
@@ -304,9 +348,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     initialiseSession(argv[0], oldSessionId);
 #endif
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    gnomeInitialiseCompliance();
-#endif
+    netwmInitialiseCompliance();
 
 #if CONFIG_GROUPS != False
     for (int i = 0; i < 10; i++) {
@@ -316,6 +358,7 @@ WindowManager::WindowManager(int argc, char **argv) :
 
     clearFocus();
     scanInitialWindows();
+    updateStackingOrder();
     loop();
     if(m_restart == True){
 	fprintf(stderr,"restarting wmx from SIGHUP\n");
@@ -608,7 +651,6 @@ void WindowManager::scanInitialWindows()
 	    XGetWindowAttributes(m_display, wins[i], &attr);
 //	    if (attr.override_redirect || wins[i] == m_menuWindow) continue;
 	    if (attr.override_redirect) continue;
-
 	    (void)windowToClient(wins[i], True);
 	}
 
@@ -630,36 +672,8 @@ Client *WindowManager::windowToClient(Window w, Boolean create)
 
     if (!create) return 0;
     else {
-
+        
         Client *newC = 0;
-
-#if CONFIG_GNOME_COMPLIANCE != False
-        
-        // i would like to catch layer info here.
-        // if it's layer 0, then don't map it....
-        Atom returnType;
-        int returnFormat;
-        unsigned long count;
-        unsigned long bytes_remain;
-        unsigned char *prop;
-
-        int m_layer = 256;
-
-        if (XGetWindowProperty(m_display, w, Atoms::gnome_winLayer, 0, 1,
-                               False, XA_CARDINAL, &returnType, &returnFormat,
-                               &count, &bytes_remain, &prop) == Success) {
-        
-            if (returnType == XA_CARDINAL && returnFormat == 32 && count == 1) {
-                m_layer = ((long *)prop)[0];
-                //fprintf(stderr, "0x%X:layer == %d\n", w, m_layer);
-                XFree(prop);
-                XMapWindow(m_display, w);
-                return 0;
-            }
-        
-            XFree(prop);
-        }
-#endif
     
         int bounding_shape = -1;
         int clip_shape = -1;
@@ -677,30 +691,13 @@ Client *WindowManager::windowToClient(Window w, Boolean create)
 				 &w_bounding, &h_bounding, &clip_shape,
 				 &x_clip, &y_clip, &w_clip, &h_clip);
 
-        if (bounding_shape == 1) {
-            //	fprintf(stderr, "0x%X: shapeq = %d, bounding_shape = %d x=%d y=%d w=%d h=%d clip_shape=%d x=%d y=%d w=%d h=%d\n",w, shapeq, bounding_shape, x_bounding, y_bounding, w_bounding, h_bounding,clip_shape,  x_clip, y_clip, w_clip, h_clip);
-	
-            //            int count = 0;
-            //            int ordering = 0;
-            
-            //            XRectangle* recs =
-            //                XShapeGetRectangles(m_display, w, ShapeBounding,
-            //                                    &count, &ordering);
-            //	fprintf(stderr, "rectangles: count= %d\n", count);
-
-            //            XFree(recs);
-
-            XMapWindow(m_display, w);
-
-            newC = new Client(this, w, true);
-        } else {
-            newC = new Client(this, w, false);
-        }
-
+	newC = new Client(this, w, bounding_shape==1);
 	m_clients.append(newC);
+	
 	if (m_currentChannel == m_channels) {
 	    createNewChannel();
 	}
+
 	return newC;
     }
 }
@@ -721,6 +718,9 @@ void WindowManager::setActiveClient(Client *const c)
 	m_activeClient->deactivate();
     }
     m_activeClient = c;
+
+    netwmUpdateStackingOrder();
+    netwmUpdateActiveClient();
 }
 
 void WindowManager::clearFocus()
@@ -784,9 +784,7 @@ void WindowManager::addToHiddenList(Client *c)
 
     m_hiddenClients.append(c);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-    gnomeUpdateWindowList(); 
-#endif
+    netwmUpdateWindowList(); 
 }
 
 
@@ -796,7 +794,6 @@ void WindowManager::removeFromHiddenList(Client *c)
 	if (m_hiddenClients.item(i) == c) {
 	    m_hiddenClients.remove(i);
 
-#if CONFIG_GNOME_COMPLIANCE != False
 	    if (c->channel() != m_currentChannel) {
 
 		while (c->channel() != m_currentChannel) {
@@ -808,9 +805,8 @@ void WindowManager::removeFromHiddenList(Client *c)
 		    XSync(display(), False);
 		}
 	    } else {
-		gnomeUpdateWindowList(); 
+		netwmUpdateWindowList(); 
 	    }
-#endif
 	    return;
 	}
     }
@@ -820,21 +816,20 @@ void WindowManager::removeFromHiddenList(Client *c)
 void WindowManager::hoistToTop(Client *c)
 {
     int i;
+    int layer=c->layer();
 
-    for (i = 0; i < m_orderedClients.count(); ++i) {
-	if (m_orderedClients.item(i) == c) {
-	    m_orderedClients.move_to_start(i);
+    for (i = 0; i < m_orderedClients[layer].count(); ++i) {
+	if (m_orderedClients[layer].item(i) == c) {
+	    m_orderedClients[layer].move_to_start(i);
 	    break;
 	}
     }
 
-    if (i >= m_orderedClients.count()) {
-	m_orderedClients.append(c);
-	m_orderedClients.move_to_start(m_orderedClients.count()-1);
+    if (i >= m_orderedClients[layer].count()) {
+	m_orderedClients[layer].append(c);
+	m_orderedClients[layer].move_to_start(m_orderedClients[layer].count()-1);
 
-#if CONFIG_GNOME_COMPLIANCE != False
-        gnomeUpdateWindowList(); 
-#endif
+        netwmUpdateWindowList(); 
 
     }
 }
@@ -843,29 +838,31 @@ void WindowManager::hoistToTop(Client *c)
 void WindowManager::hoistToBottom(Client *c)
 {
     int i;
+    int layer=c->layer();
 
-    for (i = 0; i < m_orderedClients.count(); ++i) {
-	if (m_orderedClients.item(i) == c) {
-	    m_orderedClients.move_to_end(i);
+    for (i = 0; i < m_orderedClients[layer].count(); ++i) {
+	if (m_orderedClients[layer].item(i) == c) {
+	    m_orderedClients[layer].move_to_end(i);
 	    break;
 	}
     }
 
-    if (i >= m_orderedClients.count()) {
-	m_orderedClients.append(c);
-//	m_orderedClients.move_to_end(m_orderedClients.count()-1);
+    if (i >= m_orderedClients[layer].count()) {
+	m_orderedClients[layer].append(c);
+//	m_orderedClients[layer].move_to_end(m_orderedClients[layer].count()-1);
     }
+
 }
 
 
 void WindowManager::removeFromOrderedList(Client *c)
 {
-    for (int i = 0; i < m_orderedClients.count(); ++i) {
-	if (m_orderedClients.item(i) == c) {
-	    m_orderedClients.remove(i);
-#if CONFIG_GNOME_COMPLIANCE != False
-	    gnomeUpdateWindowList(); 
-#endif
+    int layer=c->layer();
+
+    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
+	if (m_orderedClients[layer].item(i) == c) {
+	    m_orderedClients[layer].remove(i);
+	    netwmUpdateWindowList(); 
 	    return;
 	}
     }
@@ -874,13 +871,14 @@ void WindowManager::removeFromOrderedList(Client *c)
 
 Boolean WindowManager::isTop(Client *c)
 {
-    return (m_orderedClients.item(0) == c) ? True : False;
+    return (m_orderedClients[c->layer()].item(0) == c) ? True : False;
 }
 
 void WindowManager::withdrawGroup(Window groupParent, Client *omit, Boolean changeState)
 {
-    for (int i = 0; i < m_orderedClients.count(); ++i) {
-	Client *ic = m_orderedClients.item(i);
+    for (int layer = MAX_LAYER; layer >= 0; --layer)
+    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
+	Client *ic = m_orderedClients[layer].item(i);
 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
 	    ic != omit) {
 	    ic->withdraw(changeState);
@@ -889,9 +887,10 @@ void WindowManager::withdrawGroup(Window groupParent, Client *omit, Boolean chan
 }
 
 void WindowManager::hideGroup(Window groupParent, Client *omit)
-{
-    for (int i = 0; i < m_orderedClients.count(); ++i) {
-	Client *ic = m_orderedClients.item(i);
+{    
+    for (int layer = MAX_LAYER; layer >= 0; --layer)
+    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
+	Client *ic = m_orderedClients[layer].item(i);
 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
 	    ic != omit) {
 	    ic->hide();
@@ -901,8 +900,9 @@ void WindowManager::hideGroup(Window groupParent, Client *omit)
 
 void WindowManager::unhideGroup(Window groupParent, Client *omit, Boolean map)
 {
-    for (int i = 0; i < m_orderedClients.count(); ++i) {
-	Client *ic = m_orderedClients.item(i);
+    for (int layer = MAX_LAYER; layer >= 0; --layer)
+    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
+	Client *ic = m_orderedClients[layer].item(i);
 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
 	    ic != omit) {
 	    ic->unhide(map);
@@ -912,8 +912,9 @@ void WindowManager::unhideGroup(Window groupParent, Client *omit, Boolean map)
 
 void WindowManager::killGroup(Window groupParent, Client *omit)
 {
-    for (int i = 0; i < m_orderedClients.count(); ++i) {
-	Client *ic = m_orderedClients.item(i);
+    for (int layer = MAX_LAYER; layer >= 0; --layer)
+    for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
+	Client *ic = m_orderedClients[layer].item(i);
 	if (ic->groupParent() == groupParent && !ic->isGroupParent() &&
 	    ic != omit) {
 	    ic->kill();
@@ -982,21 +983,21 @@ void WindowManager::spawn(char *name, char *file)
 	    }
 
 	    if (CONFIG_EXEC_USING_SHELL) {
-		if (file) execl(m_shell, m_shell, "-c", file, 0);
-		else execl(m_shell, m_shell, "-c", name, 0);
+		if (file) execl(m_shell, m_shell, "-c", file, NULL);
+		else execl(m_shell, m_shell, "-c", name, NULL);
 		fprintf(stderr, "wmx: exec %s", m_shell);
 		perror(" failed");
 	    }
 
 	    if (file) {
-		execl(file, name, 0);
+		execl(file, name, NULL);
 	    }
 	    else {
 		if (strcmp(CONFIG_NEW_WINDOW_COMMAND, name)) {
-		    execlp(name, name, 0);
+		    execlp(name, name, NULL);
 		}
 		else {
-		    execlp(name, name, CONFIG_NEW_WINDOW_COMMAND_OPTIONS);
+			execlp(name, name, CONFIG_NEW_WINDOW_COMMAND_OPTIONS, NULL);
 		}
 	    }
 
@@ -1011,147 +1012,261 @@ void WindowManager::spawn(char *name, char *file)
     wait((int *) 0);
 }
 
-
-#if CONFIG_GNOME_COMPLIANCE != False
-
-void WindowManager::gnomeInitialiseCompliance()
+void WindowManager::netwmInitialiseCompliance()
 {
     // NOTE that this has been altered to coexist with the
     // multihead code; but we're only using screen 0 here
-    // as I have no idea how GNOME copes with multiheads --cc
+    // as I have no idea how NETWM copes with multiheads --cc
 
     // most of this is taken verbatim from 
     // http://www.gnome.org/devel/gnomewm
-
-    // some day we will be more compliant
-    Atom list[5];
     
-    // this part is to tell GNOME we are compliant. The window 
-    // is needed to tell GNOME that wmx has exited (i think). 
-    gnome_win = XCreateSimpleWindow
+    // this part is to tell NETWM we are compliant. The window 
+    // is needed to tell NETWM that wmx has exited (i think). 
+    m_netwmCheckWin = XCreateSimpleWindow
         (m_display, m_root[0], -200, -200, 5, 5, 0, 0, 0);
 
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_supportingWmCheck, XA_CARDINAL, 32, 
-         PropModeReplace, (unsigned char*)&gnome_win, 1);
+        (m_display, m_root[0], Atoms::netwm_supportingWmCheck, XA_CARDINAL, 32, 
+         PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
     
     // also going to add the desktop button proxy stuff to the same window
 
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_winDesktopButtonProxy, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&gnome_win, 1);
+        (m_display, m_root[0], Atoms::netwm_winDesktopButtonProxy, XA_CARDINAL,
+         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
 
     XChangeProperty
-        (m_display, gnome_win, Atoms::gnome_supportingWmCheck, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&gnome_win, 1);
+        (m_display, m_netwmCheckWin, Atoms::netwm_supportingWmCheck, XA_CARDINAL,
+         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
 
     // also going to add the desktop button proxy stuff to the same window
 
     XChangeProperty
-        (m_display, gnome_win, Atoms::gnome_winDesktopButtonProxy, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&gnome_win, 1);
+        (m_display, m_netwmCheckWin, Atoms::netwm_winDesktopButtonProxy, XA_CARDINAL,
+         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
 
-    // Now we need to tell GNOME how compliant we are
+    // Now we need to tell NETWM how compliant we are
+
+    // some day we will be more compliant
+    AtomList supported;
     
-    // to be compliant we now need to have a list that is updated 
-    // with all the window id's. This is taken care of whenever
-    // we call m_clients.append() and .remove()
-    list[0] = Atoms::gnome_clienList;
-    list[1] = Atoms::gnome_workspace;
-    list[2] = Atoms::gnome_workspaceCount;
-    list[3] = Atoms::gnome_workspaceNames;
-    list[4] = Atoms::gnome_winLayer;
+    supported.append(Atoms::netwm_clientList);
+    supported.append(Atoms::netwm_desktop);
+    supported.append(Atoms::netwm_desktopCount);
+    supported.append(Atoms::netwm_desktopNames);
+    supported.append(Atoms::netwm_activeWindow);
+    supported.append(Atoms::netwm_winLayer);
+    supported.append(Atoms::netwm_winHints);
+    supported.append(Atoms::netwm_winState);
+    supported.append(Atoms::netwm_winDesktop);
+    supported.append(Atoms::netwm_winType);
+    supported.append(Atoms::netwm_clientListStacking);
     
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_protocols, XA_ATOM, 32,
-         PropModeReplace, (unsigned char *)list, 5);
+        (m_display, m_root[0], Atoms::netwm_supported, XA_ATOM, 32,
+         PropModeReplace,
+         (unsigned char *)supported.array(0, supported.count()),
+         supported.count());
 
-    gnomeUpdateChannelList();
+    netwmUpdateChannelList();
 }
 
-void WindowManager::gnomeUpdateWindowList()
+void WindowManager::updateStackingOrder()
 {
-    Atom atom_set;
-    long num;
-    int  i;
-    int  realNum;
-
-    int hiddenCount = m_hiddenClients.count();
-    int orderedCount = m_orderedClients.count();
-
-    Window *windows = new Window[hiddenCount + orderedCount];
-    int j = 0;
-
-    /* henri@qais.com requested removal 20001128 --cc
-    for (i = 0; i < hiddenCount; i++) {
-        if (!m_hiddenClients.item(i)->isKilled()) {
-            windows[j++] = m_hiddenClients.item(i)->window();
+    int orderedCount = 0;
+    for (int i = MAX_LAYER; i >= 0; --i)
+        orderedCount += m_orderedClients[i].count();
+    
+    Window* windows = new Window[orderedCount];
+    Window* windowIter = windows;
+    
+    for(int layer = MAX_LAYER; layer >= 0; --layer) {
+        int top = m_orderedClients[layer].count();
+        for (int i = 0; i < top; ++i) {
+            Client *c = m_orderedClients[layer].item(i);
+	    if (!c->isKilled() && (c->channel()==channel()  || c->isSticky()) && !c->isHidden()) {
+                *(windowIter++)=c->parent();
+	    }
         }
     }
-    */
+     
+#if 0   
+    /******************************/
+    /*****  TAKE THIS OUT!!!  *****/
+ 
+    {
+        int count = 0;
+        for(Window* i=windows; i<windowIter; ++i) {
+            for(Window* j=windows; j<windowIter; ++j) {
+                if(i!=j && *i==*j) {
+                    count++;
+                }
+            }
+        }
+        if(count!=0)
+            fprintf(stderr, "wmx: %d duplicate windows in stacking list\n", count);
+    }
+    
+    /*****  TAKE THIS OUT!!!  *****/    
+    /******************************/
+#endif
+    
+    XRestackWindows(display(), windows, windowIter-windows);
+    
+    delete[] windows;
 
-    for (i = 0; i < orderedCount; i++) {
-	if (!m_orderedClients.item(i)->isKilled()) {
-            windows[j++] = m_orderedClients.item(i)->window();
-	}
+    netwmUpdateStackingOrder();
+}
+  
+void WindowManager::netwmUpdateWindowList()
+{
+    int count = m_clients.count() + m_hiddenClients.count();
+    
+    Window *byAge = new Window[count];
+
+    count = 0;
+
+    for (int i = 0; i < m_hiddenClients.count(); ++i) {
+        Client *c = m_hiddenClients.item(i);
+        if (c->isKilled()) continue;
+        byAge[count++] = c->window();
+//        fprintf(stderr, "netwm client list: item %d [H] is window %lx, client \"%s\"\n", count, c->window(), c->name());
     }
 
+    for (int i = 0; i < m_clients.count(); ++i) {
+        Client *c = m_clients.item(i);
+        if (!c->isNormal() || c->isKilled()) continue;
+        byAge[count++] = c->window();
+//        fprintf(stderr, "netwm client list: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
+    }
+    
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_clienList, XA_CARDINAL, 32, 
-         PropModeReplace, (unsigned char*)windows, j);
+        (m_display, m_root[0], Atoms::netwm_clientList, XA_WINDOW, 32, 
+         PropModeReplace, (unsigned char*)byAge, count);
+  
+    delete[] byAge;
 
-    delete windows;
+    netwmUpdateStackingOrder();
+    netwmUpdateActiveClient();
+}
+  
+void WindowManager::netwmUpdateStackingOrder()
+{
+    int count = 0;
+
+    for (int i = MAX_LAYER; i >= 0; --i)
+        count += m_orderedClients[i].count();
+    
+    Window *byStacking = new Window[count];
+
+    count = 0;
+
+    for (int layer = 0; layer < MAX_LAYER; ++layer) {
+        int top = m_orderedClients[layer].count();
+        for (int i = top - 1; i >= 0; --i) {
+            Client *c = m_orderedClients[layer].item(i);
+	    if (c->isWithdrawn() || c->isKilled() || c->isHidden()) continue;
+            byStacking[count++] = c->window();
+//            fprintf(stderr, "netwm stacking order: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
+        }
+    }
+    
+    XChangeProperty
+        (m_display, m_root[0], Atoms::netwm_clientListStacking, XA_WINDOW, 32, 
+         PropModeReplace, (unsigned char*)byStacking, count);
+  
+    delete[] byStacking;   
 }
 
-void WindowManager::gnomeUpdateChannelList()
+void WindowManager::netwmUpdateChannelList()
 {
     int     i;
     char  **names, s[1024];
-    CARD32  val;
+    CARD32  chan;
    
-    // how many channels are there?
-    val = (CARD32) m_channels;
+    if (m_channels <= 1) return;
+
+    chan = (CARD32) m_channels;
  
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_workspaceCount, XA_CARDINAL, 32, 
-         PropModeReplace, (unsigned char *)&val, 1);
+        (m_display, m_root[0], Atoms::netwm_desktopCount, XA_CARDINAL, 32, 
+         PropModeReplace, (unsigned char *)&chan, 1);
 
     // set the names of the channels
-    names = (char **)malloc(sizeof(char *) * m_channels);
-
-    for (i = 0; i < m_channels; i++) {
+    names = new char*[chan];
+    
+    for (i = 0; i < chan; i++) {
         snprintf(s, sizeof(s), "Channel %i", i + 1);
-        names[i] = (char *)malloc(strlen(s) + 1);
+        names[i] = new char [strlen(s) + 1];
         strcpy(names[i], s);
     }
     
     XTextProperty textProp;
 
-    if (XStringListToTextProperty(names, m_channels, &textProp)) {
+    if (XStringListToTextProperty(names, chan, &textProp)) {
 	XSetTextProperty
-            (m_display, m_root[0], &textProp, Atoms::gnome_workspaceNames);
+            (m_display, m_root[0], &textProp, Atoms::netwm_desktopNames);
 	XFree(textProp.value);
     }
     
-    for (i = 0; i < m_channels; i++) free(names[i]);
-    free(names);
+    for (i = 0; i < chan; i++) delete[] names[i];
 
-    gnomeUpdateCurrentChannel();
+    delete[] names;
+
+    netwmUpdateCurrentChannel();
 }   
 
-void WindowManager::gnomeUpdateCurrentChannel()
+void WindowManager::netwmUpdateActiveClient()
+{
+    if (!m_activeClient) return;
+
+    CARD32 val;
+    
+    val = m_activeClient->window();
+    
+    XChangeProperty
+        (m_display, m_root[0], Atoms::netwm_activeWindow, XA_CARDINAL, 32, 
+         PropModeReplace, (unsigned char *)&val, 1);
+}    
+
+void WindowManager::netwmUpdateCurrentChannel()
 {
     CARD32 val;
 
-    // gnome numbers then 0... not 1...
-    val =(CARD32)(m_currentChannel - 1);
+    // netwm numbers then 0... not 1...
+    val = (CARD32)(m_currentChannel - 1);
 
     XChangeProperty
-        (m_display, m_root[0], Atoms::gnome_workspace, XA_CARDINAL, 32, 
+        (m_display, m_root[0], Atoms::netwm_desktop, XA_CARDINAL, 32, 
          PropModeReplace, (unsigned char *)&val, 1);
 
-    gnomeUpdateWindowList();
-}   
+    netwmUpdateWindowList();
+}  
 
-#endif
+void
+WindowManager::printClientList()
+{
+    printf("wmx: %ld client(s)\n", m_clients.count());
+
+    for (int i = 0; i < m_clients.count(); ++i) {
+
+        bool inHidden = false;
+
+        // we don't mind that this is so inefficient
+        for (int j = 0; j < m_hiddenClients.count(); ++j) {
+            if (m_hiddenClients.item(j) == m_clients.item(i)) {
+                inHidden = true;
+                break;
+            }
+        }
+        printf("wmx: Client %d (address %p)%s\n", i+1, m_clients.item(i), 
+               inHidden ? " [hidden]" : "");
+
+        m_clients.item(i)->printClientData();
+
+        printf("\n");
+        fflush(stdout);
+    }
+}
 

@@ -24,8 +24,8 @@ public:
 
     void map();
     void unmap();
-    void lower();
-    void mapRaised();
+    //void lower();
+    //void mapRaised();
     void decorate(Boolean active, int w, int h);
     void reparent();
     void configure(int x, int y, int w, int h, unsigned long mask, int detail,
@@ -45,7 +45,7 @@ public:
     Boolean isFixedSize();	// calls into Client
     Window parent() { return m_parent; }
     Boolean hasWindow(Window);
-      
+    
     Display *display();
     int screen();
     Window root();
@@ -53,15 +53,8 @@ public:
     void expose(XExposeEvent *);
     void eventButton(XButtonEvent *); // in Buttons.C
 
-    int yIndent() {
-      if (shaped) return 0;
-      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 : FRAME_WIDTH + 1;
-    }
-    int xIndent() {
-      if (shaped) return 0;
-      return isTransient() ? TRANSIENT_FRAME_WIDTH + 1 :
-        m_tabWidth[screen()] + FRAME_WIDTH + 1;
-    }
+    int yIndent();
+    int xIndent();
 
     Boolean coordsInHole(int, int); // in Events.C of all places
     static Pixmap backgroundPixmap(WindowManager *);
@@ -69,8 +62,6 @@ public:
     
 private:
     Client *m_client;
-
-    int shaped;
 
     Window m_parent;
     Window m_tab;

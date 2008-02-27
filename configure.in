@@ -30,6 +30,10 @@ AC_CHECK_LIB(Xext, XShapeQueryExtension)
 dnl Xpm is not strictly necessary
 AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData)
 
+dnl SM and ICE are necessary if CONFIG_USE_SESSION_MANAGER
+AC_CHECK_LIB(SM, SmcOpenConnection)
+AC_CHECK_LIB(ICE, IceConnectionNumber)
+
 dnl Freetype: actually only needed if CONFIG_USE_XFT
 PKG_CHECK_MODULES([FT],[freetype2])
 PKG_CHECK_MODULES([XFT],[xft])

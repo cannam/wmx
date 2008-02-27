@@ -26,9 +26,7 @@ public:
     static XftColor *m_xftColour;
     static XftDraw **m_xftDraw;
 #else
-#if I18N
     static XFontSet m_fontset;
-#endif
     static XFontStruct **m_font;
 #endif
     static unsigned long m_foreground;
