@@ -7,13 +7,11 @@
   methods; without alt modifier, middle button should bring up client menu
 * alt + left/right cursor on desktop window (as well as true desktop) needs
   to switch channel
-* session mgmt
 
 other stuff:
 * I would seriously like support for bumping against other windows (like kwin)
   as well as against display edges
 * focus on transient when window focused
-* fix failure to display utf8 in window title
 * tidy up exit -- if you just kill -TERM wmx, it should delete border button
   windows &c -- otherwise they proliferate on restart
 
