@@ -139,9 +139,7 @@ void WindowManager::nextEvent(XEvent *e)
     waiting:
 
 	if (m_channelChangeTime > 0) {
-            fprintf(stderr, "channel change time = %d\n", (int)m_channelChangeTime);
 	    Time t = timestamp(True);
-//!!!	    if (t < m_channelChangeTime || t - m_channelChangeTime > 1000) {
 	    if (t >= m_channelChangeTime) {
 		instateChannel();
 	    }
