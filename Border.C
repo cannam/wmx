@@ -109,6 +109,8 @@ Border::~Border()
 	}
     }
 
+    //!!! remind me why we don't delete these windows if m_parent == root() ?
+
     if (m_label) free(m_label);
 }
 
