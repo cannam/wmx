@@ -18,6 +18,9 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     setScreenFromPointer();
     Client *c = windowToClient(e->window);
 
+//    fprintf(stderr, "button event, channel change time == %d\n",
+//            (int)m_channelChangeTime);
+
     // We shouldn't be getting button events for non-focusable clients,
     // but we'd better check just in case.
     if (CONFIG_PASS_FOCUS_CLICK || c->isNonFocusable())
@@ -133,6 +136,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 #endif
 	    return;
 	} else if (e->button == CONFIG_CLIENTMENU_BUTTON && m_channelChangeTime != 0) {
+            fprintf(stderr, "pushing down a channel\n");
 	    // allow left-button to push down a channel --cc 19991001
 	    flipChannel(False, True, False, c);
 	    return;
@@ -201,8 +205,8 @@ void WindowManager::eventKeyPress(XKeyEvent *ev)
 
 	Client *c = windowToClient(ev->window);
 
-        fprintf(stderr, "eventKeyPress, client %p (%s)\n",
-                c, c ? c->name() : "(none)");
+//        fprintf(stderr, "eventKeyPress, client %p (%s)\n",
+//                c, c ? c->name() : "(none)");
         
         if (key == CONFIG_ALT_KEY) {
             m_altPressed = True;

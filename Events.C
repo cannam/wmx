@@ -139,6 +139,7 @@ void WindowManager::nextEvent(XEvent *e)
     waiting:
 
 	if (m_channelChangeTime > 0) {
+            fprintf(stderr, "channel change time = %d\n", (int)m_channelChangeTime);
 	    Time t = timestamp(True);
 //!!!	    if (t < m_channelChangeTime || t - m_channelChangeTime > 1000) {
 	    if (t >= m_channelChangeTime) {
@@ -641,14 +642,24 @@ void WindowManager::eventClient(XClientMessageEvent *e)
 
 	int channel = (int)e->data.l[0] + 1;
 
+        fprintf(stderr, "NETWM desktop request for channel %d received\n",
+                channel);
+
 	// netwm is not up-to-date and asked us to flip to a 
 	// non-existing channel
 	if (channel > m_channels) {
 	    netwmUpdateChannelList();
 	    return;
 	}
-                
-        gotoChannel(channel, 0);
+
+        // gotoChannel always does something -- even if we're already
+        // on that channel, it will flash up the channel indicator.
+        // We don't want that if we're just responding to a NETWM
+        // request.
+
+        if (channel != m_currentChannel) {
+            gotoChannel(channel, 0);
+        }
 
 	return;
     }
@@ -679,8 +690,9 @@ void Client::eventClient(XClientMessageEvent *e)
             fprintf(stderr, "going to channel %d\n", (int)m_channel);
             windowManager()->gotoChannel(m_channel, 0);
         }
-        if (isHidden()) unhide(True);
-        else {
+        if (isHidden()) {
+            unhide(True);
+        } else {
             if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
             else mapRaised();
             ensureVisible();

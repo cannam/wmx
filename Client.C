@@ -735,6 +735,9 @@ tryagain:
     status = XGetWindowProperty(d, w, a, 0L, len, False, type, &realType,
 				&format, &n, &extra, p);
 
+//    fprintf(stderr, "XGetWindowProperty: len = %ld, return count = %lu, format = %d, pointer = %p\n",
+//            len, n, format, *p);
+
     if (status != Success || *p == 0) return -1;
     if (n == 0) {
         XFree((void *) *p);
@@ -1019,11 +1022,15 @@ void Client::getClientType()
 
     if (m_transient != None) m_type = DialogClient;
 
+//    fprintf(stderr, "trying to get client type...\n");
+
     int count = 0;
     char *property = getProperty(Atoms::netwm_winType, XA_ATOM, count);
 
     if (property) {
     
+//        fprintf(stderr, "got property, count = %d\n", count);
+
         for (int i = 0; i < count; ++i) {
                 
             Atom typeAtom = ((Atom *)property)[i];
@@ -1032,6 +1039,8 @@ void Client::getClientType()
 
             fprintf(stderr, "window type property item %d is \"%s\"\n",
                     i, name);
+
+            if (name) XFree(name);
 
             if (typeAtom == Atoms::netwm_winType_desktop) {
                 m_type = DesktopClient;
@@ -1050,6 +1059,10 @@ void Client::getClientType()
             } else if (typeAtom == Atoms::netwm_winType_menu) {
                 m_type = MenuClient;
                 m_layer = TOOLBAR_LAYER;
+                break;
+            } else if (typeAtom == Atoms::netwm_winType_utility) {
+                m_type = UtilityClient;
+                m_layer = UTILITY_LAYER;
                 break;
             } else if (typeAtom == Atoms::netwm_winType_dialog) {
                 m_type = DialogClient;
@@ -1645,7 +1658,7 @@ void Client::printClientData()
     printf("     * Window: %lx - Name: \"%s\"\n",
            window(), name() ? name() : "");
 
-    printf("     * Managed: %s - Type: ", m_managed ? "Yes" : "No ");
+    printf("     * Managed: %s - Type: ", m_managed ? "Y" : "N");
     switch (m_type) {
     case NormalClient:  printf("Normal "); break;
     case DialogClient:  printf("Dialog "); break;
@@ -1669,11 +1682,11 @@ void Client::printClientData()
 
     printf("\n");
 
-    printf("     * Geometry: %dx%d%s%d%s%d - Shaped: %s - Screen: %d - Channel: %d%s", m_w, m_h,
+    printf("     * Geometry: %dx%d%s%d%s%d - Shaped: %s - Screen: %d - Channel: %d - Layer: %d%s", m_w, m_h,
            (m_x >= 0 ? "+" : ""), m_x,
            (m_y >= 0 ? "+" : ""), m_y,
-           m_shaped ? "Yes" : "No",
-           m_screen, m_channel,
+           m_shaped ? "Y" : "N",
+           m_screen, m_channel, m_layer,
            m_unmappedForChannel ? " [unmapped]" : "");
     
     printf("\n     * Transient for: %lx - Group parent: %lx - Revert to: %p (%lx)\n",

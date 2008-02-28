@@ -161,6 +161,7 @@ declareList(AtomList, Atom);
 #define DIALOG_LAYER 6
 // -- below this line, windows do not receive focus
 #define TOOLBAR_LAYER 7
+#define UTILITY_LAYER 7
 // -- below this line, windows are borderless
 #define DOCK_LAYER 8
 #define FULLSCREEN_LAYER 11
