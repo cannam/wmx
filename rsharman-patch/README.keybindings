@@ -1,0 +1,88 @@
+With the keybinding patch you can bind a key to run an external
+command.  There are two types of bindings:
+
+1. When the wmx-modifier is pressed [the one defined to CONFIG_ALT_KEY
+in Config.h].
+
+2. When no modifiers are pressed.
+
+Actually, in both of the above cases the state of caps-lock and
+num-lock is ignored.
+
+When wmx starts up it examines the ~/.wmx directory, which
+traditionally consisted of two things.  Executable files (or usually
+symlinks to them) are the commands that appear on the Command Menu
+(the middle button in the root, and the options file is parsed at
+startup (by Config.C).
+
+With the keybinding patch wmx checks for 2 additional directories:
+.keys and .mkeys.  
+
+When wmx starts up it examines these directories for executable files
+whose filename is a valid keymap name.  For example "F1" and
+"KP_Enter" are valid.  So is "1" but "f1" is probably not.
+
+Files in the .keys directory are activated when the key is pressed
+without any modifier (such as Shift, Control or Meta).
+
+Files in the .mkeys directory are activated when the key is pressed
+and the wmx-modifier key is pressed.  (The wmx-modifier is defined in
+Config.h;  the default is Alt, but I reccomend changing it.  Super_L
+is usually a good choice.)
+
+(For convenience the num-lock and caps-lock is ignored, so "no
+modifiers" and "only wmx modifier" really isn't quite correct.)
+
+
+For example,  suppose ~/.wmx/.keys/F1 contains
+
+------------------------------------------------------------------------
+#! /bin/sh
+xlogo -title F1
+------------------------------------------------------------------------
+
+then when you press F1 an xlogo pops up with F1 in the title bar.  If
+the file were moved to ~/.wmx/.mkeys/F1 then you would have to have
+the wmx-modifier key held down when you pressed F1.
+
+Ok, that's not an exciting example.  
+
+
+A really useful program is xwit:
+	http://www.x.org/contrib/utilities/xwit-3.4.tar.gz
+This allows you to do "window manager type things" from a shell script.
+For example, you can move a window to an absolute location or relative
+to its current position.
+
+When wmx calls a file because of a keybinding it passes it with one
+argument,  the window id.  This is how we can tell xwit which window
+to work with.
+
+For example, I have these two:
+
+File ~/.wmx/.mkeys/comma
+------------------------------------------------------------------------
+#! /bin/sh
+
+# move current window left 50 pixels
+xwit -id $1 -rmove -50 0
+------------------------------------------------------------------------
+
+File ~/.wmx/.mkeys/period
+------------------------------------------------------------------------
+#! /bin/sh
+
+# move current window right 50 pixels
+xwit -id $1 -rmove 50 0
+------------------------------------------------------------------------
+
+
+Now, by pressing the wmx-modifier and the comma key the current window
+is moved left a bit,  and with the period it goes right a bit.
+I used comma and period because they are above the "<" and ">" keys.
+You can't use filenames "less" and "greter" because the keysym "less"
+is bound to the the "period" key when the shift modifier is prespent.
+
+
+With the remote patch you can do fancier things as explained there.
+

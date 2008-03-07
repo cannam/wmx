@@ -1,0 +1,100 @@
+With the remote control patch if you invoke wmx with either the "-r"
+or "-p" option then wmx opens a socket.  With the -r option the
+default port of 6999 is used,  the -p option allows you to specific
+the port number.  Wmx listens on this port for commands and executes
+them.
+
+
+If you telnet into this port you will see:
+
+Welcome to wmx remote control.  Type help for commands
+
+Each reply (including error messages) always ends with an empty line
+to allow a program to parse it.  For example:
+
+input:	channel 2
+output: OK
+output: 
+
+With that example wmx will have switched to channel two,  so it would
+have been a good idea to make the above telnet window a sticky one!
+
+By itself the remote control is fun to play with, but what good is it?
+
+Well, with the keybinding patch you can run a command that can send a
+command to the socket.  The easiest way to do this from a shell script
+is using the socket program.  If you don't have this you should!
+
+	http://www.jnickelsen.de/socket/
+
+This is a very handy program which can do many things.  The nice
+feature here is that you can invoke it from a shell script to send
+commands to a socket.
+
+Here is an example file that hides the curent window:
+
+------------------------------------------------------------------------
+#! /bin/sh
+
+# Hide current window
+
+PORT=6999
+echo hide $1 | socket -q localhost $PORT
+------------------------------------------------------------------------
+
+If this file is copied to ~/.wmx/.keys/F1 with execute permission
+(and wmx restarted) then when you press F1 the window under the cursor
+disappears.  Ok, so you can do the same thing by moving the pointer to
+the box and clicking.  Sometmes, though, having a key bound can be
+faster.
+
+Here's a more interesting example:
+
+------------------------------------------------------------------------
+#! /bin/sh
+
+# Move this window to the next channel
+
+# go to next channel
+echo channel | socket -q localhost 6999  | \
+	gawk  '/Current channel is/{ n = $4; n++ ; print "wchannel",'"$1"', n}' |
+	socket -q localhost 6999
+------------------------------------------------------------------------
+
+As the comment says,  the current window is moved to the next channel
+but the current channel is left as is.   
+
+To do the same thing with the mouse you would have to move the pointer
+to the frame, middle click (or use the mouse wheel),  then move back
+to the previous channel by moving the pointer away from the window
+and going back to the previous channel.
+
+Cycling amoungst windows often gets ones you're not interested in.
+This file allows cycling between just the same client classes.
+
+------------------------------------------------------------------------
+#! /bin/sh
+
+# warp to the next client of the same class on the same channel
+# ignoring hidden and withdrawn clients
+
+(echo clients ; echo clients ; echo quit) | socket localhost 6999 | \
+
+gawk -v W=$1 '
+
+BEGIN { CLASS = ""; }
+
+(CLASS != "" && $3 !~ /.*[HW].*/ && $4 == CLASS && $2 == CHANNEL) {
+	print "warp", $1
+	print "quit"
+	exit;
+}
+
+($1 == W) {
+	CLASS = $4
+	CHANNEL = $2
+}
+' | \
+  tee -a $HOME/Log | \
+socket -q localhost 6999
+------------------------------------------------------------------------

@@ -1,0 +1,36 @@
+The standard wmx client menu shows the label.  If you're looking for a
+specific window it can be hard to find if there are many.
+
+With the "class" option turned on the client window will display
+for example
+
+[emacs] README.menu
+
+instead of the default:
+
+README.menu
+
+If you also turn on the "sort" option the names are sorted,  so all
+the emacs ones are connsecutive.
+
+
+To turn on class and/or sort you can
+
+1. Change Config.h to have
+#define CLASS_IN_MENU True
+
+2. With the default setting of
+#define CLASS_IN_MENU	(dConfig.classInMenu())
+you can turn it on by adding "class:on" to the options string.
+
+E.g.
+cd ~/.wmx
+ln -sf class:on/sort:on options
+
+Or, of course, add to your existing options such as
+ln -sf right:toggleheight/class:on/sort:on options
+
+
+3. If you have the remote option patch then in the telnet window
+you can use the options command:
+options class:on/sort:on

@@ -1,0 +1,82 @@
+From owner-wmx-out@42.org Mon Feb 28 04:10:16 2005
+Return-Path: <owner-wmx-out@42.org>
+Received: from mail.uoa.gr [195.134.100.71]
+	by localhost with IMAP (fetchmail-6.2.5)
+	for adia@localhost (single-drop); Mon, 28 Feb 2005 04:10:16 +0200 (EET)
+Received: from mta.uoa.gr (mta.uoa.gr [195.134.100.69])
+	by imap.uoa.gr (Cyrus v2.1.18) with LMTP; Mon, 28 Feb 2005 04:10:02 +0200
+X-Sieve: CMU Sieve 2.2
+X-Spam-Score: 0
+Received: from ice.42.org (ice.42.org [194.77.3.162])
+	by mta.uoa.gr (8.12.11/8.12.11) with ESMTP id j1S29x0K014139
+	for <adia@noc.uoa.gr>; Mon, 28 Feb 2005 04:10:00 +0200 (EET)
+Received: by ice.42.org (Postfix)
+	id 287CF54D1; Mon, 28 Feb 2005 03:09:48 +0100 (CET)
+Delivered-To: wmx-out@42.org
+Received: by ice.42.org (Postfix, from userid 55)
+	id 234DC54D0; Mon, 28 Feb 2005 03:09:48 +0100 (CET)
+X-Original-To: wmx@42.org
+Delivered-To: wmx@42.org
+Received: from cube.homenetwork (ottawa-hs-64-26-155-16.s-ip.magma.ca [64.26.155.16])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by ice.42.org (Postfix) with ESMTP id 4263554A2
+	for <wmx@42.org>; Mon, 28 Feb 2005 03:09:37 +0100 (CET)
+Received: (qmail 9575 invoked by uid 1000); 27 Feb 2005 20:59:03 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16930.31463.283232.802615@cube.homenetwork>
+Date: Sun, 27 Feb 2005 20:59:03 -0500
+From: rsharman@pobox.com
+To: wmx@42.org
+Subject: [wmx] client names on menus, arbitrary keybindings, remote control of wmx
+X-Mailer: VM 7.19 under Emacs 21.3.1
+Sender: owner-wmx@42.org
+Precedence: bulk
+X-mailinglist: wmx
+X-archived-at: http://ml.42.org/wmx/
+Status: RO
+Content-Length: 1196
+Lines: 39
+
+
+For a while Roland Renaud and I have been playing around with wmx and
+we thought it was time we fed back our changes.
+
+So here it is:
+
+http://www.pobox.com/~rsharman/wmx/wmx-patches.html
+
+The main changes are:
+
+* optionally putting the client's label on menus and sorting the
+  entries
+
+* allowing any key either without any modifier or with the wmx
+  modifier to run an arbitrary command
+
+* remote control of wmx:  wmx can listen on a socket and accept
+  commands
+
+These in conduction with the "xwit" and "socket" programs [links are
+provided for them if you don't have them] allow you to things like:
+
+* bind a key to circulate between similar clients.  For example, if
+  you're in an emacs window and you press this key it will take you to
+  the next emacs window; if you're in a firefox window it warps you to
+  the next firefox one.
+
+* bind a key to easily "shove" the current window into the next channel
+  without changing the current channel.
+
+* bind a key to move the current window a bit to the left, or to the
+  right, or to raise or lower it.
+
+The patch is against wmx-6pl1 which I believe is the latest.
+
+If you have any problems or suggestions please let me know.
+Thanks.
+
+Richard
+
