@@ -75,7 +75,10 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
         if (e->button == CONFIG_CLIENTMENU_BUTTON) {
             if (e->state & m_altModMask) {
                 effectiveRoot = true;
-            } 
+            } else {
+                c->eventButton(e);
+                return;
+            }
         } else {
             effectiveRoot = true;
         }
@@ -101,6 +104,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
 #endif
 
 	if (e->button == CONFIG_CLIENTMENU_BUTTON && m_channelChangeTime == 0) {
+
 	    ClientMenu menu(this, (XEvent *)e);
 
 	} else if (e->x > DisplayWidth(display(), screen()) -

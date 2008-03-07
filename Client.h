@@ -53,7 +53,8 @@ public:
     Boolean isTransient()   { return ((m_transient != None) || (m_shaped)); }
     Boolean isSticky()      { return m_sticky; }
     Boolean skipsFocus()    { return m_skipFocus || isNonFocusable(); } //!!!merge
-    Boolean isFocusOnClick(){ return m_focusOnClick; }
+    Boolean isFocusOnClick(){ return (m_focusOnClick ||
+                                      (layer() < FIRST_FOCUS_FOLLOWS_LAYER)); }
     Boolean isMovable()     { return m_movable; }
     Window  transientFor()  { return m_transient; }
 #if CONFIG_USE_WINDOW_GROUPS
@@ -65,12 +66,11 @@ public:
 
     // Client is borderless (like things on desktop or at 'dock' layer
     // or above.
-    Boolean isBorderless()  { return ((layer() < NORMAL_LAYER) ||
-                                      (layer() > TOOLBAR_LAYER)); }
+    Boolean isBorderless()  { return ((layer() < FIRST_DECORATED_LAYER) ||
+                                      (layer() > LAST_DECORATED_LAYER)); }
     
     // Client should not receive focus (panel, desktop etc.)
-    Boolean isNonFocusable(){ return ((layer() < NORMAL_LAYER) ||
-                                      (layer() > DIALOG_LAYER)); }
+    Boolean isNonFocusable(){ return ((layer() > LAST_FOCUSABLE_LAYER)); }
 
     const char *label()     { return m_label;    }
     const char *name()      { return m_name;     }
@@ -222,7 +222,6 @@ private:
     void getTransient(void);
     void getClientType(void);
     void getChannel(void);
-    void getLayer(void);
 
     void decorate(Boolean active);
 };

@@ -153,18 +153,24 @@ enum ClientType
 
 declareList(AtomList, Atom);
 
-#define MAX_LAYER 13
 #define DESKTOP_LAYER 0
-// -- above this line, windows do not receive focus
-// -- above this line, windows are borderless
-#define NORMAL_LAYER 4
-#define DIALOG_LAYER 6
-// -- below this line, windows do not receive focus
-#define TOOLBAR_LAYER 7
-#define UTILITY_LAYER 7
-// -- below this line, windows are borderless
-#define DOCK_LAYER 8
-#define FULLSCREEN_LAYER 11
+
+#define FIRST_FOCUS_FOLLOWS_LAYER 3 // -- above this it's focus-on-click only
+#define FIRST_DECORATED_LAYER 3     // -- above this, windows are borderless
+
+#define NORMAL_LAYER  4
+#define UTILITY_LAYER 6
+#define DIALOG_LAYER  7
+
+#define LAST_FOCUSABLE_LAYER  7 // -- below this, windows do not receive focus
+#define LAST_DECORATED_LAYER  7 // -- below this, windows are borderless
+
+#define TOOLBAR_LAYER 8
+
+#define DOCK_LAYER    9
+#define FULLSCREEN_LAYER 12
+ 
+#define MAX_LAYER    13
 
 extern Boolean ignoreBadWindowErrors; // tidiness hack
 

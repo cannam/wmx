@@ -385,7 +385,6 @@ void Client::manage(Boolean mapped)
     getTransient();
     getClientType();
     getChannel();
-    getLayer();
 
     fprintf(stderr, "managing client, name = \"%s\"\n", m_name);
 
@@ -692,7 +691,7 @@ void Client::setLayer(int newLayer)
     }
     
     windowManager()->removeFromOrderedList(this);
-    m_layer=newLayer;
+    m_layer = newLayer;
     windowManager()->hoistToTop(this);  // Puts this client at the top of the
                                         // list for its layer.
     windowManager()->updateStackingOrder();
@@ -1091,25 +1090,6 @@ void Client::getChannel()
         if (m_channel < 1) m_channel = 1;
         m_windowManager->ensureChannelExists(m_channel);
         fprintf(stderr, "channel = %d\n", m_channel);
-        XFree(property);
-    }   
-}
-
-
-void Client::getLayer()
-{
-    // Layer may have been already set by getClientType; this handles
-    // only the case where a client really wants to set its own.
-    // (Should we allow that at all, in fact?)
-    
-    int count = 0;
-    char *property = getProperty(Atoms::netwm_winLayer, XA_CARDINAL, count);
-
-    if (property && count > 0) {
-        m_layer = ((CARD32 *)property)[0];
-        if (m_layer < 0) m_layer = 0;
-        else if (m_layer > MAX_LAYER) m_layer = MAX_LAYER;
-        fprintf(stderr, "layer = %d\n", m_layer);
         XFree(property);
     }   
 }
