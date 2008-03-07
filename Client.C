@@ -15,6 +15,7 @@
 
 const char *const Client::m_defaultLabel = "incognito";
 
+implementList(EdgeRectList, EdgeRect);
 
 
 Client::Client(WindowManager *const wm, Window w, Boolean shaped) :
@@ -1631,6 +1632,26 @@ void Client::netwmUpdateChannel()
     XChangeProperty(display(), window(), Atoms::netwm_winDesktop,
                     XA_CARDINAL, 32, 
 		    PropModeReplace, (unsigned char *)&val, 1);
+}
+
+void Client::appendEdges(EdgeRectList &list)
+{
+    if (!m_managed || !isNormal() || isTransient() || m_unmappedForChannel) {
+        return;
+    }
+    EdgeRect r;
+    if (isBorderless()) {
+        r.left = m_x - 1;
+        r.top  = m_y - 1;
+    } else {
+        r.left = m_x - CONFIG_FRAME_THICKNESS;
+        r.top  = m_y - CONFIG_FRAME_THICKNESS;
+    }
+    r.right  = m_x + m_w;
+    r.bottom = m_y + m_h;
+//    fprintf(stderr, "edges: H %d - %d  V %d - %d  for \"%s\"\n",
+//            r.left, r.right, r.top, r.bottom, name());
+    list.append(r);
 }
 
 void Client::printClientData()

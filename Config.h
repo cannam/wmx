@@ -130,6 +130,11 @@ private:
 
 #define CONFIG_BUMP_DISTANCE      16
 
+// If CONFIG_BUMP_EVERYWHERE is defined, windows will "bump" against
+// other window edges as well as the edges of the screen
+
+#define CONFIG_BUMP_EVERYWHERE    True
+
 // If CONFIG_PROD_SHAPE is True, all frame element shapes will be
 // recalculated afresh every time their focus changes.  This will
 // probably slow things down hideously, but has been reported as

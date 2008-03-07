@@ -614,10 +614,18 @@ void Client::move(XButtonEvent *e)
     int my = DisplayHeight(display(), windowManager()->screen()) - 1;
     int xi = m_border->xIndent();
     int yi = m_border->yIndent();
+    int ft = CONFIG_FRAME_THICKNESS;
 
     XEvent event;
     Boolean found;
     struct timeval sleepval;
+
+#ifdef CONFIG_BUMP_EVERYWHERE
+    EdgeRectList edges;
+    for (int i = 0; i < m_windowManager->clients().count(); ++i) {
+        m_windowManager->clients().item(i)->appendEdges(edges);
+    }
+#endif
 
     m_doSomething = False;
     while (!done) {
@@ -673,16 +681,74 @@ void Client::move(XButtonEvent *e)
 
 		    // bumping!
 
-		    if (nx < x && nx <= 0 && nx > -CONFIG_BUMP_DISTANCE) nx = 0;
-		    if (ny < y && ny <= 0 && ny > -CONFIG_BUMP_DISTANCE) ny = 0;
+                    int bumpedh = 0, bumpedv = 0;
+                    int bd = CONFIG_BUMP_DISTANCE;
+
+		    if (nx < x && nx <= 0 && nx > -bd) {
+                        nx = 0;
+                        bumpedh = 1;
+                    }
+
+		    if (ny < y && ny <= 0 && ny > -bd) {
+                        ny = 0;
+                        bumpedv = 1;
+                    }
 
 		    if (nx > x && nx >= mx - m_w - xi &&
-			nx < mx - m_w - xi + CONFIG_BUMP_DISTANCE)
+			nx < mx - m_w - xi + bd) {
 			nx = mx - m_w - xi;
+                        bumpedh = 1;
+                    }
+
 		    if (ny > y && ny >= my - m_h - yi &&
-			ny < my - m_h - yi + CONFIG_BUMP_DISTANCE)
+			ny < my - m_h - yi + bd) {
 			ny = my - m_h - yi;
-		}
+                        bumpedv = 1;
+                    }
+
+#ifdef CONFIG_BUMP_EVERYWHERE
+                    if (!isTransient()) {
+
+                        if (!bumpedh) {
+                            for (int i = 0; i < edges.count(); ++i) {
+                                if (nx < x &&
+                                    nx <= edges.item(i).right - xi + ft &&
+                                    nx  > edges.item(i).right - xi + ft - bd) {
+                                    nx  = edges.item(i).right - xi + ft;
+//                                    fprintf(stderr, "bumping at left\n");
+                                    bumpedh = 1;
+                                }
+                                if (nx > x &&
+                                    nx >= edges.item(i).left - m_w - xi &&
+                                    nx  < edges.item(i).left - m_w - xi + bd) {
+                                    nx  = edges.item(i).left - m_w - xi;
+//                                    fprintf(stderr, "bumping at right\n");
+                                    bumpedh = 1;
+                                }
+                            }
+                        }
+                    
+                        if (!bumpedv) {
+                            for (int i = 0; i < edges.count(); ++i) {
+                                if (ny < y &&
+                                    ny <= edges.item(i).bottom &&
+                                    ny  > edges.item(i).bottom - bd) {
+                                    ny  = edges.item(i).bottom;
+//                                    fprintf(stderr, "bumping at top\n");
+                                    bumpedv = 1;
+                                }
+                                if (ny > y &&
+                                    ny >= edges.item(i).top - m_h - yi &&
+                                    ny  < edges.item(i).top - m_h - yi + bd) {
+                                    ny  = edges.item(i).top - m_h - yi;
+//                                    fprintf(stderr, "bumping at bottom\n");
+                                    bumpedv = 1;
+                                }
+                            }
+                        }
+                    }
+#endif
+                }
 
 		x = nx;
 		y = ny;

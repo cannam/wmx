@@ -6,6 +6,15 @@
 #include "General.h"
 #include "Manager.h"
 #include "Border.h"
+
+class EdgeRect {
+public:
+    EdgeRect() : left(0), right(0), top(0), bottom(0) { }
+    ~EdgeRect() { }
+    int left, right, top, bottom;
+};
+
+declareList(EdgeRectList, EdgeRect);
  
 class Client {
 public:
@@ -133,6 +142,8 @@ public:
     
     void netwmUpdateChannel();
     Window window()        { return m_window; }
+
+    void appendEdges(EdgeRectList &);
 
 protected:      // cravenly submitting to gcc's warnings
     ~Client();
