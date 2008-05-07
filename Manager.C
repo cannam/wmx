@@ -792,6 +792,8 @@ void WindowManager::addToHiddenList(Client *c)
 
 void WindowManager::removeFromHiddenList(Client *c)
 {
+    fprintf(stderr, "WindowManager::removeFromHiddenList(%p)\n", c);
+
     for (int i = 0; i < m_hiddenClients.count(); ++i) {
 	if (m_hiddenClients.item(i) == c) {
 	    m_hiddenClients.remove(i);
@@ -817,23 +819,22 @@ void WindowManager::removeFromHiddenList(Client *c)
 
 void WindowManager::hoistToTop(Client *c)
 {
+    fprintf(stderr, "WindowManager::hoistToTop(%p)\n", c);
+
     int i;
     int layer = c->layer();
 
     for (i = 0; i < m_orderedClients[layer].count(); ++i) {
 	if (m_orderedClients[layer].item(i) == c) {
 	    m_orderedClients[layer].move_to_start(i);
-	    break;
+            netwmUpdateWindowList();
+            return;
 	}
     }
 
-    if (i >= m_orderedClients[layer].count()) {
-	m_orderedClients[layer].append(c);
-	m_orderedClients[layer].move_to_start(m_orderedClients[layer].count()-1);
-
-        netwmUpdateWindowList(); 
-
-    }
+    m_orderedClients[layer].append(c);
+    m_orderedClients[layer].move_to_start(m_orderedClients[layer].count()-1);
+    netwmUpdateWindowList(); 
 }
 
 
@@ -845,15 +846,13 @@ void WindowManager::hoistToBottom(Client *c)
     for (i = 0; i < m_orderedClients[layer].count(); ++i) {
 	if (m_orderedClients[layer].item(i) == c) {
 	    m_orderedClients[layer].move_to_end(i);
-	    break;
+            netwmUpdateWindowList();
+            return;
 	}
     }
 
-    if (i >= m_orderedClients[layer].count()) {
-	m_orderedClients[layer].append(c);
-//	m_orderedClients[layer].move_to_end(m_orderedClients[layer].count()-1);
-    }
-
+    m_orderedClients[layer].append(c);
+    netwmUpdateWindowList();
 }
 
 

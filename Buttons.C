@@ -31,7 +31,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
     bool furniture = (c && ((c->type() == DesktopClient) ||
                             (c->type() == DockClient)));
 
-    fprintf(stderr, "wmx: furniture? %s\n", furniture ? "yes" : "no");
+    fprintf(stderr, "wmx: client %p for window %p: furniture? %s\n", c, (void *)(e->window), furniture ? "yes" : "no");
 
 #if CONFIG_GNOME_BUTTON_COMPLIANCE == False
     if (!furniture) {

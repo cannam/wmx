@@ -586,8 +586,8 @@ void Client::decorate(Boolean active)
 
 void Client::activate()
 {
-//    fprintf(stderr, "Client::activate (this = %p, window = %x, parent = %x)\n",
-//	    this, m_window, parent());
+    fprintf(stderr, "Client::activate (this = %p, window = %p, parent = %p)\n",
+	    this, (void *)m_window, (void *)parent());
 
     if(isNonFocusable())
         return;
@@ -1265,6 +1265,7 @@ void Client::unwithdraw()
 void Client::rename()
 {
     m_border->configure(0, 0, m_w, m_h, CWWidth | CWHeight, Above);
+    m_border->expose(0);
 }
 
 

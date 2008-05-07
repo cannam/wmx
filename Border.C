@@ -414,7 +414,7 @@ Window Border::root()
 
 void Border::expose(XExposeEvent *e)
 {
-    if (e->window != m_tab) return;
+    if (e && (e->window != m_tab)) return;
     drawLabel();
 }
 

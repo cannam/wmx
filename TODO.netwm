@@ -1,5 +1,8 @@
 
 * update window state properties to use netwm atoms
+* support for properties such as always-on-current-desktop and actions such as
+  "reveal desktop"
+* clicking on a splash screen window should make it go away
 * support for struts -- set effective display area to display area minus strut
   areas -- so as to bump up against struts, etc
 * mouse on desktop area -- normal mouse actions either with alt modifier, or

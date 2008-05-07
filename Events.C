@@ -565,7 +565,7 @@ void Client::eventUnmap(XUnmapEvent *e)
 	// (if we don't do this, sometimes we see transient windows when we aren't
 	// meant to - for an example, open netscape's find window and click close.
 	// If this line isn't here, the window will stay, but be blank.
-//	m_windowManager->removeFromOrderedList(this);
+	m_windowManager->removeFromOrderedList(this);
 
 	Client* c = windowManager()->windowToClient(transientFor());
 	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS && !c->isFocusOnClick()) {
@@ -587,12 +587,12 @@ void Client::eventMap(XMapEvent *e)
 {
     if (e->window != m_window) return;
 
-    fprintf(stderr, "state %d, m_reparenting %d\n", (int)m_state, (int)m_reparenting);
+//    fprintf(stderr, "state %d, m_reparenting %d\n", (int)m_state, (int)m_reparenting);
 
     if (m_reparenting) {
-        fprintf(stderr, "m_reparenting true, ignoring\n");
+//        fprintf(stderr, "m_reparenting true, ignoring\n");
     } else if (isWithdrawn()) {
-        fprintf(stderr, "unwithdrawing\n");
+//        fprintf(stderr, "unwithdrawing\n");
         unwithdraw();
     }
 }
@@ -839,9 +839,9 @@ void WindowManager::eventReparent(XReparentEvent *e)
 
 void WindowManager::eventMap(XMapEvent *e)
 {
-    fprintf(stderr, "WindowManager::eventMap: window %p\n", (void *)e->window);
+//    fprintf(stderr, "WindowManager::eventMap: window %p\n", (void *)e->window);
     Client *c = windowToClient(e->window);
-    fprintf(stderr, "client is %p\n", c);
+//    fprintf(stderr, "client is %p\n", c);
     if (c) {
         c->eventMap(e);
     }
