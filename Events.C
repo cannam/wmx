@@ -23,6 +23,9 @@ void WindowManager::dispatchEvent(XEvent *ev)
 {
     m_currentTime = CurrentTime;
 
+//    fprintf(stderr, "WindowManager::dispatchEvent: event type %d for window %p\n",
+//            (int)ev->type, (void *)((XUnmapEvent *)ev)->window);
+
     switch (ev->type) {
 
     case ButtonPress:
@@ -107,10 +110,13 @@ void WindowManager::dispatchEvent(XEvent *ev)
 	    else m_focusPointerNowStill = False;
 	}
 	break;
+
+    case MapNotify:
+        eventMap(&ev->xmap);
+        break;
 	
     case FocusOut:
     case ConfigureNotify:
-    case MapNotify:
     case MappingNotify:
     case NoExpose:
 	break;
@@ -529,6 +535,8 @@ void Client::eventUnmap(XUnmapEvent *e)
 {
     if (e->window != m_window) return;
 
+    fprintf(stderr, "Client[%p]::eventUnmap: m_unmappedForChannel = %d, m_state = %d, transient for = %p, m_reparenting = %d\n", this, (int)m_unmappedForChannel, (int)m_state, (void *)transientFor(), (int)m_reparenting);
+
     if (m_unmappedForChannel) {
 	setState(NormalState);
  	return;
@@ -545,7 +553,7 @@ void Client::eventUnmap(XUnmapEvent *e)
 
     case NormalState:
 	if (isActive()) m_windowManager->clearFocus();
-	if (!m_reparenting) withdraw();
+	if (!m_reparenting && !m_unmappedForChannel) withdraw();
 	break;
     }
 
@@ -554,10 +562,10 @@ void Client::eventUnmap(XUnmapEvent *e)
     if (transientFor()) {
 
 	// gotta take it off the m_ordered list 
-	// (if we don't do this, sometimes we see transitent windows when we aren't
+	// (if we don't do this, sometimes we see transient windows when we aren't
 	// meant to - for an example, open netscape's find window and click close.
 	// If this line isn't here, the window will stay, but be blank.
-	m_windowManager->removeFromOrderedList(this);
+//	m_windowManager->removeFromOrderedList(this);
 
 	Client* c = windowManager()->windowToClient(transientFor());
 	if (c && !c->isActive() && !CONFIG_CLICK_TO_FOCUS && !c->isFocusOnClick()) {
@@ -570,10 +578,24 @@ void Client::eventUnmap(XUnmapEvent *e)
 	}
     }
 
-    m_reparenting = False;
+//    m_reparenting = False;
     m_stubborn = False;
 }
 
+
+void Client::eventMap(XMapEvent *e)
+{
+    if (e->window != m_window) return;
+
+    fprintf(stderr, "state %d, m_reparenting %d\n", (int)m_state, (int)m_reparenting);
+
+    if (m_reparenting) {
+        fprintf(stderr, "m_reparenting true, ignoring\n");
+    } else if (isWithdrawn()) {
+        fprintf(stderr, "unwithdrawing\n");
+        unwithdraw();
+    }
+}
 
 void WindowManager::eventCreate(XCreateWindowEvent *e)
 {
@@ -684,25 +706,23 @@ void Client::eventClient(XClientMessageEvent *e)
 
 
     if (e->message_type == Atoms::netwm_activeWindow) {
-        if (m_channel != windowManager()->channel()) {
-            fprintf(stderr, "going to channel %d\n", (int)m_channel);
-            windowManager()->gotoChannel(m_channel, 0);
-        }
-        if (isHidden()) {
-            unhide(True);
-        } else {
-            if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
-            else mapRaised();
-            ensureVisible();
-        }
+        gotoClient();
         return;
     }
 
     if (e->message_type == Atoms::wm_changeState) {
 	if (e->format == 32 && e->data.l[0] == IconicState) {
+            fprintf(stderr, "format = %d, first long value = %ld - request to hide\n",
+                    (int)e->format, e->data.l[0]);
 	    if (isNormal()) hide();
+            else if (isHidden()) gotoClient(); // seems to be necessary for some taskbars
 	    return;
-	}
+	} else if (e->format == 32 && e->data.l[0] == NormalState) {
+            fprintf(stderr, "format = %d, first long value = %ld - request to show\n",
+                    (int)e->format, e->data.l[0]);
+            gotoClient();
+            return;
+        }
     } else if (e->message_type == Atoms::netwm_winLayer) {
         setLayer(e->data.l[0]);
         return;
@@ -814,6 +834,17 @@ void WindowManager::eventReparent(XReparentEvent *e)
 //    (void)windowToClient(e->window, True); // create if absent
 
     // odd screen complications, omitted
+}
+
+
+void WindowManager::eventMap(XMapEvent *e)
+{
+    fprintf(stderr, "WindowManager::eventMap: window %p\n", (void *)e->window);
+    Client *c = windowToClient(e->window);
+    fprintf(stderr, "client is %p\n", c);
+    if (c) {
+        c->eventMap(e);
+    }
 }
 
 

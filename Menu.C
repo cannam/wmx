@@ -584,10 +584,7 @@ ClientMenu::ClientMenu(WindowManager *manager, XEvent *e)
 	    
 	if (selecting < m_nHidden) cl->unhide(True);
 	else if (selecting < m_nItems) {
-	    if (!cl->isKilled()) // Don't activate nonexistant windows
-	    if (CONFIG_CLICK_TO_FOCUS) cl->activate();
-	    else cl->mapRaised();
-	    cl->ensureVisible();
+            cl->gotoClient();
 	}
 
 	if (CONFIG_WANT_KEYBOARD_MENU && e->type == KeyPress)

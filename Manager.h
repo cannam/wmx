@@ -60,7 +60,7 @@ public:
     void installCursor(RootCursor);
     void installCursorOnWindow(RootCursor, Window);
     void installColormap(Colormap);
-    unsigned long allocateColour(int, char *, char *);
+    unsigned long allocateColour(int, const char *, const char *);
 
     void considerFocusChange(Client *, Window, Time timestamp);
     void stopConsideringFocus();
@@ -203,6 +203,7 @@ private:
     void eventButton(XButtonEvent *, XEvent *);
     void eventKeyRelease(XKeyEvent *);
     void eventMapRequest(XMapRequestEvent *);
+    void eventMap(XMapEvent *);
     void eventConfigureRequest(XConfigureRequestEvent *);
     void eventUnmap(XUnmapEvent *);
     void eventCreate(XCreateWindowEvent *);

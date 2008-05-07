@@ -557,6 +557,27 @@ void Client::selectOnMotion(Window w, Boolean select)
 }
 
 
+void Client::gotoClient()
+{
+    if (isKilled()) {
+        fprintf(stderr, "Client[%p]::gotoClient: client is killed\n", this);
+        return;
+    }
+    if (m_channel != windowManager()->channel()) {
+        fprintf(stderr, "Client[%p]::gotoClient: going to channel %d\n", this, (int)m_channel);
+        windowManager()->gotoChannel(m_channel, 0);
+    }
+    if (isHidden()) {
+        fprintf(stderr, "Client[%p]::gotoClient: unhiding\n", this);
+        unhide(True);
+    } else {
+        fprintf(stderr, "Client[%p]::gotoClient: bringing to front\n", this);
+        if (CONFIG_CLICK_TO_FOCUS || isFocusOnClick()) activate();
+        else mapRaised();
+        ensureVisible();
+    }
+}
+
 void Client::decorate(Boolean active)
 {
     m_border->decorate(active, m_w, m_h);
@@ -1196,6 +1217,7 @@ void Client::sendConfigureNotify()
 
 void Client::withdraw(Boolean changeState)
 {
+    fprintf(stderr, "withdraw: changeState = %d\n", (int)changeState);
     m_border->unmap();
 
     gravitate(True);
@@ -1217,8 +1239,28 @@ void Client::withdraw(Boolean changeState)
     ignoreBadWindowErrors = True;
     XSync(display(), False);
     ignoreBadWindowErrors = False;
+
+//    m_reparenting = False;
 }
 
+
+void Client::unwithdraw()
+{
+    if (!m_managed) {
+        if (!m_reparenting) {
+            manage(True);
+        }
+        return;
+    }
+
+    fprintf(stderr, "unwithdraw: reparenting\n");
+
+    m_reparenting = true;
+    m_border->reparent();
+//    XMapWindow(display(), m_window);
+    m_border->map();
+    setState(NormalState);
+}
 
 void Client::rename()
 {
@@ -1431,7 +1473,7 @@ void Client::warpPointer()
 
 void Client::flipChannel(Boolean leaving, int newChannel)
 {
-//    fprintf(stderr, "I could be supposed to pop up now...\n");
+    fprintf(stderr, "Client[%p]::flipChannel(leaving = %d, newChannel = %d, my channel = %d)\n", this, (int)leaving, newChannel, m_channel);
 
     if (m_channel != windowManager()->channel()) {
 
@@ -1659,7 +1701,7 @@ void Client::printClientData()
     printf("     * Window: %lx - Name: \"%s\"\n",
            window(), name() ? name() : "");
 
-    printf("     * Managed: %s - Type: ", m_managed ? "Y" : "N");
+    printf("     * Managed: %s - Reparenting: %s - Type: ", m_managed ? "Y" : "N", m_reparenting ? "Y" : "N");
     switch (m_type) {
     case NormalClient:  printf("Normal "); break;
     case DialogClient:  printf("Dialog "); break;

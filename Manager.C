@@ -360,7 +360,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     scanInitialWindows();
     updateStackingOrder();
     loop();
-    if(m_restart == True){
+    if (m_restart == True){
 	fprintf(stderr,"restarting wmx from SIGHUP\n");
 	execv(argv[0],argv);
     }
@@ -391,7 +391,7 @@ void WindowManager::release()
 
     for (i = 0; i < m_clients.count(); ++i) {
 	c = m_clients.item(i);
-//    fprintf(stderr, "client %d is %p\n", i, c);
+        fprintf(stderr, "release: client %d is %p\n", i, c);
 
 	if (c->isNormal() || c->isNormalButElsewhere()) normalList.append(c);
 	else unparentList.append(c);
@@ -402,12 +402,13 @@ void WindowManager::release()
     }
 
     m_clients.remove_all();
-    
+    m_hiddenClients.remove_all();
+
     for (i = 0; i < unparentList.count(); ++i) {
-//	fprintf(stderr, "unparenting client %p\n",unparentList.item(i));
+	fprintf(stderr, "release: unparenting client %p\n",unparentList.item(i));
 	unparentList.item(i)->unreparent();
+        fprintf(stderr, "release: releasing client %p\n", unparentList.item(i));
 	unparentList.item(i)->release();
-	unparentList.item(i) = 0;
     }
 
     XSetInputFocus(m_display, PointerRoot, RevertToPointerRoot,
@@ -570,7 +571,8 @@ void WindowManager::initialiseScreen()
 }
 
 
-unsigned long WindowManager::allocateColour(int screen, char *name, char *desc)
+unsigned long WindowManager::allocateColour(int screen, const char *name,
+                                            const char *desc)
 {
     XColor nearest, ideal;
 
@@ -581,7 +583,6 @@ unsigned long WindowManager::allocateColour(int screen, char *name, char *desc)
 	char error[100];
 	sprintf(error, "couldn't load %s colour", desc);
 	fatal(error);
-
     }
 
     return nearest.pixel;
@@ -630,6 +631,7 @@ Time WindowManager::timestamp(Boolean reset)
 
 void WindowManager::sigHandler(int signal)
 {
+    fprintf(stderr, "WindowManager::sigHandler: signal %d\n", signal);
     m_signalled = True;
     if (signal == SIGHUP)
 	m_restart = True;
@@ -816,7 +818,7 @@ void WindowManager::removeFromHiddenList(Client *c)
 void WindowManager::hoistToTop(Client *c)
 {
     int i;
-    int layer=c->layer();
+    int layer = c->layer();
 
     for (i = 0; i < m_orderedClients[layer].count(); ++i) {
 	if (m_orderedClients[layer].item(i) == c) {
@@ -857,7 +859,10 @@ void WindowManager::hoistToBottom(Client *c)
 
 void WindowManager::removeFromOrderedList(Client *c)
 {
-    int layer=c->layer();
+    int layer = c->layer();
+
+    fprintf(stderr, "WindowManager::removeFromOrderedList(%p) [layer %d]\n",
+            c, layer);
 
     for (int i = 0; i < m_orderedClients[layer].count(); ++i) {
 	if (m_orderedClients[layer].item(i) == c) {
@@ -871,7 +876,14 @@ void WindowManager::removeFromOrderedList(Client *c)
 
 Boolean WindowManager::isTop(Client *c)
 {
-    return (m_orderedClients[c->layer()].item(0) == c) ? True : False;
+    int layer = c->layer();
+
+    if (m_orderedClients[layer].count() == 0) {
+        fprintf(stderr, "Warning: ordered clients list for layer %d is empty even though client %p thinks it's in this layer\n", layer, c);
+        return False;
+    }
+
+    return (m_orderedClients[layer].item(0) == c) ? True : False;
 }
 
 void WindowManager::withdrawGroup(Window groupParent, Client *omit, Boolean changeState)
@@ -1131,14 +1143,14 @@ void WindowManager::netwmUpdateWindowList()
         Client *c = m_hiddenClients.item(i);
         if (c->isKilled()) continue;
         byAge[count++] = c->window();
-//        fprintf(stderr, "netwm client list: item %d [H] is window %lx, client \"%s\"\n", count, c->window(), c->name());
+        fprintf(stderr, "[netwm] client %d [%p] [H] window %lx, \"%s\"\n", count, c, c->window(), c->name());
     }
 
     for (int i = 0; i < m_clients.count(); ++i) {
         Client *c = m_clients.item(i);
         if (!c->isNormal() || c->isKilled()) continue;
         byAge[count++] = c->window();
-//        fprintf(stderr, "netwm client list: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
+        fprintf(stderr, "[netwm] client %d [%p] window %lx, \"%s\"\n", count, c, c->window(), c->name());
     }
     
     XChangeProperty

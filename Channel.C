@@ -4,7 +4,7 @@
 #include "Client.h"
 #include <sys/time.h>
 
-static char *numerals[10][7] = {
+static const char *numerals[10][7] = {
     { " ### ", "#   #", "#  ##", "# # #", "##  #", "#   #", " ### " },
     { "  #  ", " ##  ", "  #  ", "  #  ", "  #  ", "  #  ", " ### " },
     { " ### ", "#   #", "    #", "  ## ", " #   ", "#    ", "#####" },
@@ -24,7 +24,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
     int x, y, i, sc;
     if (!CONFIG_CHANNEL_SURF) return;
 
-    for(sc = 0; sc < screensTotal(); sc++)
+    for (sc = 0; sc < screensTotal(); sc++)
     {
 	if (!m_channelWindow[sc]) {
 
@@ -50,7 +50,6 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
 	}
     }
-
 
     int nextChannel;
 
@@ -94,8 +93,7 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	}
     }
 
-    for(sc = 0; sc < screensTotal(); sc++)
-    {
+    for(sc = 0; sc < screensTotal(); sc++) {
 /*
         XMoveResizeWindow(display(), m_channelWindow[sc],
 			  DisplayWidth(display(), sc) - 30 -
@@ -113,8 +111,10 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 
 	ClientList considering;
 
-        for(int layer = 0; layer < MAX_LAYER; ++layer) {
+        for (int layer = 0; layer < MAX_LAYER; ++layer) {
+            fprintf(stderr, "WindowManager::flipChannel: considering layer %d\n", layer);
 	    for (i = (int)m_orderedClients[layer].count()-1; i >= 0; --i) {
+                fprintf(stderr, "WindowManager::flipChannel: considering client %p\n", m_orderedClients[layer].item(i));
 		considering.append(m_orderedClients[layer].item(i));
 	    }
 	}
@@ -154,7 +154,7 @@ void WindowManager::instateChannel()
 
     ClientList considering;
 
-    for(int layer = 0; layer < 7; ++layer) {
+    for (int layer = 0; layer < MAX_LAYER; ++layer) {
         for (i = m_orderedClients[layer].count()-1; i >= 0; --i) {
 	    considering.append(m_orderedClients[layer].item(i));
         }
@@ -178,7 +178,7 @@ void WindowManager::checkChannel(int ch)
 {
     if (m_channels <= 2 || ch < m_channels - 1) return;
 
-    for(int layer = 0; layer < 7; ++layer) {
+    for(int layer = 0; layer < MAX_LAYER; ++layer) {
         for (int i = m_orderedClients[layer].count()-1; i >= 0; --i) {
 	    if (m_orderedClients[layer].item(i)->channel() == ch) return;
         }

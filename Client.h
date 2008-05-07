@@ -29,6 +29,7 @@ public:
     void installColormap();
     void unreparent();
     void withdraw(Boolean changeState = True);
+    void unwithdraw();          // when map event received w/o map request
     void hide();
     void unhide(Boolean map);
     void rename();
@@ -107,6 +108,8 @@ public:
     void focusIfAppropriate(Boolean);
     void selectOnMotion(Window, Boolean);
 
+    void gotoClient(); // when activated from e.g. menu or netwm task bar
+
     void maximise(int);
     void unmaximise(int);
     Boolean isFullHeight() { return m_isFullHeight; }
@@ -130,6 +133,7 @@ public:
     void eventButton(XButtonEvent *);
     void eventMapRequest(XMapRequestEvent *);
     void eventConfigureRequest(XConfigureRequestEvent *);
+    void eventMap(XMapEvent *);
     void eventUnmap(XUnmapEvent *);
     void eventColormap(XColormapEvent *);
     void eventProperty(XPropertyEvent *);

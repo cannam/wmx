@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 
 #include "Border.h"
 #include "Client.h"
@@ -75,7 +76,7 @@ Border::Border(Client *const c, Window child) :
     m_prevW(-1), m_prevH(-1), m_tabHeight(-1)
 {
     m_parent = root();
-    if (m_tabFont == 0) initialiseStatics(c->windowManager());
+    if (!m_drawGC) initialiseStatics(c->windowManager());
 
 	
 //#if CONFIG_MAD_FEEDBACK != 0
@@ -118,6 +119,8 @@ Border::~Border()
 void Border::initialiseStatics(WindowManager *wm)
 {
     if (m_drawGC) return;
+
+    fprintf(stderr, "Border::initialiseStatics: initialising\n");
 
     XGCValues *values;
     
@@ -189,7 +192,7 @@ void Border::initialiseStatics(WindowManager *wm)
 	fprintf(stderr, "tab font ascent=%d, height=%d\n", ascent, height);
 	
 	XftFontClose(wm->display(), refFont);
-	FcPatternDestroy(match);
+//	FcPatternDestroy(match);
 	    
 	FcMatrix matrix;
 	FcMatrixInit(&matrix);
@@ -223,20 +226,20 @@ void Border::initialiseStatics(WindowManager *wm)
     }
 #endif
 
-    for (int i = 0; i < wm->screensTotal(); i++)
-    {
+    for (int i = 0; i < wm->screensTotal(); i++) {
+
 	m_tabWidth[i] = -1;
 	
 	m_foregroundPixel[i] = wm->allocateColour
-	  (i, CONFIG_TAB_FOREGROUND, "tab foreground");
+            (i, CONFIG_TAB_FOREGROUND, "tab foreground");
 	m_backgroundPixel[i] = wm->allocateColour
-	  (i, CONFIG_TAB_BACKGROUND, "tab background");
+            (i, CONFIG_TAB_BACKGROUND, "tab background");
 	m_frameBackgroundPixel[i] = wm->allocateColour
-	  (i, CONFIG_FRAME_BACKGROUND, "frame background");
+            (i, CONFIG_FRAME_BACKGROUND, "frame background");
 	m_buttonBackgroundPixel[i] = wm->allocateColour
-	  (i, CONFIG_BUTTON_BACKGROUND, "button background");
+            (i, CONFIG_BUTTON_BACKGROUND, "button background");
 	m_borderPixel[i] = wm->allocateColour
-	  (i, CONFIG_BORDERS, "border");
+            (i, CONFIG_BORDERS, "border");
 
 #ifndef CONFIG_USE_XFT
 	if (!(m_tabFont[i] = XRotLoadFont(wm->display(), i,
@@ -322,7 +325,7 @@ void Border::initialiseStatics(WindowManager *wm)
         
         if (use_dynamic == False) {
             switch (XpmCreatePixmapFromData
-                    (wm->display(), wm->root(), background,
+                    (wm->display(), wm->root(), (char **)background,
                      &m_backgroundPixmap, NULL, &attrs)) {
             case XpmSuccess:
                 break;
