@@ -24,6 +24,7 @@ Atom    Atoms::wm_colormaps;
 Atom    Atoms::wmx_running;
 
 Atom    Atoms::netwm_supportingWmCheck;
+Atom    Atoms::netwm_wmName;
 Atom    Atoms::netwm_supported;
 Atom    Atoms::netwm_clientList;
 Atom    Atoms::netwm_clientListStacking;
@@ -73,6 +74,7 @@ WindowManager::WindowManager(int argc, char **argv) :
 #endif
     m_altPressed(False),
     m_altStateRetained(False),
+    m_netwmCheckWin(0),
     m_altModMask(0) // later
 {
     char *home = getenv("HOME");
@@ -295,6 +297,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     Atoms::wmx_running   = XInternAtom(m_display, "_WMX_RUNNING",        False);
 
     Atoms::netwm_supportingWmCheck = XInternAtom(m_display, "_NET_SUPPORTING_WM_CHECK", False);
+    Atoms::netwm_wmName            = XInternAtom(m_display, "_NET_WM_NAME", False);
     Atoms::netwm_supported         = XInternAtom(m_display, "_NET_SUPPORTED",           False);
     Atoms::netwm_clientList        = XInternAtom(m_display, "_NET_CLIENT_LIST",         False);
     Atoms::netwm_clientListStacking= XInternAtom(m_display, "_NET_CLIENT_LIST_STACKING",False);
@@ -369,7 +372,9 @@ WindowManager::WindowManager(int argc, char **argv) :
 
 WindowManager::~WindowManager()
 {
-    // empty
+    if (m_netwmCheckWin) {
+        XDestroyWindow(m_display, m_netwmCheckWin);
+    }
 }
 
 
@@ -1038,24 +1043,33 @@ void WindowManager::netwmInitialiseCompliance()
         (m_display, m_root[0], -200, -200, 5, 5, 0, 0, 0);
 
     XChangeProperty
-        (m_display, m_root[0], Atoms::netwm_supportingWmCheck, XA_CARDINAL, 32, 
-         PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
+        (m_display, m_root[0], Atoms::netwm_supportingWmCheck,
+         XA_WINDOW, 32, PropModeReplace,
+         (unsigned char*)&m_netwmCheckWin, 1);
     
-    // also going to add the desktop button proxy stuff to the same window
+    XChangeProperty
+        (m_display, m_netwmCheckWin, Atoms::netwm_supportingWmCheck,
+         XA_WINDOW, 32, PropModeReplace,
+         (unsigned char*)&m_netwmCheckWin, 1);
+    
+    XChangeProperty
+        (m_display, m_netwmCheckWin, Atoms::netwm_wmName,
+         XA_STRING, 8, PropModeReplace, (unsigned char *)"wmx", 1);
+    
+    // Also going to add the desktop button proxy stuff to the same
+    // window.  This is an old property, but it's not clear how it has
+    // been superseded -- see e.g.
+    // http://developer.gnome.org/doc/standards/wm/c71.html
 
     XChangeProperty
-        (m_display, m_root[0], Atoms::netwm_winDesktopButtonProxy, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
+        (m_display, m_root[0], Atoms::netwm_winDesktopButtonProxy,
+         XA_CARDINAL, 32, PropModeReplace,
+         (unsigned char*)&m_netwmCheckWin, 1);
 
     XChangeProperty
-        (m_display, m_netwmCheckWin, Atoms::netwm_supportingWmCheck, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
-
-    // also going to add the desktop button proxy stuff to the same window
-
-    XChangeProperty
-        (m_display, m_netwmCheckWin, Atoms::netwm_winDesktopButtonProxy, XA_CARDINAL,
-         32, PropModeReplace, (unsigned char*)&m_netwmCheckWin, 1);
+        (m_display, m_netwmCheckWin, Atoms::netwm_winDesktopButtonProxy,
+         XA_CARDINAL, 32, PropModeReplace,
+         (unsigned char*)&m_netwmCheckWin, 1);
 
     // Now we need to tell NETWM how compliant we are
 
@@ -1063,6 +1077,7 @@ void WindowManager::netwmInitialiseCompliance()
     AtomList supported;
     
     supported.append(Atoms::netwm_clientList);
+    supported.append(Atoms::netwm_clientListStacking);
     supported.append(Atoms::netwm_desktop);
     supported.append(Atoms::netwm_desktopCount);
     supported.append(Atoms::netwm_desktopNames);
@@ -1072,7 +1087,8 @@ void WindowManager::netwmInitialiseCompliance()
     supported.append(Atoms::netwm_winState);
     supported.append(Atoms::netwm_winDesktop);
     supported.append(Atoms::netwm_winType);
-    supported.append(Atoms::netwm_clientListStacking);
+    supported.append(Atoms::netwm_winDesktopButtonProxy);
+    supported.append(Atoms::netwm_supportingWmCheck);
     
     XChangeProperty
         (m_display, m_root[0], Atoms::netwm_supported, XA_ATOM, 32,
@@ -1179,7 +1195,7 @@ void WindowManager::netwmUpdateStackingOrder()
             Client *c = m_orderedClients[layer].item(i);
 	    if (c->isWithdrawn() || c->isKilled() || c->isHidden()) continue;
             byStacking[count++] = c->window();
-//            fprintf(stderr, "netwm stacking order: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
+            fprintf(stderr, "[netwm] stacking order: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
         }
     }
     
@@ -1237,7 +1253,7 @@ void WindowManager::netwmUpdateActiveClient()
     val = m_activeClient->window();
     
     XChangeProperty
-        (m_display, m_root[0], Atoms::netwm_activeWindow, XA_CARDINAL, 32, 
+        (m_display, m_root[0], Atoms::netwm_activeWindow, XA_WINDOW, 32, 
          PropModeReplace, (unsigned char *)&val, 1);
 }    
 

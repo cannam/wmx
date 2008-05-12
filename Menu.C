@@ -574,7 +574,7 @@ ClientMenu::ClientMenu(WindowManager *manager, XEvent *e)
     }
 	
     if (selecting == 0) {
-	m_windowManager->spawn(CONFIG_NEW_WINDOW_COMMAND, NULL);
+	m_windowManager->spawn((char *)CONFIG_NEW_WINDOW_COMMAND, NULL);
 	return;
     }
 

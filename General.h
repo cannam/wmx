@@ -96,6 +96,7 @@ public:
     static Atom wmx_running;
 
     static Atom netwm_supportingWmCheck;
+    static Atom netwm_wmName;
     static Atom netwm_supported;
     static Atom netwm_clientList;
     static Atom netwm_clientListStacking;

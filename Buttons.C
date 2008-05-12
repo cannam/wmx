@@ -92,6 +92,7 @@ void WindowManager::eventButton(XButtonEvent *e, XEvent *ev)
         if ((e->button == CONFIG_CLIENTMENU_BUTTON || e->button == CONFIG_CIRCULATE_BUTTON)
             && m_channelChangeTime == 0) {
 
+            fprintf(stderr, "wmx: forwarding event to button proxy window\n");
 	    XUngrabPointer(m_display, CurrentTime);
 	    XSendEvent(m_display, m_netwmCheckWin, False, SubstructureNotifyMask, ev);
 	    return;

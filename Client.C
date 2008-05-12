@@ -677,6 +677,12 @@ void Client::setFocusOnClick(Boolean focusOnClick)
 }
 
 void Client::setNetwmProperty(Atom property, unsigned char state, Boolean to) {
+
+
+    fprintf(stderr, "wmx: Client::setNetwmProperty needs rewriting\n");
+
+/*
+
     //!!! out of date, + use getProperty
     Atom returnType;
     int returnFormat;
@@ -699,6 +705,7 @@ void Client::setNetwmProperty(Atom property, unsigned char state, Boolean to) {
         }
         if (prop) XFree(prop);
     }
+*/
 }
 
 void Client::setLayer(int newLayer)
@@ -847,11 +854,9 @@ void Client::setState(int state)
 {
     m_state = state;
 
-    //!!! review for 64bitness
-
-    long data[2];
-    data[0] = (long)state;
-    data[1] = (long)None;
+    CARD32 data[2];
+    data[0] = (CARD32)state;
+    data[1] = (CARD32)None;
 
     XChangeProperty(display(), m_window, Atoms::wm_state, Atoms::wm_state,
 		    32, PropModeReplace, (unsigned char *)data, 2);
@@ -860,9 +865,7 @@ void Client::setState(int state)
 
 Boolean Client::getState(int *state)
 {
-    long *p = 0;
-
-    //!!! review for 64bitness -- what is the correct format for WM_STATE?
+    CARD32 *p = 0;
 
     if (getProperty_aux(display(), m_window, Atoms::wm_state, Atoms::wm_state,
 			2L, (unsigned char **)&p) <= 0) {
@@ -879,8 +882,6 @@ void Client::getProtocols()
 {
     long n;
     Atom *p;
-
-    //!!! review for 64bitness -- what is the correct format for WM_STATE?
 
     m_protocol = 0;
     if ((n = getProperty_aux(display(), m_window, Atoms::wm_protocols, XA_ATOM,
