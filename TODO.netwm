@@ -10,6 +10,7 @@
   methods; without alt modifier, middle button should bring up client menu
 * alt + left/right cursor on desktop window (as well as true desktop) needs
   to switch channel
+* window type for tearoff menus doesn't seem to work
 
 other stuff:
 * I would seriously like support for bumping against other windows (like kwin)
