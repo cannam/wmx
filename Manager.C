@@ -515,7 +515,7 @@ void WindowManager::initialiseScreen()
     int i;
     m_screensTotal = ScreenCount(m_display);
   
-    m_root     = (Window *) malloc(m_screensTotal * sizeof(Window));
+    m_root = (Window *) malloc(m_screensTotal * sizeof(Window));
     m_defaultColormap = (Colormap *) malloc(m_screensTotal * sizeof(Colormap));
 //    m_minimumColormaps = (int *) malloc(m_screensTotal * sizeof(int));
     m_channelWindow = (Window *) malloc(m_screensTotal * sizeof(Window));
@@ -1053,6 +1053,10 @@ void WindowManager::netwmInitialiseCompliance()
          (unsigned char*)&m_netwmCheckWin, 1);
     
     XChangeProperty
+        (m_display, m_root[0], Atoms::netwm_wmName,
+         XA_STRING, 8, PropModeReplace, (unsigned char *)"wmx", 1);
+    
+    XChangeProperty
         (m_display, m_netwmCheckWin, Atoms::netwm_wmName,
          XA_STRING, 8, PropModeReplace, (unsigned char *)"wmx", 1);
     
@@ -1158,15 +1162,17 @@ void WindowManager::netwmUpdateWindowList()
         Client *c = m_hiddenClients.item(i);
         if (c->isKilled()) continue;
         byAge[count++] = c->window();
-        fprintf(stderr, "[netwm] client %d [%p] [H] window %lx, \"%s\"\n", count, c, c->window(), c->name());
+//        fprintf(stderr, "[netwm] client %d [%p] [H] window %lx, \"%s\"\n", count, c, c->window(), c->name());
     }
 
     for (int i = 0; i < m_clients.count(); ++i) {
         Client *c = m_clients.item(i);
         if (!c->isNormal() || c->isKilled()) continue;
         byAge[count++] = c->window();
-        fprintf(stderr, "[netwm] client %d [%p] window %lx, \"%s\"\n", count, c, c->window(), c->name());
+//        fprintf(stderr, "[netwm] client %d [%p] window %lx, \"%s\"\n", count, c, c->window(), c->name());
     }
+
+//    fprintf(stderr, "[netwm] %d client(s) total, setting to root window %lx\n", count, m_root[0]);
     
     XChangeProperty
         (m_display, m_root[0], Atoms::netwm_clientList, XA_WINDOW, 32, 
@@ -1180,14 +1186,28 @@ void WindowManager::netwmUpdateWindowList()
   
 void WindowManager::netwmUpdateStackingOrder()
 {
-    int count = 0;
+    int count = m_hiddenClients.count();
 
-    for (int i = MAX_LAYER; i >= 0; --i)
+    for (int i = MAX_LAYER; i >= 0; --i) {
         count += m_orderedClients[i].count();
+    }
     
     Window *byStacking = new Window[count];
 
     count = 0;
+
+    // Looks like panels and things will test to make sure the client
+    // list and stacking list have the same windows in them, before
+    // they trust either.  So we'd better include the hidden windows
+    // in the stacking list as well as in the client list, otherwise
+    // nobody will ever believe anything we say.
+
+    for (int i = 0; i < m_hiddenClients.count(); ++i) {
+        Client *c = m_hiddenClients.item(i);
+        if (c->isKilled()) continue;
+        byStacking[count++] = c->window();
+//        fprintf(stderr, "[netwm] stacking order: hidden client %d\n", c);
+    }
 
     for (int layer = 0; layer < MAX_LAYER; ++layer) {
         int top = m_orderedClients[layer].count();
@@ -1195,9 +1215,11 @@ void WindowManager::netwmUpdateStackingOrder()
             Client *c = m_orderedClients[layer].item(i);
 	    if (c->isWithdrawn() || c->isKilled() || c->isHidden()) continue;
             byStacking[count++] = c->window();
-            fprintf(stderr, "[netwm] stacking order: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
+//            fprintf(stderr, "[netwm] stacking order: item %d is window %lx, client \"%s\"\n", count, c->window(), c->name());
         }
     }
+    
+//    fprintf(stderr, "[netwm] stacking order: %d client(s) total\n", count);
     
     XChangeProperty
         (m_display, m_root[0], Atoms::netwm_clientListStacking, XA_WINDOW, 32, 
