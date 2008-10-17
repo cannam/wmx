@@ -162,12 +162,14 @@ void WindowManager::instateChannel()
 
     for (i = 0; i < considering.count(); ++i) {
 	considering.item(i)->flipChannel(False, m_currentChannel);
-	if (considering.item(i)->channel() == m_channels &&
+	if ((considering.item(i)->channel() == m_channels) &&
 	    !considering.item(i)->isSticky()) createNewChannel();
     }
 
-    if (m_activeClient && m_activeClient->channel() != channel()) {
+    if (m_activeClient && (m_activeClient->channel() != channel())) {
+        if (m_activeClient) m_activeClient->deactivate();
 	m_activeClient = 0;
+        XSetInputFocus(m_display, PointerRoot, None, timestamp(False));
     }
 
     checkChannel(m_channels-1);
