@@ -249,12 +249,16 @@ private:
 // Use this section to remap your mouse button actions.
 //   Button1 = LMB, Button2 = MMB, Button3 = RMB 
 //   Button4 = WheelUp, Button5 = WheelDown 
-
-#define CONFIG_CLIENTMENU_BUTTON Button1
+// To prevent one or more of these from being supported
+// at all, define it to CONFIG_NO_BUTTON.
+#define CONFIG_NO_BUTTON 999
+#define CONFIG_CLIENTMENU_BUTTON  Button1
 #define CONFIG_COMMANDMENU_BUTTON Button2
-#define CONFIG_CIRCULATE_BUTTON Button3
-#define CONFIG_PREVCHANNEL_BUTTON Button5
-#define CONFIG_NEXTCHANNEL_BUTTON Button4
+#define CONFIG_CIRCULATE_BUTTON   Button3 // switch window, when over frame
+#define CONFIG_PREVCHANNEL_BUTTON Button5 // flip channel, when over frame
+#define CONFIG_NEXTCHANNEL_BUTTON Button4 // flip channel, when over frame
+//#define CONFIG_PREVCHANNEL_BUTTON CONFIG_NO_BUTTON
+//#define CONFIG_NEXTCHANNEL_BUTTON CONFIG_NO_BUTTON
 
 
 // ==============================
@@ -307,7 +311,7 @@ private:
 // endian machines, or if you've aliased the cursor font to something
 // else you like better, or if you just prefer the plain X cursors
 
-#define CONFIG_USE_PLAIN_X_CURSORS	False
+//#define CONFIG_USE_PLAIN_X_CURSORS	True
 
 // Colours for window decorations.  The BORDERS one is for the
 // one-pixel border around the edge of each piece of decoration, not
