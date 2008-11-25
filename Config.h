@@ -311,7 +311,7 @@ private:
 // endian machines, or if you've aliased the cursor font to something
 // else you like better, or if you just prefer the plain X cursors
 
-//#define CONFIG_USE_PLAIN_X_CURSORS	True
+#define CONFIG_USE_PLAIN_X_CURSORS	False
 
 // Colours for window decorations.  The BORDERS one is for the
 // one-pixel border around the edge of each piece of decoration, not
