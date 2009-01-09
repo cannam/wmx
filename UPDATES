@@ -1,5 +1,38 @@
 /* vim:set ts=4 ai: ,e to add info */
 
+- 2008/05/22
+	significant fix to handling of client list for desktop taskbars
+
+- 2008/05/07
+	major fixes to various parts of NETWM code
+
+- 2008/03/07
+	make it possible to "bump" windows against neighbouring
+	windows as well as screen edges
+
+- 2008/02/27
+	NETWM extended window manager protocols -- partial support.
+	Based on a patch submitted by Jamie Montgomery in November
+	2000, with substantial overhaul to take it from the GNOME
+	era into the NETWM one and to add some new features.  This
+	covers only the very basics necessary for pleasant use in
+	a modern desktop environment -- the main things missing at
+	the moment are support for full-screen windows and struts.
+
+- 2007/12/12
+	Xft support for antialiased text in frame and menu
+
+- 2003/08/12
+	permit alt-drag in middle of window to move it (from Damion
+	Yates and Teemu Voipio)
+
+- 2003/08/12
+	permit recolouring frames from dynamic config (from Zvezdan
+	Petkovic)
+
+- 2003/08/12
+	permit remapping mouse buttons in config (from Glyn Faulkner)
+
 - 2000/05/12
 	added Zvezdan Petkovic's patch for horizontal and full-
 	screen maximise as well as vertical, and to make maximise

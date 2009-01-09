@@ -4,16 +4,15 @@ wmx -- another window manager
 
 wmx is another window manager for X.  It is based on wm2 and provides
 a similarly unusual style of window decoration; but in place of wm2's
-minimal functionality, it offers many of the features of more
-conventional managers in the most simplistic implementations
-imaginable.  wmx is, however, still barely configurable except by
-editing the source and recompiling the code.
+minimal functionality it offers many of the features of more
+conventional managers, often in the most simplistic implementations
+imaginable.
 
 
 This release
 ============
 
-This is the sixth release, dating from April 2001.
+This is the seventh release, dating from January 2009.
 
 
 Building wmx
@@ -23,20 +22,18 @@ You will need a Unix machine, X libraries and a C++ compiler such as
 gcc.  You will also need a mouse, preferably with three buttons.  Your
 X server and libraries must be R4 or newer and must support the Shape
 extension.  If you want to use frame background-pixmaps (see "Pixmaps"
-below), you will need the Xpm header and library.  As of this release,
-wmx should now work with multi-screen displays.
+below), you will need the Xpm header and library.
 
-wmx makes relatively heavy demands on the performance of your X
-server, because of the use of shaped windows, but it shouldn't place
+wmx makes relatively heavy demands on the plain 2D performance of your
+X server, because of the use of shaped windows, but it shouldn't place
 too much of a load on other aspects of your system.
 
 Inspect the file Config.h.  This lists everything that can be usefully
 configured before building, with comments to tell you what means what.
 Change the settings to something that looks suitable now, and ensure
-that CONFIG_NASTY_FONT is set to something which is unlikely not to be
-found.
+that the fonts are set to something unlikely not to be found.
 
-Having edited Config.h, run "configure" and then "make".  This should
+Having edited Config.h, run "./configure" and then "make".  This should
 build wmx.
 
 
@@ -62,7 +59,8 @@ Available window manipulations are:
     auto-raise on focus set in Config.h.
 
  -- To move a window: make sure it's in focus, then click and drag
-    on its tab.
+    on its tab, or Alt-click and drag anywhere on it (see Keyboard
+    controls, below, for more about Alt combinations).
 
  -- To hide a window: make sure it's in focus, then click on the
     button at the top of its tab.
@@ -254,9 +252,7 @@ will use this to colour in the frames.  If you also set
 CONFIG_USE_PIXMAP_MENUS, the root menus will be filled in with the
 background too.
 
-An especially unpleasant example file, cribbed and modified from
-http://home.netscape.com/assist/net_sites/bg/marble/greenred_marble.gif,
-is included, although you're advised to find your own.
+An example file is included, although you may prefer to find your own.
 
 
 Groups
@@ -294,16 +290,14 @@ right-hand side of the rxvt window and is thick enough that wmx's
 resize handle doesn't obscure any of the text area.
 
 
-GNOME
-=====
+NETWM and desktop environments
+==============================
 
-Since the 6pre2 release, wmx has included some basic GNOME support
-due to Henri Naccache.  There are various other patches around that
-improve or extend this GNOME support, including one from James
-Montgomerie.  If you want to run wmx with GNOME, start by taking a
-look at this message:
-
-  http://ml.42.org/wmx/msg00502.html
+As of this release, wmx now includes a significant amount of support
+for the NETWM extended window manager hints -- enough to make it
+usable as the primary window manager with a GNOME or KDE desktop.
+This support is incomplete; fixes and improvements will be welcomed
+(more than bug reports will).
 
 
 Credits
@@ -317,9 +311,9 @@ The sideways tabs on the window frames were Andy Green's idea.
 Alan Richardson's "xvertext" font-rotation routines are used for
 the window tabs.
 
-Kazushi (Jam) Marukawa provided all the internationalisation
-code, which I think is currently only tested for Japanese; see
-README.contrib for his notes and copyright notice.
+Kazushi (Jam) Marukawa provided internationalisation code, which I
+think is currently only tested for Japanese; see README.contrib for
+his notes and copyright notice.
 
 Jeremy Fitzhardinge provided the original application-menu code.
 
@@ -327,11 +321,20 @@ The dynamic configuration code is mostly due to Stefan `Sec' Zehl.
 
 Multiheaded X support is due to Sven Oliver `SvOlli' Moll.
 
-Gnome and shaped client support is mostly due to Henri Naccache.
+NETWM support for use with desktop environments was based on a
+substantial patch from James Montgomery sent to the wmx mailing list
+in November 2000.  A mere seven years later, I got around to
+integrating and updating the patch, and only eight years and two
+months after the original patch, here it is in a release.  Sorry about
+that.
+
+Earlier Gnome support was mostly due to Henri Naccache, as is the
+support for shaped clients.
 
 This release contains code and bug fixes provided by Eric Marsden,
 Lasse Rasinen, Bill Spitzak, Jacques Garrigue, Stefan `Sec' Zehl, Sven
-Oliver Moll, Richard Sharman, Martin Andrews and, well, probably
+Oliver Moll, Richard Sharman, Martin Andrews, Glyn Faulkner, Zvezdan
+Petkovic, Damion Yates, Teemu Voipio, Ben Stern and, well, probably
 several other people.
 
 If you want to hack the code into something else for your own
@@ -349,4 +352,4 @@ the web at http://ml.42.org/wmx/.
 
 
 Chris Cannam, cannam@all-day-breakfast.com
-April 2001
+January 2009

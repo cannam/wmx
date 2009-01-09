@@ -2857,6 +2857,11 @@ _ACEOF
 
   LIBS="-lX11 $LIBS"
 
+else
+
+    echo "You need the X11 libraries."
+    exit 1
+
 fi
 
 
@@ -2929,6 +2934,11 @@ _ACEOF
 
   LIBS="-lXext $LIBS"
 
+else
+
+    echo "You need the X11 Shape extension."
+    exit 1
+
 fi
 
 
@@ -3000,6 +3010,11 @@ if test $ac_cv_lib_Xpm_XpmCreatePixmapFromData = yes; then
 _ACEOF
 
   LIBS="-lXpm $LIBS"
+
+else
+
+    echo "Warning: Xpm library not found"
+    echo "Please either install the Xpm library and headers, or ensure you have CONFIG_USE_PIXMAPS set to False in Config.h"
 
 fi
 
@@ -3326,51 +3341,17 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$FT_PKG_ERRORS" >&5
 
-	{ { echo "$as_me:$LINENO: error: Package requirements (freetype2) were not met:
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
 
-$FT_PKG_ERRORS
+    echo "Warning: Freetype library not found"
+    echo "Please either install Freetype, or ensure you have CONFIG_USE_XFT set to False in Config.h"
 
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables FT_CFLAGS
-and FT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&5
-echo "$as_me: error: Package requirements (freetype2) were not met:
-
-$FT_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables FT_CFLAGS
-and FT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&2;}
-   { (exit 1); exit 1; }; }
 elif test $pkg_failed = untried; then
-	{ { echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
 
-Alternatively, you may set the environment variables FT_CFLAGS
-and FT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
+    echo "Warning: Freetype library not found"
+    echo "Please either install Freetype, or ensure you have CONFIG_USE_XFT set to False in Config.h"
 
-To get pkg-config, see <http://www.freedesktop.org/software/pkgconfig>.
-See \`config.log' for more details." >&5
-echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables FT_CFLAGS
-and FT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://www.freedesktop.org/software/pkgconfig>.
-See \`config.log' for more details." >&2;}
-   { (exit 1); exit 1; }; }
 else
 	FT_CFLAGS=$pkg_cv_FT_CFLAGS
 	FT_LIBS=$pkg_cv_FT_LIBS
@@ -3437,51 +3418,17 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$XFT_PKG_ERRORS" >&5
 
-	{ { echo "$as_me:$LINENO: error: Package requirements (xft) were not met:
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
 
-$XFT_PKG_ERRORS
+    echo "Warning: Xft library not found"
+    echo "Please either install Xft, or ensure you have CONFIG_USE_XFT set to False in Config.h"
 
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables XFT_CFLAGS
-and XFT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&5
-echo "$as_me: error: Package requirements (xft) were not met:
-
-$XFT_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables XFT_CFLAGS
-and XFT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-" >&2;}
-   { (exit 1); exit 1; }; }
 elif test $pkg_failed = untried; then
-	{ { echo "$as_me:$LINENO: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
 
-Alternatively, you may set the environment variables XFT_CFLAGS
-and XFT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
+    echo "Warning: Xft library not found"
+    echo "Please either install Xft, or ensure you have CONFIG_USE_XFT set to False in Config.h"
 
-To get pkg-config, see <http://www.freedesktop.org/software/pkgconfig>.
-See \`config.log' for more details." >&5
-echo "$as_me: error: The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables XFT_CFLAGS
-and XFT_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://www.freedesktop.org/software/pkgconfig>.
-See \`config.log' for more details." >&2;}
-   { (exit 1); exit 1; }; }
 else
 	XFT_CFLAGS=$pkg_cv_XFT_CFLAGS
 	XFT_LIBS=$pkg_cv_XFT_LIBS

@@ -22,21 +22,36 @@ else
 	AC_MSG_ERROR(X11 is necessary.)
 fi
 
-AC_CHECK_LIB(X11, XOpenDisplay)
+AC_CHECK_LIB(X11, XOpenDisplay, [], [
+    echo "You need the X11 libraries."
+    exit 1
+    ])
 
 dnl Shape extension is necessary.
-AC_CHECK_LIB(Xext, XShapeQueryExtension)
+AC_CHECK_LIB(Xext, XShapeQueryExtension, [], [
+    echo "You need the X11 Shape extension."
+    exit 1
+    ])
 
 dnl Xpm is not strictly necessary
-AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData)
+AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData, [], [
+    echo "Warning: Xpm library not found"
+    echo "Please either install the Xpm library and headers, or ensure you have CONFIG_USE_PIXMAPS set to False in Config.h"
+    ])
 
 dnl SM and ICE are necessary if CONFIG_USE_SESSION_MANAGER
 AC_CHECK_LIB(SM, SmcOpenConnection)
 AC_CHECK_LIB(ICE, IceConnectionNumber)
 
 dnl Freetype: actually only needed if CONFIG_USE_XFT
-PKG_CHECK_MODULES([FT],[freetype2])
-PKG_CHECK_MODULES([XFT],[xft])
+PKG_CHECK_MODULES([FT],[freetype2],[],[
+    echo "Warning: Freetype library not found"
+    echo "Please either install Freetype, or ensure you have CONFIG_USE_XFT set to False in Config.h"
+    ])
+PKG_CHECK_MODULES([XFT],[xft],[],[
+    echo "Warning: Xft library not found"
+    echo "Please either install Xft, or ensure you have CONFIG_USE_XFT set to False in Config.h"
+    ])
 AC_SUBST(FT_CFLAGS)
 AC_SUBST(FT_LIBS)
 AC_SUBST(XFT_CFLAGS)
