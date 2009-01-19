@@ -45,6 +45,11 @@ install:
 	-chown root:wheel @bindir@/wmx
 	-rm -f @bindir@/wmx.old
 
+install-rpm:
+	mkdir -p $(DESTDIR)/usr/bin/
+	cp wmx $(DESTDIR)/usr/bin/wmx
+
+
 # DO NOT DELETE -- make depend depends on it
 Border.o: Border.C Border.h General.h Config.h Rotated.h Client.h \
  Manager.h listmacro.h background.xpm

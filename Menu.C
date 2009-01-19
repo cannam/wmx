@@ -56,6 +56,10 @@ Menu::Menu(WindowManager *manager, XEvent *e)
 	    FcPattern *pattern = FcPatternCreate();
 	    FcPatternAddString(pattern, FC_FAMILY, (FcChar8 *)fi);
 	    FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ROMAN);
+
+#ifndef FC_WEIGHT_REGULAR
+#define FC_WEIGHT_REGULAR FC_WEIGHT_MEDIUM
+#endif
 	    FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_REGULAR);
 	    FcPatternAddInteger(pattern, FC_PIXEL_SIZE, CONFIG_MENU_FONT_SIZE);
 	    FcConfigSubstitute(FcConfigGetCurrent(), pattern, FcMatchPattern);
