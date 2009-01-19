@@ -148,6 +148,14 @@ private:
 
 #define CONFIG_RESIZE_UPDATE      True
 
+// If USE_COMPOSITE is true, wmx will enable composite redirects for
+// all windows if the Composite extension is present.  This should
+// make no difference at all to the appearance or behaviour of wmx,
+// but it may make it substantially faster with modern video cards
+// that optimise rendering more than old-fashioned window operations.
+
+#define CONFIG_USE_COMPOSITE      True
+
 // If RAISELOWER_ON_CLICK is True, clicking on the title of the
 // topmost window will lower instead of raising it (patch due to
 // Kazushi (Jam) Marukawa)

@@ -39,6 +39,12 @@ AC_CHECK_LIB(Xpm, XpmCreatePixmapFromData, [], [
     echo "Please either install the Xpm library and headers, or ensure you have CONFIG_USE_PIXMAPS set to False in Config.h"
     ])
 
+dnl Composite is necessary if CONFIG_USE_COMPOSITE
+AC_CHECK_LIB(Xcomposite, XCompositeQueryExtension, [], [
+    echo "Warning: Xcomposite library not found"
+    echo "Please either install the Xcomposite library and headers, or ensure you have CONFIG_USE_COMPOSITE set to False in Config.h"
+    ])
+
 dnl SM and ICE are necessary if CONFIG_USE_SESSION_MANAGER
 AC_CHECK_LIB(SM, SmcOpenConnection)
 AC_CHECK_LIB(ICE, IceConnectionNumber)

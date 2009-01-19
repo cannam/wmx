@@ -15,6 +15,10 @@
 #include "Cursors.h"
 #include <X11/cursorfont.h>
 
+#ifdef CONFIG_USE_COMPOSITE
+#include <X11/extensions/Xcomposite.h>
+#endif
+
 Atom    Atoms::wm_state;
 Atom    Atoms::wm_changeState;
 Atom    Atoms::wm_protocols;
@@ -224,6 +228,17 @@ WindowManager::WindowManager(int argc, char **argv) :
 	    ret_setlocale ? ret_setlocale : "(NULL)");
 
     fprintf(stderr, "\n     NETWM compliant.");
+
+#ifdef CONFIG_USE_COMPOSITE
+    int ev, er;
+    if (XCompositeQueryExtension(m_display, &ev, &er)) {
+        fprintf(stderr, "  Composite extension enabled.");
+        for (int i = 0; i < m_screensTotal; ++i) {
+            XCompositeRedirectSubwindows(m_display, RootWindow(m_display, i),
+                                         CompositeRedirectAutomatic);
+        }
+    }
+#endif
 
     fprintf(stderr, "\n     Command menu taken from ");
     if (wmxdir == NULL) {
