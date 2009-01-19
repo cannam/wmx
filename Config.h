@@ -263,10 +263,8 @@ private:
 #define CONFIG_CLIENTMENU_BUTTON  Button1
 #define CONFIG_COMMANDMENU_BUTTON Button2
 #define CONFIG_CIRCULATE_BUTTON   Button3 // switch window, when over frame
-#define CONFIG_PREVCHANNEL_BUTTON CONFIG_NO_BUTTON // flip channel, when over frame
-#define CONFIG_NEXTCHANNEL_BUTTON CONFIG_NO_BUTTON
-//#define CONFIG_PREVCHANNEL_BUTTON CONFIG_NO_BUTTON
-//#define CONFIG_NEXTCHANNEL_BUTTON CONFIG_NO_BUTTON
+#define CONFIG_PREVCHANNEL_BUTTON Button5 // flip channel, when over frame
+#define CONFIG_NEXTCHANNEL_BUTTON Button4 // flip channel, when over frame
 
 
 // ==============================

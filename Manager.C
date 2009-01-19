@@ -229,17 +229,6 @@ WindowManager::WindowManager(int argc, char **argv) :
 
     fprintf(stderr, "\n     NETWM compliant.");
 
-#ifdef CONFIG_USE_COMPOSITE
-    int ev, er;
-    if (XCompositeQueryExtension(m_display, &ev, &er)) {
-        fprintf(stderr, "  Composite extension enabled.");
-        for (int i = 0; i < m_screensTotal; ++i) {
-            XCompositeRedirectSubwindows(m_display, RootWindow(m_display, i),
-                                         CompositeRedirectAutomatic);
-        }
-    }
-#endif
-
     fprintf(stderr, "\n     Command menu taken from ");
     if (wmxdir == NULL) {
 	fprintf(stderr, "%s/%s.\n", home, CONFIG_COMMAND_MENU);
@@ -258,6 +247,17 @@ WindowManager::WindowManager(int argc, char **argv) :
 
     m_shell = (char *)getenv("SHELL");
     if (!m_shell) m_shell = NewString("/bin/sh");
+
+#ifdef CONFIG_USE_COMPOSITE
+    int ev, er;
+    if (XCompositeQueryExtension(m_display, &ev, &er)) {
+        fprintf(stderr, "\n     Enabling composite extension.\n");
+        for (int i = 0; i < m_screensTotal; ++i) {
+            XCompositeRedirectSubwindows(m_display, RootWindow(m_display, i),
+                                         CompositeRedirectAutomatic);
+        }
+    }
+#endif
 
     // find out what the Alt keycode and thus modifier mask are
     int kpk = 0;
