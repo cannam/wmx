@@ -263,6 +263,9 @@ WindowManager::updateClock()
                       30, 9 * CONFIG_CHANNEL_NUMBER_SIZE + 30, 500, 160);
 
     XMapWindow(display(), m_clockWindow[0]);
+    XLowerWindow(display(), m_clockWindow[0]);
+
     XMapWindow(display(), m_clockWindow[1]);
+    XLowerWindow(display(), m_clockWindow[1]);
 }
 
