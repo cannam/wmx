@@ -79,8 +79,7 @@ private:
 
 // What to run to get a new window (from the "New" menu option)
 #define CONFIG_NEW_WINDOW_LABEL "New"
-#define CONFIG_NEW_WINDOW_COMMAND "xterm"
-//#define CONFIG_NEW_WINDOW_COMMAND "/home/ccannam/.wmx/terminal"
+#define CONFIG_NEW_WINDOW_COMMAND "x-terminal-emulator"
 #define CONFIG_NEW_WINDOW_COMMAND_OPTIONS 0
 // or, for example,
 //#define CONFIG_NEW_WINDOW_COMMAND_OPTIONS "-ls","-sb","-sl","1024",0
@@ -329,6 +328,7 @@ private:
 #define CONFIG_BUTTON_BACKGROUND  (DynamicConfig::config.frameBackground())
 #define CONFIG_BORDERS            "black"
 #define CONFIG_CHANNEL_NUMBER	  "green"
+#define CONFIG_CLOCK_NUMBER       "gray90"
 
 #define CONFIG_MENU_FOREGROUND    (DynamicConfig::config.tabForeground())
 #define CONFIG_MENU_BACKGROUND    (DynamicConfig::config.tabBackground())
@@ -369,10 +369,10 @@ private:
 // FLIP_DELAY is the length of time the big green number stays in the
 // top-right when flipping channels, before the windows reappear.
 // QUICK_FLIP_DELAY is the equivalent figure used when flipping with
-// the Alt-Fn keys.  Milliseconds.
+// the Alt-Fn keys or mouse wheel.  Milliseconds.
 
 #define CONFIG_FLIP_DELAY         1000
-#define CONFIG_QUICK_FLIP_DELAY   200
+#define CONFIG_QUICK_FLIP_DELAY   500
 
 // Set MAD_FEEDBACK for skeletal representations of windows when
 // flicking through the client menu and changing channels.  The DELAY
@@ -385,15 +385,15 @@ private:
 #define CONFIG_MAD_FEEDBACK       (DynamicConfig::config.useFeedback())
 #define CONFIG_FEEDBACK_DELAY     (DynamicConfig::config.feedbackDelay())
 
-// Groups are fun. you can bind a bunch of windows to a number key
-// and when you press CONFIG_ALT_KEY_MASK and the number key
-// all the windows of that group are raised.
-
 // Position of the geometry window:
 // X < 0 left, X > 0 right,  X = 0 center
 // Y < 0 top,  Y > 0 bottom, Y = 0 center
 #define CONFIG_GEOMETRY_X_POS     0
 #define CONFIG_GEOMETRY_Y_POS     0
+
+// Groups are fun. you can bind a bunch of windows to a number key
+// and when you press CONFIG_ALT_KEY_MASK and the number key
+// all the windows of that group are raised.
 
 // You bind a window to a group by pressing the 
 // CONFIG_ALT_KEY_MASK + CONFIG_GROUP_ADD + a number key
@@ -404,6 +404,12 @@ private:
 #define CONFIG_GROUPS             True
 #define CONFIG_GROUP_ADD          ControlMask  
 #define CONFIG_GROUP_REMOVE_ALL   ShiftMask
+
+// Set CLOCK if you want wmx to display a clock permanently in the
+// background at top-left of screen 0.  Use CONFIG_CLOCK_NUMBER
+// to control the colour of the clock digits.
+
+#define CONFIG_CLOCK              False
 
 // This lets you choose whether to keep the regular wmx
 // mouse button behaviour, or go w/ the GNOME-described one.

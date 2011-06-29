@@ -291,6 +291,8 @@ WindowManager::WindowManager(int argc, char **argv) :
     m_currentChannel = 1;
     m_channelChangeTime = 0;
     m_channelWindow = 0;
+    m_clockWindow = 0;
+    m_clockUpdateTime = CurrentTime;
 
     Atoms::wm_state      = XInternAtom(m_display, "WM_STATE",            False);
     Atoms::wm_changeState= XInternAtom(m_display, "WM_CHANGE_STATE",     False);
@@ -534,7 +536,8 @@ void WindowManager::initialiseScreen()
     m_defaultColormap = (Colormap *) malloc(m_screensTotal * sizeof(Colormap));
 //    m_minimumColormaps = (int *) malloc(m_screensTotal * sizeof(int));
     m_channelWindow = (Window *) malloc(m_screensTotal * sizeof(Window));
-    
+    m_clockWindow = (Window *) malloc(2 * sizeof(Window));
+
     for (i = 0 ; i < m_screensTotal ; i++) {
 
         m_screenNumber = i;
@@ -585,6 +588,10 @@ void WindowManager::initialiseScreen()
 
         XChangeWindowAttributes(m_display, m_root[i], CWCursor | CWEventMask, &attr);
         XSync(m_display, False);
+    }
+
+    for (i = 0; i < 2; ++i) {
+        m_clockWindow[i] = 0;
     }
 
     m_screenNumber = 0;

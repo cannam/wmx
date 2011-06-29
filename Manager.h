@@ -152,11 +152,17 @@ private:
     int m_currentChannel;	// from 1 to ...
     void flipChannel(Boolean statusOnly, Boolean flipDown,
 		     Boolean quickFlip, Client *push); // bleah!
+    Window createNumberWindow(int screen, const char *colour);
+    int shapeNumberWindow(Window w, int number, int minDigits); // returns width in pixels
     void instateChannel();
     void createNewChannel();
     void checkChannel(int);
     Time m_channelChangeTime;
     Window *m_channelWindow;
+
+    void updateClock();
+    Window *m_clockWindow;
+    Time m_clockUpdateTime;
 
     Boolean m_looping;
     int m_returnCode;

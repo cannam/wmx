@@ -18,36 +18,74 @@ static const char *numerals[10][7] = {
 };
 
 
+Window WindowManager::createNumberWindow(int screen, const char *colour)
+{
+    XColor nearest, ideal;
+            
+    if (!XAllocNamedColor(display(), DefaultColormap(display(), screen),
+                          colour, &nearest, &ideal)) {
+	    
+        if (!XAllocNamedColor(display(), DefaultColormap(display(), screen),
+                              "black", &nearest, &ideal)) {
+		
+            fatal("Couldn't allocate requested numeral colour or black");
+        }
+    }
+            
+    XSetWindowAttributes wa;
+    wa.background_pixel = nearest.pixel;
+    wa.override_redirect = True;
+	
+    Window w = XCreateWindow
+        (display(), mroot(screen),
+         0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
+         CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
+
+    return w;
+}
+
+
+int WindowManager::shapeNumberWindow(Window w, int n, int minDigits)
+{
+    int i, x, y;
+    XRectangle r;
+    Boolean first = True;
+    char number[7];
+    sprintf(number, "%0*d", minDigits, n);
+
+    for (i = 0; i < (int)strlen(number); ++i) {
+	for (y = 0; y < 7; ++y) {
+	    for (x = 0; x < 5; ++x) {
+		if (numerals[number[i]-'0'][y][x] != ' ') {
+
+                    r.x = 10 + (i * 6 + x) * CONFIG_CHANNEL_NUMBER_SIZE;
+                    r.y = y * CONFIG_CHANNEL_NUMBER_SIZE;
+                    r.width = r.height = CONFIG_CHANNEL_NUMBER_SIZE;
+
+		    XShapeCombineRectangles
+                          (display(), w, ShapeBounding,
+                           0, 0, &r, 1, first ? ShapeSet : ShapeUnion,
+                           YXBanded);
+
+		    first = False;
+		}
+	    }
+	}
+    }
+
+    return (5 * CONFIG_CHANNEL_NUMBER_SIZE + 10) * strlen(number);
+}
+    
+    
 void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 				Boolean quickFlip, Client *push)
 {
-    int x, y, i, sc;
+    int wid, i, sc;
     if (!CONFIG_CHANNEL_SURF) return;
 
-    for (sc = 0; sc < screensTotal(); sc++)
-    {
+    for (sc = 0; sc < screensTotal(); sc++) {
 	if (!m_channelWindow[sc]) {
-
-	XColor nearest, ideal;
-
-	    if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
-			      CONFIG_CHANNEL_NUMBER, &nearest, &ideal)) {
-	    
-		if (!XAllocNamedColor(display(), DefaultColormap(display(), sc),
-				  "black", &nearest, &ideal)) {
-		
-		fatal("Couldn't allocate green or black");
-	    }
-	}
-
-	XSetWindowAttributes wa;
-	wa.background_pixel = nearest.pixel;
-	wa.override_redirect = True;
-	
-	    m_channelWindow[sc] = XCreateWindow
-		(display(), mroot(sc),
-		 0, 0, 1, 1, 0, CopyFromParent, CopyFromParent,
-	     CopyFromParent, CWOverrideRedirect | CWBackPixel, &wa);
+            m_channelWindow[sc] = createNumberWindow(sc, CONFIG_CHANNEL_NUMBER);
 	}
     }
 
@@ -64,46 +102,14 @@ void WindowManager::flipChannel(Boolean statusOnly, Boolean flipDown,
 	}
     }
 
-    XRectangle r;
-    Boolean first = True;
-    char number[7];
-    sprintf(number, "%d", nextChannel);
+    for (sc = 0; sc < screensTotal(); sc++) {
 
-    for (i = 0; i < (int)strlen(number); ++i) {
-	for (y = 0; y < 7; ++y) {
-	    for (x = 0; x < 5; ++x) {
-		if (numerals[number[i]-'0'][y][x] != ' ') {
-/*		    
-		    r.x = i * 110 + x * 20; r.y = y * 20;
-		    r.width = r.height = 20;
- */      
-                    r.x = 10 + (i * 6 + x) * CONFIG_CHANNEL_NUMBER_SIZE;
-                    r.y = y * CONFIG_CHANNEL_NUMBER_SIZE;
-                    r.width = r.height = CONFIG_CHANNEL_NUMBER_SIZE;
-                    for(sc = 0; sc < screensTotal(); sc++)
-                    {
-		    XShapeCombineRectangles
-                          (display(), m_channelWindow[sc], ShapeBounding,
-                           0, 0, &r, 1, first ? ShapeSet : ShapeUnion,
-                           YXBanded);
-                    }
-		    first = False;
-		}
-	    }
-	}
-    }
-
-    for(sc = 0; sc < screensTotal(); sc++) {
-/*
-        XMoveResizeWindow(display(), m_channelWindow[sc],
-			  DisplayWidth(display(), sc) - 30 -
-		      110 * strlen(number), 30, 500, 160);
- */
+        wid = shapeNumberWindow(m_channelWindow[sc], nextChannel, 1);
 
         XMoveResizeWindow(display(), m_channelWindow[sc],
-                          DisplayWidth(display(), sc) - 30 -
-                          (5 * CONFIG_CHANNEL_NUMBER_SIZE + 10) *
-                          strlen(number), 30, 500, 160);
+                          DisplayWidth(display(), sc) - 30 - wid,
+                          30, 500, 160);
+
 	XMapRaised(display(), m_channelWindow[sc]);
     }
 
@@ -230,3 +236,33 @@ WindowManager::ensureChannelExists(int channel)
         netwmUpdateChannelList();
     }
 }
+
+void
+WindowManager::updateClock()
+{
+    time_t t;
+    struct tm *lt;
+
+    fprintf(stderr, "updateClock\n");
+
+    time(&t);
+    lt = localtime(&t);
+    
+    if (!m_clockWindow[0]) {
+        m_clockWindow[0] = createNumberWindow(0, CONFIG_CLOCK_NUMBER);
+        m_clockWindow[1] = createNumberWindow(0, CONFIG_CLOCK_NUMBER);
+    }
+
+    shapeNumberWindow(m_clockWindow[0], lt->tm_hour, 2);
+    shapeNumberWindow(m_clockWindow[1], lt->tm_min, 2);
+    
+    XMoveResizeWindow(display(), m_clockWindow[0],
+                      30, 30, 500, 160);
+    
+    XMoveResizeWindow(display(), m_clockWindow[1],
+                      30, 9 * CONFIG_CHANNEL_NUMBER_SIZE + 30, 500, 160);
+
+    XMapWindow(display(), m_clockWindow[0]);
+    XMapWindow(display(), m_clockWindow[1]);
+}
+
