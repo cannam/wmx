@@ -34,8 +34,8 @@
 
 int xv_errno;
 
-static char *my_strdup(char *);
-static char *my_strtok(char *, char *);
+static char *my_strdup(const char *);
+static char *my_strtok(char *, const char *);
 
 
 /* ---------------------------------------------------------------------- */  
@@ -43,7 +43,7 @@ static char *my_strtok(char *, char *);
 
 /* *** Routine to mimic `strdup()' (some machines don't have it) *** */
 
-static char *my_strdup(char *str)
+static char *my_strdup(const char *str)
 {
   char *s;
 
@@ -67,7 +67,7 @@ static char *my_strdup(char *str)
 /* *** Routine to replace `strtok' : this one returns a zero
        length string if it encounters two consecutive delimiters *** */
 
-static char *my_strtok(char *str1, char *str2)
+static char *my_strtok(char *str1, const char *str2)
 {
   char *ret;
   int i, j, stop;
