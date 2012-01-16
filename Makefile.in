@@ -7,14 +7,14 @@ exec_prefix=@exec_prefix@
 # If your X libraries are somewhere other than /usr/X11/lib, give their
 # location here.
 #LIBS	= -L/usr/X11/lib -lXpm -lXext -lX11 -lXmu -lSM -lICE -lm
-LIBS=@LIBS@ @XFT_LIBS@ @FT_LIBS@
+LIBS=@LIBS@ @XFT_LIBS@ @FT_LIBS@ @FC_LIBS@
 LDFLAGS=@LDFLAGS@
 
 # If your X includes are not in /usr/include/X11, add their location
 # as a -I option here (excluding the X11 bit).  If you're using I18N
 # and Xlocale, please add -DX_LOCALE.
 #CFLAGS = -g -O2 -I/usr/include -I/usr/openwin/include
-CXXFLAGS=@CXXFLAGS@ @XFT_CFLAGS@ @FT_CFLAGS@ -Wall
+CXXFLAGS=@CXXFLAGS@ @XFT_CFLAGS@ @FT_CFLAGS@ @FC_CFLAGS@ -Wall
 
 OBJECTS	= Border.o Buttons.o Channel.o Client.o Config.o Events.o Main.o Manager.o Menu.o Rotated.o Session.o
 

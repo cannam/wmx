@@ -58,10 +58,16 @@ PKG_CHECK_MODULES([XFT],[xft],[],[
     echo "Warning: Xft library not found"
     echo "Please either install Xft, or ensure you have CONFIG_USE_XFT set to False in Config.h"
     ])
+PKG_CHECK_MODULES([FC],[fontconfig],[],[
+    echo "Warning: Fontconfig library not found"
+    echo "Please either install Fontconfig, or ensure you have CONFIG_USE_XFT set to False in Config.h"
+    ])
 AC_SUBST(FT_CFLAGS)
 AC_SUBST(FT_LIBS)
 AC_SUBST(XFT_CFLAGS)
 AC_SUBST(XFT_LIBS)
+AC_SUBST(FC_CFLAGS)
+AC_SUBST(FC_LIBS)
 
 dnl We want to put wmx where twm lies.
 AC_PREFIX_PROGRAM(twm)
