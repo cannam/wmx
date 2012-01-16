@@ -611,6 +611,8 @@ void Client::activate()
 	// & some other-screen business
     }
 */
+    Client *previouslyActive = windowManager()->activeClient();
+
     windowManager()->setActiveClient(this); // deactivates any other
 
     XUngrabButton(display(), AnyButton, AnyModifier, parent());
@@ -627,8 +629,12 @@ void Client::activate()
 
     windowManager()->skipInRevert(this, m_revert);
 
-    m_revert = activeClient();
-    while (m_revert && !m_revert->isNormal()) m_revert = m_revert->revertTo();
+    if (previouslyActive && previouslyActive != this) {
+        m_revert = previouslyActive;
+        while (m_revert && !m_revert->isNormal()) {
+            m_revert = m_revert->revertTo();
+        }
+    }
 
 //!!!    windowManager()->setActiveClient(this);
     decorate(True);
