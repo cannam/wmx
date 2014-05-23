@@ -24,10 +24,10 @@ unsigned long Menu::m_border;
 Window       *Menu::m_window;
 
 #if MENU_ENTRY_MAXLENGTH > 0
-#define STRLEN_MITEMS(i) (strlen(m_items[(i)]) > MENU_ENTRY_MAXLENGTH) ? \
-				MENU_ENTRY_MAXLENGTH : strlen(m_items[(i)])
+#define STRLEN_MITEMS(i) ((strlen(m_items[(i)]) > MENU_ENTRY_MAXLENGTH) ? \
+                          MENU_ENTRY_MAXLENGTH : strlen(m_items[(i)]))
 #else
-#define STRLEN_MITEMS(i) strlen(m_items[(i)])
+#define STRLEN_MITEMS(i) (strlen(m_items[(i)]))
 #endif
 
 
