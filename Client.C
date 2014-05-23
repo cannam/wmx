@@ -665,7 +665,7 @@ void Client::setSticky(Boolean sticky)
 
 void Client::setMovable(Boolean movable) 
 { 
-    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_FIXED_POSITION, !movable);      
+    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_FIXED_POSITION, !movable);
     m_movable = movable;
 }
 

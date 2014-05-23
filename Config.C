@@ -125,55 +125,65 @@ void DynamicConfig::update(char *string)
     do {
 	fprintf(stderr, ">%s< ",s);
 
-	if (OPTION("menu:"))
+	if (OPTION("menu:")) {
 	    if (OPTION("full")) m_impl->menu = 1;
 	    else if (OPTION("part")) m_impl->menu = 0;
+	}
 
-	if (OPTION("new:"))
+	if (OPTION("new:")) {
 	    if (OPTION("on")) m_impl->disable = 0;
 	    else if (OPTION("off")) m_impl->disable = 1;
+	}
 	
-	if (OPTION("keyboard:"))
+	if (OPTION("keyboard:")) {
 	    if (OPTION("on")) m_impl->kbd = 1;
 	    else if (OPTION("off")) m_impl->kbd = 0;
+	}
 
-	if (OPTION("feedback:"))
+	if (OPTION("feedback:")) {
 	    if (OPTION("on")) {
 		m_impl->feedback = 1;
 		if (OPTION(",")) m_impl->feeddelay = strtol(s, &s, 10);
 	    } else if (OPTION("off")) m_impl->feedback = 0;
+	}
 
-	if (OPTION("passclick:"))
+	if (OPTION("passclick:")) {
 	    if (OPTION("on")) m_impl->passfocusclick = 1;
 	    else if (OPTION("off")) m_impl->passfocusclick = 0;
+	}
 
-	if (OPTION("focus:"))
+	if (OPTION("focus:")) {
 	    if (OPTION("click")) m_impl->focus = 3;
 	    else if (OPTION("raise")) m_impl->focus = 2;
 	    else if (OPTION("delay-raise")) {
 		m_impl->focus = 4;
 		if (OPTION(",")) m_impl->raisedelay = strtol(s, &s, 10);
 	    } else if (OPTION("follow")) m_impl->focus = 0;
+	}
 
-	if (OPTION("right:"))
+	if (OPTION("right:")) {
 	    if (OPTION("off")) m_impl->rightBt = 0;
 	    else if (OPTION("circulate")) m_impl->rightBt = 1;
 	    else if (OPTION("lower")) m_impl->rightBt = 2;
 	    else if (OPTION("toggleheight")) m_impl->rightBt = 4;
+	}
 	
-        if (OPTION("tabmargin:"))
+        if (OPTION("tabmargin:")) {
             m_impl->tabmargin = strtol(s, &s, 10);
+	}
   
 	if (OPTION("tabfg:")) {
 	    strncpy(m_impl->tabfg, s, COLOR_LEN);
 	    m_impl->tabfg[COLOR_LEN-1] = '\0';	// prevent unterminated string
 	    s += strlen(m_impl->tabfg);		// avoid error message below
 	}
+
 	if (OPTION("tabbg:")) {
 	    strncpy(m_impl->tabbg, s, COLOR_LEN);
 	    m_impl->tabbg[COLOR_LEN-1] = '\0';
 	    s += strlen(m_impl->tabbg);
 	}
+
 	if (OPTION("framebg:")) {
 	    strncpy(m_impl->framebg, s, COLOR_LEN);
 	    m_impl->framebg[COLOR_LEN-1] = '\0';

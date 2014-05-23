@@ -84,7 +84,7 @@ WindowManager::WindowManager(int argc, char **argv) :
     char *home = getenv("HOME");
     char *wmxdir = getenv("WMXDIR");
     
-    fprintf(stderr, "\nwmx: Copyright (c) 1996-2008 Chris Cannam."
+    fprintf(stderr, "\nwmx: Copyright (c) 1996-2014 Chris Cannam."
 	    "  Not a release\n"
 	    "     Parts derived from 9wm Copyright (c) 1994-96 David Hogan\n"
 	    "     Command menu code Copyright (c) 1997 Jeremy Fitzhardinge\n"
@@ -1267,7 +1267,7 @@ void WindowManager::netwmUpdateChannelList()
     // set the names of the channels
     names = new char*[chan];
     
-    for (i = 0; i < chan; i++) {
+    for (i = 0; i < (int)chan; i++) {
         snprintf(s, sizeof(s), "Channel %i", i + 1);
         names[i] = new char [strlen(s) + 1];
         strcpy(names[i], s);
@@ -1281,7 +1281,7 @@ void WindowManager::netwmUpdateChannelList()
 	XFree(textProp.value);
     }
     
-    for (i = 0; i < chan; i++) delete[] names[i];
+    for (i = 0; i < (int)chan; i++) delete[] names[i];
 
     delete[] names;
 
