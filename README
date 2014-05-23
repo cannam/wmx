@@ -265,6 +265,13 @@ Alt/{0-9} raises all the windows in the numbered group.  Like the
 "sticky" mode, there is no visual feedback for window groups.
 
 
+Clock
+=====
+
+Set CONFIG_CLOCK to True in Config.h to get a digital clock shown
+permanently in the top-left corner of the display background.
+
+
 Decoration-free windows
 =======================
 
@@ -275,7 +282,7 @@ can use to circumvent this limitation if you want.  See
   http://sb.123.org/xnodecor.html
 
 xnodecor gives you absolutely stationary, sticky, fixed borderless
-windows for applications such as clocks that you feel you will never
+windows for applications such as meters that you feel you will never
 want to move or remove.
 
 
@@ -325,8 +332,7 @@ NETWM support for use with desktop environments was based on a
 substantial patch from James Montgomery sent to the wmx mailing list
 in November 2000.  A mere seven years later, I got around to
 integrating and updating the patch, and only eight years and two
-months after the original patch, here it is in a release.  Sorry about
-that.
+months after the original patch, it was released.  Sorry about that.
 
 Earlier Gnome support was mostly due to Henri Naccache, as is the
 support for shaped clients.
@@ -352,4 +358,4 @@ the web at http://ml.42.org/wmx/.
 
 
 Chris Cannam, cannam@all-day-breakfast.com
-January 2009
+May 2014
