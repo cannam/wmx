@@ -135,7 +135,6 @@ public:
 
 enum ClientType 
 {
-
     /* netwm_winType_normal,
        or no hint and either override-redirect or no transient: */
     NormalClient,
@@ -149,7 +148,8 @@ enum ClientType
     ToolbarClient,  // netwm_winType_toolbar
     MenuClient,     // netwm_winType_menu
     UtilityClient,  // netwm_winType_utility
-    SplashClient    // netwm_winType_splash
+    SplashClient,   // netwm_winType_splash
+    NotifyClient    // netwm_winType_notify
 };
 
 declareList(AtomList, Atom);

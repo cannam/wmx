@@ -1096,6 +1096,10 @@ void Client::getClientType()
                 m_type = DialogClient;
                 m_layer = DIALOG_LAYER;
                 break;
+            } else if (typeAtom == Atoms::netwm_winType_notify) {
+                m_type = NotifyClient;
+                m_layer = DOCK_LAYER;
+                break;
             } else if (typeAtom == Atoms::netwm_winType_normal) {
                 m_type = NormalClient;
                 break;
