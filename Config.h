@@ -305,7 +305,7 @@ private:
 #endif
 
 // CONFIG_TAB_MARGIN defines the size of the gap on the left and right of the
-// taxt in the tab.
+// text in the tab.
 
 #define CONFIG_TAB_MARGIN   (DynamicConfig::config.tabMargin())
 
