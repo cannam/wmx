@@ -660,25 +660,25 @@ void Client::deactivate()	// called from wm?
 void Client::setSticky(Boolean sticky) 
 {    
     m_sticky = sticky;
-    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_STICKY, sticky);
+//    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_STICKY, sticky);
 }
 
 void Client::setMovable(Boolean movable) 
 { 
-    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_FIXED_POSITION, !movable);
+//    setNetwmProperty(Atoms::netwm_winState, WIN_STATE_FIXED_POSITION, !movable);
     m_movable = movable;
 }
 
 void Client::setSkipFocus(Boolean skipFocus) 
 { 
-    setNetwmProperty(Atoms::netwm_winHints, WIN_HINTS_SKIP_FOCUS, skipFocus);      
+//    setNetwmProperty(Atoms::netwm_winHints, WIN_HINTS_SKIP_FOCUS, skipFocus);      
     m_skipFocus = skipFocus;
     fprintf(stderr, "Setting \"%s\" to %sskip focus\n", name(), skipFocus?"":"not ");
 }
 
 void Client::setFocusOnClick(Boolean focusOnClick) 
 { 
-    setNetwmProperty(Atoms::netwm_winHints, WIN_HINTS_FOCUS_ON_CLICK, focusOnClick);      
+//    setNetwmProperty(Atoms::netwm_winHints, WIN_HINTS_FOCUS_ON_CLICK, focusOnClick);      
     m_focusOnClick = focusOnClick;
 }
 
@@ -1614,7 +1614,7 @@ void Client::updateFromNetwmProperty(Atom property, unsigned char state) {
             if(!m_isFullHeight)
                 maximise(Vertical);
         } else {
-            if(m_isFullHeight);
+            if(m_isFullHeight)
                 unmaximise(Vertical);
         }
         

@@ -132,8 +132,8 @@ void WindowManager::setSessionProperties()
     programVal.length = strlen(m_sessionProgram);
     programVal.value = m_sessionProgram;
 
-    userIDVal.length = user ? 7 : strlen(user);
-    userIDVal.value = user ? (SmPointer)"unknown" : (SmPointer)user;
+    userIDVal.length = user ? strlen(user) : 7;
+    userIDVal.value = user ? (SmPointer)user : (SmPointer)"unknown";
 
     restartVal[0].length = strlen(m_sessionProgram);
     restartVal[0].value = m_sessionProgram;

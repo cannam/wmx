@@ -33,12 +33,8 @@ Pixmap Border::m_backgroundPixmap = None;
 class BorderRectangle // must resemble XRectangle in storage
 {
 public:
-    BorderRectangle() { }
     BorderRectangle(int xx, int yy, int ww, int hh) {
 	x = xx; y = yy; width = ww; height = hh;
-    }
-    BorderRectangle(const BorderRectangle &b) {
-	x = b.x; y = b.y; width = b.width; height = b.height;
     }
 
     XRectangle *xrectangle() { return (XRectangle *)this; }
